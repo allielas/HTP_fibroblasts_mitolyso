@@ -1,5 +1,5 @@
 # HTP fibroblasts mitolyso
-Stats and image analysis codes for a high-throughput microscopy project on mitochondrial and lysosomal morpholgy in serially-passaged fibroblasts.
+Stats and image analysis codes for my Masters project using high-throughput microscopy to quantify changes in mitochondrial and lysosomal morpholgy in serially-passaged fibroblasts across their lifespan.
 
 ## Scripts / notebooks
 - 96QWell_PlateMap - make a metadata sheet from a csv representation of 96-well plate containing the replicate, passage number, and fluorescence staining used
