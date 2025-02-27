@@ -168,17 +168,21 @@ def getpairs(df, group, order = []):
     pairs = list(combinations(ordered_values, 2))
     return pairs
 
-def average_groups_by_plate(df, x_value, y_value, replicates):
+def average_groups_by_plate_(df, x_value, y_value, replicates):
     '''
     Group the DataFrame by the specified columns and calculate the mean of the y_value column.
     Returns the averaged dataframe for plotting
     '''
-    group_averages = df.groupby([x_value, replicates], as_index=False).agg({y_value: "mean"})
+    df = df.dropna(subset=[x_value, y_value, replicates])
+    #df.reset_index(drop=True, inplace=True) - don't need this?
+    
+    group_averages = df.groupby([x_value, replicates], as_index=False, observed=True).agg({y_value: "mean"})
     
     # Reset the index to get a clean DataFrame
-    average_df = group_averages.reset_index(drop=True)
+    average_df = group_averages.reset_index()
    
     return average_df
+
 
 def average_groups_pivot(df, x_value, y_value, replicates):
     group_ave_pivot = df.pivot_table(columns=x_value, values=y_value, index=replicates)
@@ -188,7 +192,8 @@ def make_single_feature_df(data, group, feature, replicates):
   pd.options.mode.copy_on_write = True
   
   subset=[group, feature, replicates]
-  df = data.dropna(subset = subset)
+  df = data.copy()
+  #df = data.dropna(subset = subset)
   df_subset = df[subset]
   df_subset[group] = df[group].astype('category')
   df_subset[replicates] = df[replicates].astype('category')
