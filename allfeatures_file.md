@@ -438,7 +438,6 @@
 - MergedMitoPerCell_Parent_Mitochondria
 - Total_Area_Proportion_MergedMitoPerCell_Per_Cell
 - Mean_Mitochondria_Area_PerCell_Ratio
-- Total_Area_Proportion_Mitochondria_Per_Cell
 
 # Lysosome Features
 
@@ -872,7 +871,6 @@
 - MergedLysoPerCell_Parent_Lysosomes
 - Total_Area_Proportion_MergedLysoPerCell_Per_Cell
 - Mean_Lysosomes_Area_PerCell_Ratio
-- Total_Area_Proportion_Lysosomes_Per_Cell
 
 # Nucleus Features
 
