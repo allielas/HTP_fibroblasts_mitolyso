@@ -168,38 +168,6 @@ def getpairs(df, group, order = []):
     pairs = list(combinations(ordered_values, 2))
     return pairs
 
-def average_groups_by_plate_(df, x_value, y_value, replicates):
-    '''
-    Group the DataFrame by the specified columns and calculate the mean of the y_value column.
-    Returns the averaged dataframe for plotting
-    '''
-    df = df.dropna(subset=[x_value, y_value, replicates])
-    #df.reset_index(drop=True, inplace=True) - don't need this?
-    
-    group_averages = df.groupby([x_value, replicates], as_index=False, observed=True).agg({y_value: "mean"})
-    
-    # Reset the index to get a clean DataFrame
-    average_df = group_averages.reset_index()
-   
-    return average_df
-
-
-def average_groups_pivot(df, x_value, y_value, replicates):
-    group_ave_pivot = df.pivot_table(columns=x_value, values=y_value, index=replicates)
-    return group_ave_pivot
-    
-def make_single_feature_df(data, group, feature, replicates):
-  pd.options.mode.copy_on_write = True
-  
-  subset=[group, feature, replicates]
-  df = data.copy()
-  #df = data.dropna(subset = subset)
-  df_subset = df[subset]
-  df_subset[group] = df[group].astype('category')
-  df_subset[replicates] = df[replicates].astype('category')
-  
-  return df_subset 
-
 #Function to find the ratio between two columns in the two dataframes and return the ratio as a column
 def ratioCalc(df1, df2, col1, col2):
     #Deprecate this function
@@ -315,25 +283,193 @@ def proportion_area_occupied_per_cell(df, compartment):
     return df[colname]
 
 
-def tukey_test(data, groups, feature):
+def tukey_test(data, test_groups, feature):
+  '''
+  Perform a oneway anova test and a pairwise tukey post hoc test using averaged values per replicate
+  Returns a dataframe
+  '''
+  from stats import f_oneway
+  from statsmodels.stats.multicomp import pairwise_tukeyhsd
+  
+  df = data.copy()
+  
+  #groups = getpairs(temp_copy, 'Passage Group')
+  #calculate tukey HSD
+  
+  tukey = pairwise_tukeyhsd(endog=df[feature], groups=df[test_groups], alpha=0.05)
+
+  # Extract relevant results
+  results = np.array(tukey.summary().data)[:, [0, 1, 3, 6]]
+  df_results = pd.DataFrame(results, columns=['Group 1', 'Group 2', 'p-value', 'Reject']).drop([0])
+  df_results.reset_index(drop=True, inplace=True)
+  df_results[['Group 1', 'Group 2']] = df_results[['Group 1', 'Group 2']]
+  df_results['p-value'] = df_results['p-value'].astype(float)
+  
+  return df_results
+
+
+
+def make_superviolinplot_with_kruskal(data, group, feature_meas, replicates, ytitle = None, pallete='bright', ylim = None):
+    
+    order = ['P6-8', 'P9-10', 'P11-13', 'P14-16', 'P17-18', 'P20-21']#, 'P22-24']
+    
+    if ytitle is None:
+        ytitle = feature_meas.replace('_', ' ')
+    if ylim is None:
+        ylim = (-1,12)
+        
+    
+    feature_df = make_single_feature_df(data, group=group, feature=feature_meas, replicates=replicates)
+    pairs = getpairs(feature_df, group, order)
+
+    #Remove the n=1 replicate
+    feature_df = feature_df[feature_df[group] != "P22-24"]
+
+    group_avg_df = average_groups_by_plate(feature_df, x_value=group, y_value=feature_meas, replicates=replicates)
+    group_avg_df_pivot = average_groups_pivot(group_avg_df, x_value=group, y_value=feature_meas, replicates=replicates)
+
+    sns.set_theme(style="ticks")
+    sns.set_context("talk", font_scale=0.6)
+
+    plt.figure(dpi=300)
+
+    sns.violinplot(data=feature_df, x=group,
+                y=feature_meas,
+                order=order,
+                fill = False,
+                color= 'gainsboro',
+                cut=2,
+                native_scale=True,
+                linecolor='k',
+                inner= None,
+                #inner_kws=dict(box_width = 5)
+                )
+
+    ax = sns.swarmplot(data=group_avg_df, x=group,
+                y=feature_meas,
+                hue = replicates,
+                order=order,
+                palette=pallete,
+                size=10, 
+                edgecolor="k", 
+                linewidth=1,
+                dodge=0.5)
+
+    sns.pointplot(data=group_avg_df, x=group,
+                y=feature_meas,
+                color='dimgray',
+                order=order,
+                dodge=False,
+                markers='_',
+                linestyle=None,
+                errorbar=None,
+                ax=ax)
+
+    ax.legend_.remove()
+
+    sns.despine()
+    plt.gcf()#.set_size_inches(10, 6)
+    plt.xlabel(group)
+    plt.ylabel(ytitle)
+    plt.ylim(ylim)
+
+    from statannotations.Annotator import Annotator
+    annotator = Annotator(ax, pairs, data=group_avg_df_pivot, order=order) 
+    annotator.configure(test='Kruskal', 
+                        text_format='star', 
+                        loc='inside', 
+                        hide_non_significant = True,
+                        color = 'black',
+                        verbose = 2)
+    annotator.apply_and_annotate()
+
+    plt.savefig(feature_meas + '_superviolinplot.png', dpi=300)
+    plt.show()
+
+def proportion_area_occupied_per_cell_fromtotal(df, compartment):
+    #proportion of area occupied = children * mean organelle area / cell area
+    colname = 'Total_Area_Proportion_' + compartment + '_Per_Cell'
+    
+    #children = 'Children_' + compartment + '_Count'
+    #mean_organelle_area = 'Mean_'+ compartment + '_AreaShape_Area'
+    organelle_area = compartment + '_AreaShape_Area'
+    cell_area = 'AreaShape_Area'
+    #df[colname] = df.apply(lambda x: (x[children] * x[mean_organelle_area]) / x[cell_area], axis=1)
+    df[colname] = df.apply(lambda x: (x[organelle_area]) / x[cell_area], axis=1)
+    return df[colname]
+
+def mean_intesity_per_compartment_per_cell_fromtotal(df,compartment, name, tag):
+    # Calculate the mean intensity of each compartment per cell
+    #mean_intesity_per_compartment = integrated / (children*mean_area)
+    colname = 'MeanIntensity_Per_' + compartment + '_Per_Cell'
+    integrated = 'Intensity_IntegratedIntensity_' + tag
+    #children = 'Children_' + compartment + '_Count'
+    #mean_area = 'Mean_'+ compartment + '_AreaShape_Area'
+    total_organelle_area = name + '_AreaShape_Area'
+    df[colname] = df.apply(lambda x: x[integrated] / x[total_organelle_area], axis=1)
+    return df[colname]
+
+def average_groups_by_plate(df, x_value, y_value, replicates):
     '''
-    Perform a oneway anova test and a pairwise tukey post hoc test using averaged values per replicate
-    Returns a dataframe with anova results (groups and p-value column)
+    Group the DataFrame by the specified columns and calculate the mean of the y_value column.
+    Returns the averaged dataframe for plotting
     '''
-    from scipy.stats import f_oneway
-    from statsmodels.stats.multicomp import pairwise_tukeyhsd
-    df = data.copy()
-    df[feature] = pd.to_numeric(df[feature], errors='coerce')
-    df[groups] = df[groups].astype('category')
+    df = df.dropna(subset=[x_value, y_value, replicates])
+    df = df[df[y_value] != 0]
+
+    df.reset_index(drop=True, inplace=True)
     
-    temp_copy = df.dropna(subset=[feature, groups]).copy()  # Create a copy of the DataFrame for processing
-    #calculate tukey HSD
-    tukey = pairwise_tukeyhsd(endog=temp_copy[feature], groups=temp_copy[groups], alpha=0.05)
+    group_averages = df.groupby([x_value, replicates], as_index=False, observed=True).agg({y_value: "mean"})
     
-    results = np.array(tukey.summary().data)[:, [0, 1, 3, 6]]
-    df_results = pd.DataFrame(results, columns=['Group 1', 'Group 2', 'p-value', 'Reject']).drop([0])
-    df_results.reset_index(drop=True, inplace=True)
-    df_results[['Group 1', 'Group 2']] = df_results[['Group 1', 'Group 2']]
-    df_results['p-value'] = df_results['p-value'].astype(float)
+    # Reset the index to get a clean DataFrame
+    average_df = group_averages.reset_index()
+   
+    return average_df
+
+def make_single_feature_df(data, group, feature, replicates):
+  pd.options.mode.copy_on_write = True
+  
+  subset=[group, feature, replicates]
+  
+  df = data.dropna(subset = subset).reset_index(drop=True)
+  df = df[df[feature] != 0]
+  
+  df_subset = df[subset]
+  df_subset[group] = df[group].astype('category')
+  df_subset.reset_index(drop = True, inplace = True)
+  
+  return df_subset 
+
+def oneway_anova(data, group_name, feature_meas):
+  from scipy.stats import f_oneway
+
+  data = data.dropna(subset=[group_name, feature_meas])
+  data = data[data[feature_meas] != 0]
+  
+  groups = data[group_name].unique()
+  data = [data[data[group_name] == group][feature_meas].dropna() for group in groups]
+  anova_result = f_oneway(*data)
+  
+  print(f"ANOVA F-statistic: {anova_result.statistic}, ANOVA p-value: {anova_result.pvalue}")
+  return anova_result
+
+def average_groups_by_plate_v0(df, x_value, y_value, replicates):
+    '''
+    Group the DataFrame by the specified columns and calculate the mean of the y_value column.
+    Returns the averaged dataframe for plotting
+    '''
+    df = df.dropna(subset=[x_value, y_value, replicates])
+    #df.reset_index(drop=True, inplace=True) - don't need this?
     
-    return df_results
+    group_averages = df.groupby([x_value, replicates], as_index=False, observed=True).agg({y_value: "mean"})
+    
+    # Reset the index to get a clean DataFrame
+    average_df = group_averages.reset_index()
+   
+    return average_df
+
+
+def average_groups_pivot(df, x_value, y_value, replicates):
+    group_ave_pivot = df.pivot_table(columns=x_value, values=y_value, index=replicates)
+    return group_ave_pivot
+    
