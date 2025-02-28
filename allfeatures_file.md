@@ -127,6 +127,8 @@
 - Nuclei_Location_MaxIntensity_X_MitoTracker
 - Nuclei_Location_MaxIntensity_Y_MitoTracker
 - Nuclei_Location_MaxIntensity_Z_MitoTracker
+- MeanIntensity_Per_Mitochondria_Per_Cell
+- MeanIntensity_Mitochondria_PerCell_Ratio
 
 ## Texture
 - Texture_AngularSecondMoment_RescaleIntensityMito_3_00_256
@@ -434,6 +436,9 @@
 - MergedMitoPerCell_Location_Center_Y
 - MergedMitoPerCell_Number_Object_Number
 - MergedMitoPerCell_Parent_Mitochondria
+- Total_Area_Proportion_MergedMitoPerCell_Per_Cell
+- Mean_Mitochondria_Area_PerCell_Ratio
+- Total_Area_Proportion_Mitochondria_Per_Cell
 
 # Lysosome Features
 
@@ -564,6 +569,8 @@
 - Nuclei_Location_MaxIntensity_X_LAMP1
 - Nuclei_Location_MaxIntensity_Y_LAMP1
 - Nuclei_Location_MaxIntensity_Z_LAMP1
+- MeanIntensity_Per_Lysosomes_Per_Cell
+- MeanIntensity_Lysosomes_PerCell_Ratio
 
 ## Texture
 - Texture_AngularSecondMoment_RescaleIntensityLAMP1_3_00_256
@@ -727,6 +734,61 @@
 - Mean_Lysosomes_AreaShape_Zernike_9_5
 - Mean_Lysosomes_AreaShape_Zernike_9_7
 - Mean_Lysosomes_AreaShape_Zernike_9_9
+- MergedLysoPerCell_AreaShape_Area
+- MergedLysoPerCell_AreaShape_BoundingBoxArea
+- MergedLysoPerCell_AreaShape_BoundingBoxMaximum_X
+- MergedLysoPerCell_AreaShape_BoundingBoxMaximum_Y
+- MergedLysoPerCell_AreaShape_BoundingBoxMinimum_X
+- MergedLysoPerCell_AreaShape_BoundingBoxMinimum_Y
+- MergedLysoPerCell_AreaShape_Center_X
+- MergedLysoPerCell_AreaShape_Center_Y
+- MergedLysoPerCell_AreaShape_Compactness
+- MergedLysoPerCell_AreaShape_ConvexArea
+- MergedLysoPerCell_AreaShape_Eccentricity
+- MergedLysoPerCell_AreaShape_EquivalentDiameter
+- MergedLysoPerCell_AreaShape_EulerNumber
+- MergedLysoPerCell_AreaShape_Extent
+- MergedLysoPerCell_AreaShape_FormFactor
+- MergedLysoPerCell_AreaShape_MajorAxisLength
+- MergedLysoPerCell_AreaShape_MaxFeretDiameter
+- MergedLysoPerCell_AreaShape_MaximumRadius
+- MergedLysoPerCell_AreaShape_MeanRadius
+- MergedLysoPerCell_AreaShape_MedianRadius
+- MergedLysoPerCell_AreaShape_MinFeretDiameter
+- MergedLysoPerCell_AreaShape_MinorAxisLength
+- MergedLysoPerCell_AreaShape_Orientation
+- MergedLysoPerCell_AreaShape_Perimeter
+- MergedLysoPerCell_AreaShape_Solidity
+- MergedLysoPerCell_AreaShape_Zernike_0_0
+- MergedLysoPerCell_AreaShape_Zernike_1_1
+- MergedLysoPerCell_AreaShape_Zernike_2_0
+- MergedLysoPerCell_AreaShape_Zernike_2_2
+- MergedLysoPerCell_AreaShape_Zernike_3_1
+- MergedLysoPerCell_AreaShape_Zernike_3_3
+- MergedLysoPerCell_AreaShape_Zernike_4_0
+- MergedLysoPerCell_AreaShape_Zernike_4_2
+- MergedLysoPerCell_AreaShape_Zernike_4_4
+- MergedLysoPerCell_AreaShape_Zernike_5_1
+- MergedLysoPerCell_AreaShape_Zernike_5_3
+- MergedLysoPerCell_AreaShape_Zernike_5_5
+- MergedLysoPerCell_AreaShape_Zernike_6_0
+- MergedLysoPerCell_AreaShape_Zernike_6_2
+- MergedLysoPerCell_AreaShape_Zernike_6_4
+- MergedLysoPerCell_AreaShape_Zernike_6_6
+- MergedLysoPerCell_AreaShape_Zernike_7_1
+- MergedLysoPerCell_AreaShape_Zernike_7_3
+- MergedLysoPerCell_AreaShape_Zernike_7_5
+- MergedLysoPerCell_AreaShape_Zernike_7_7
+- MergedLysoPerCell_AreaShape_Zernike_8_0
+- MergedLysoPerCell_AreaShape_Zernike_8_2
+- MergedLysoPerCell_AreaShape_Zernike_8_4
+- MergedLysoPerCell_AreaShape_Zernike_8_6
+- MergedLysoPerCell_AreaShape_Zernike_8_8
+- MergedLysoPerCell_AreaShape_Zernike_9_1
+- MergedLysoPerCell_AreaShape_Zernike_9_3
+- MergedLysoPerCell_AreaShape_Zernike_9_5
+- MergedLysoPerCell_AreaShape_Zernike_9_7
+- MergedLysoPerCell_AreaShape_Zernike_9_9
 
 ## Granularity
 - Granularity_10_LAMP1
@@ -804,7 +866,13 @@
 - Mean_Lysosomes_Location_Center_Y
 - Mean_Lysosomes_Location_Center_Z
 - Mean_Lysosomes_Number_Object_Number
+- MergedLysoPerCell_Location_Center_X
+- MergedLysoPerCell_Location_Center_Y
+- MergedLysoPerCell_Number_Object_Number
 - MergedLysoPerCell_Parent_Lysosomes
+- Total_Area_Proportion_MergedLysoPerCell_Per_Cell
+- Mean_Lysosomes_Area_PerCell_Ratio
+- Total_Area_Proportion_Lysosomes_Per_Cell
 
 # Nucleus Features
 

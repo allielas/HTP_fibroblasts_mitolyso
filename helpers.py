@@ -302,15 +302,16 @@ def mean_intesity_per_compartment_per_cell(df, compartment, tag):
     df[colname] = df.apply(lambda x: x[integrated] / (x[children] * x[mean_area]), axis=1)
     return df[colname]
 
-def proportion_area_occupied_per_cell(df, compartment, tag):
+def proportion_area_occupied_per_cell(df, compartment):
     #proportion of area occupied = children * mean organelle area / cell area
     colname = 'Total_Area_Proportion_' + compartment + '_Per_Cell'
     
-    children = 'Children_' + compartment + '_Count'
-    mean_organelle_area = 'Mean_'+ compartment + '_AreaShape_Area'
+    #children = 'Children_' + compartment + '_Count'
+    #mean_organelle_area = 'Mean_'+ compartment + '_AreaShape_Area'
+    organelle_area = compartment + '_AreaShape_Area'
     cell_area = 'AreaShape_Area'
-    
-    df[colname] = df.apply(lambda x: (x[children] * x[mean_organelle_area]) / x[cell_area], axis=1)
+    #df[colname] = df.apply(lambda x: (x[children] * x[mean_organelle_area]) / x[cell_area], axis=1)
+    df[colname] = df.apply(lambda x: (x[organelle_area]) / x[cell_area], axis=1)
     return df[colname]
 
 
