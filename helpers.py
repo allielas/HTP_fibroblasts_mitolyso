@@ -283,32 +283,6 @@ def proportion_area_occupied_per_cell(df, compartment):
     return df[colname]
 
 
-def tukey_test(data, test_groups, feature):
-  '''
-  Perform a oneway anova test and a pairwise tukey post hoc test using averaged values per replicate
-  Returns a dataframe
-  '''
-  from stats import f_oneway
-  from statsmodels.stats.multicomp import pairwise_tukeyhsd
-  
-  df = data.copy()
-  
-  #groups = getpairs(temp_copy, 'Passage Group')
-  #calculate tukey HSD
-  
-  tukey = pairwise_tukeyhsd(endog=df[feature], groups=df[test_groups], alpha=0.05)
-
-  # Extract relevant results
-  results = np.array(tukey.summary().data)[:, [0, 1, 3, 6]]
-  df_results = pd.DataFrame(results, columns=['Group 1', 'Group 2', 'p-value', 'Reject']).drop([0])
-  df_results.reset_index(drop=True, inplace=True)
-  df_results[['Group 1', 'Group 2']] = df_results[['Group 1', 'Group 2']]
-  df_results['p-value'] = df_results['p-value'].astype(float)
-  
-  return df_results
-
-
-
 def make_superviolinplot_with_kruskal(data, group, feature_meas, replicates, ytitle = None, pallete='bright', ylim = None):
     
     order = ['P6-8', 'P9-10', 'P11-13', 'P14-16', 'P17-18', 'P20-21']#, 'P22-24']
@@ -452,6 +426,31 @@ def oneway_anova(data, group_name, feature_meas):
   
   print(f"ANOVA F-statistic: {anova_result.statistic}, ANOVA p-value: {anova_result.pvalue}")
   return anova_result
+
+
+def tukey_test(data, test_groups, feature):
+  '''
+  Perform a oneway anova test and a pairwise tukey post hoc test using averaged values per replicate
+  Returns a dataframe
+  '''
+  from scipy.stats import f_oneway
+  from statsmodels.stats.multicomp import pairwise_tukeyhsd
+  
+  df = data.copy()
+  
+  #groups = getpairs(temp_copy, 'Passage Group')
+  #calculate tukey HSD
+  
+  tukey = pairwise_tukeyhsd(endog=df[feature], groups=df[test_groups], alpha=0.05)
+
+  # Extract relevant results
+  results = np.array(tukey.summary().data)[:, [0, 1, 3, 6]]
+  df_results = pd.DataFrame(results, columns=['Group 1', 'Group 2', 'p-value', 'Reject']).drop([0])
+  df_results.reset_index(drop=True, inplace=True)
+  df_results[['Group 1', 'Group 2']] = df_results[['Group 1', 'Group 2']]
+  df_results['p-value'] = df_results['p-value'].astype(float)
+  
+  return df_results
 
 def average_groups_by_plate_v0(df, x_value, y_value, replicates):
     '''
