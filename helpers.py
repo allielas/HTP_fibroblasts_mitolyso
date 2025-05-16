@@ -1,5 +1,6 @@
 ''' 
 Helper functions for data analysis and visualization
+Allie Spangaro, Toronto Metropolitan University
 '''
 import os
 import numpy as np

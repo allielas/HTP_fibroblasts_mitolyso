@@ -1,5 +1,6 @@
 ''' 
 Helper functions to build superplots
+Allie Spangaro, Toronto Metropolitan University
 '''
 import os
 import numpy as np
