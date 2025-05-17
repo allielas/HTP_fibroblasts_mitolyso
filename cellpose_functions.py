@@ -242,7 +242,7 @@ def segment_cell(img, model, show_plot=True):
     flow_threshold = 0.5
     cellprob_threshold = -1
     tile_norm_blocksize = 0
-    diameter = 65
+    diameter = 60
 
     masks, flows, styles = model.eval(img, batch_size=32, diameter=diameter, flow_threshold=flow_threshold, cellprob_threshold=cellprob_threshold,
                                     normalize={"tile_norm_blocksize": tile_norm_blocksize})
@@ -250,6 +250,54 @@ def segment_cell(img, model, show_plot=True):
     if show_plot:
         fig = plt.figure(figsize=(12,5))
         plot.show_segmentation(fig, img, masks, flows[0])
+        plt.tight_layout()
+        plt.show()
+    return masks
+
+def segment_cell_v2(img, model, show_plot=True):
+    '''
+    Run cellpose on a grayscale cell image and return the predicted masks - this time combining channels
+    Parameters:
+           img (2D or 3D array): grayscale image to be segmented by cellpose
+           model (Cellpose.model): the cellpose model used for segmentation
+           show (bool, optional): flag whether to show a plot of the predicted mask flow   
+    Returns:
+          masks (list of 2D or 3D arrays): the predicted masks from the cellpose model 
+    ''' 
+    from skimage import exposure,filters,morphology
+    gfp = img[:,:,0] #combine the ch1 and ch2 images to help cellpose out a bit
+    rfp = img[:,:,1]
+    dapi = img[:,:,2] #save ch3 for later
+    
+    img_combo = gfp+rfp
+    img_combo = img_01_normalization(img_combo) #normalize to match cellpose training data
+    #adjust contrast
+    img_combo = exposure.equalize_adapthist(img_combo, kernel_size=68, clip_limit=0.01)
+    #smooth and subtract background
+    dog = filters.difference_of_gaussians(img_combo, low_sigma=2.5)
+    img_combo = img_combo - dog
+    
+    #sharpen image and improve outline
+    img_combo = filters.unsharp_mask(img_combo, radius=2, amount=1)
+    
+    #stack the images
+    img_selected_channels = np.stack([img_combo, dapi],axis=-1)
+    
+    """ fig, (ax1, ax2) = plt.subplots(ncols=2, figsize=(12,5),sharex=True, sharey=True)
+    ax1.imshow(img_selected_channels[:,:,0])
+    ax2.imshow(img_selected_channels[:,:,1]) """
+     
+    flow_threshold = 0.6
+    cellprob_threshold = -1
+    tile_norm_blocksize = 0
+    diameter = 40
+
+    masks, flows, styles = model.eval(img_selected_channels, batch_size=32, diameter=diameter, flow_threshold=flow_threshold, cellprob_threshold=cellprob_threshold,
+                                    normalize={"tile_norm_blocksize": tile_norm_blocksize})
+    #plot if true
+    if show_plot:
+        fig = plt.figure(figsize=(12,5))
+        plot.show_segmentation(fig, img_selected_channels, masks, flows[0])
         plt.tight_layout()
         plt.show()
     return masks
@@ -280,7 +328,7 @@ def segment_nuclei(orig_img, model, show_plot=True):
     img = morphology.closing(img, morphology.disk(2.5))
     img = filters.gaussian(img, sigma=1)
     
-    flow_threshold = 0.4
+    flow_threshold = 0.5
     cellprob_threshold = 0
     tile_norm_blocksize = 0
     diameter = None
@@ -308,7 +356,7 @@ def save_masks(set_name, masks, outdir, image_ext=".tif", mask_type="cell"):
   masks_ext = ".png" if image_ext == ".png" else ".tif"
   io.imsave(outdir / (set_name + "_" + mask_type + "_masks" + masks_ext), masks)
 
-def save_mask_folder(ordered_files, outdir, image_ext=".tif", nchannels=None, resize_factor=0.25):
+def save_mask_folder(ordered_files, outdir, image_ext=".tif", nchannels=None, resize_factor=0.25, v2=False):
   '''
     Run cellpose and save cell and nuclear masks to a folder given an ordered list of files ordered by channel and an output directory
     Parameters:
@@ -333,11 +381,15 @@ def save_mask_folder(ordered_files, outdir, image_ext=".tif", nchannels=None, re
       stacked_img = img_preprocessing(img_set)
       rescaled_img = img_rescaled(stacked_img, factor=resize_factor) #rescale to 512 by 512 for cellpose
       
-      cell_masks = segment_cell(rescaled_img, model, show=False)
-      nuc_masks = segment_nuclei(rescaled_img, model, show=False) 
+      cell_masks = segment_cell(rescaled_img, model, show_plot=False)
+      nuc_masks = segment_nuclei(rescaled_img, model, show_plot=False) 
       
       save_masks(img_set_name, cell_masks, outdir, image_ext=image_ext, mask_type="cell")
-      save_masks(img_set_name, nuc_masks, outdir, image_ext=image_ext, mask_type="nuclei") 
+      save_masks(img_set_name, nuc_masks, outdir, image_ext=image_ext, mask_type="nuclei")
+      
+      if v2:
+        cell_v2_masks = segment_cell_v2(rescaled_img, model, show_plot=False)
+        save_masks(img_set_name, cell_v2_masks, outdir, image_ext=image_ext, mask_type="v2_cell") 
         
 def save_imageJ_masks(set_name, masks, outdir, image_ext=".tif", mask_type="cell"):
   '''
