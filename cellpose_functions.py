@@ -381,15 +381,15 @@ def save_mask_folder(ordered_files, outdir, image_ext=".tif", nchannels=None, re
       stacked_img = img_preprocessing(img_set)
       rescaled_img = img_rescaled(stacked_img, factor=resize_factor) #rescale to 512 by 512 for cellpose
       
-      cell_masks = segment_cell(rescaled_img, model, show_plot=False)
       nuc_masks = segment_nuclei(rescaled_img, model, show_plot=False) 
-      
-      save_masks(img_set_name, cell_masks, outdir, image_ext=image_ext, mask_type="cell")
       save_masks(img_set_name, nuc_masks, outdir, image_ext=image_ext, mask_type="nuclei")
       
       if v2:
         cell_v2_masks = segment_cell_v2(rescaled_img, model, show_plot=False)
         save_masks(img_set_name, cell_v2_masks, outdir, image_ext=image_ext, mask_type="v2_cell") 
+      else:
+        cell_masks = segment_cell(rescaled_img, model, show_plot=False)
+        save_masks(img_set_name, cell_masks, outdir, image_ext=image_ext, mask_type="cell")
         
 def save_imageJ_masks(set_name, masks, outdir, image_ext=".tif", mask_type="cell"):
   '''
