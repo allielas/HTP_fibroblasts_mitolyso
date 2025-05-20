@@ -1,0 +1,40 @@
+run command in terminal
+//Run full script with: </path/to/Fiji.app/ImageJ-linux64> --headless -macro </path/to/macro.ijm> 'input=</path/to/input/folder> output=</path/to/output/folder>'
+
+Phenix#2 without DPC (early screens):
+
+/mnt/data/HCS_analysis/ImageJ_maxZ/fiji-linux64/Fiji.app/ImageJ-linux64 --headless -macro /mnt/data/HCS_analysis/ImageJ_maxZ/Macro-ImageJ-Phenix2-HCS_runlocal_terminal_20220710.ijm 'input=/media/mattiazzilab/Elements/MattiazziLab_Data/Phenix/HCS_heterogeneity_yeast/2022-05-04_Vph1_ctrl_P4_RT__2022-05-04T11_21_15-Measurement 1/Images output=/mnt/bigdisk2/HCS_analysis/ImageJ_maxZ/ImageJ_OUTPUT/Vph1/Control/P4_RT_2022-05-04'
+##replace paths
+
+macro to use:
+Macro-ImageJ-Phenix2-HCS_runlocal_terminal_20220710.ijm
+
+----------------------------------------------------------------------------
+
+Phenix#1 and Phenix#2 with DPC:
+
+/mnt/data/HCS_analysis/ImageJ_maxZ/fiji-linux64/Fiji.app/ImageJ-linux64 --headless -macro /mnt/data/HCS_analysis/ImageJ_maxZ/Macro-ImageJ-Phenix-withDPC-HCS_runlocal_terminal_20220710.ijm 'input=/media/mattiazzilab/Mattiazzi #7/MattiazziLab_data/HCS_including_associated_files/Working_DPC/2023-05-10_Tgl3_control_P4_37C__2023-05-10T13_47_08-Measurement 1/Images output=/mnt/bigdisk2/HCS_analysis/ImageJ_maxZ/ImageJ_OUTPUT/Tgl3/control/Tgl3_control_P4_37_2023-05-10'
+##replace paths
+
+macro to use:
+Macro-ImageJ-Phenix-withDPC-HCS_runlocal_terminal_20220710.ijms
+
+
+missed ch1
+
+/mnt/data/HCS_analysis/ImageJ_maxZ/fiji-linux64/Fiji.app/ImageJ-linux64 --headless -macro /mnt/data/HCS_analysis/ImageJ_maxZ/Macro-ImageJ-Phenix2-HCS_runlocal_terminal_20220710.ijm 'input=/media/mattiazzilab/Elements/MattiazziLab_Data/Phenix/HCS_heterogeneity_yeast/2022-05-04_Vph1_ctrl_P4_37__2022-05-04T16_18_29-Measurement 1/Images output=/mnt/bigdisk2/HCS_analysis/ImageJ_maxZ/ImageJ_OUTPUT/Vph1/Control/P4_37_2022-05-04'
+
+
+
+
+Allie MRC-5 Aging Project
+
+Workstation #1
+/home/mattiazzilab/Downloads/Fiji.app/ImageJ-linux64 --headless -macro /mnt/bigdisk2/Allie_Spangaro/MRC-5_Max_Projections/Script/fileopener.ijm 'input=/media/mattiazzilab/Mattiazzi #7/MattiazziLab_data/AS_MRC-5/20240206_AS_MRC5_R1t1_R2t0__2024-02-06T18_19_41-Measurement 1/Images/ output=/mnt/bigdisk2/Allie_Spangaro/MRC-5_Max_Projections'
+
+
+Workstation #2 
+/home/mattiazzilab/Desktop/Fiji.app/ImageJ-linux64 --headless -macro /mnt/bigdisk1/Allie\ S/Replicative_Age_Project/IJ\ Projection\ script/fileopener.ijm 'input=/media/mattiazzilab/Mattiazzi #7/MattiazziLab_data/AS_MRC-5/20240206_AS_MRC5_R1t1_R2t0__2024-02-06T18_19_41-Measurement 1/Images/ output=/mnt/bigdisk1/Allie/MRC-5_Max_Projections/20240206'
+
+
+
