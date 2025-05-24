@@ -14,3 +14,5 @@ Stats and image analysis codes for my Masters project using high-throughput micr
 ## CellProfiler pipelines
 - MitoLyso 
 - BetaGal
+
+Note: don't forget to run rep07 plate again, was missing first column
