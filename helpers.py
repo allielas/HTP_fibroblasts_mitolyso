@@ -109,6 +109,19 @@ def plate_df_setup_fromcsv(curr_plates, curr_plate_datafolders, parent_dir, csv_
     combined_replicates_df_mitolyso = combined_replicates_df[combined_replicates_df['Staining'].str.startswith("LAMP1-488 + MitoRed")]
     return combined_replicates_df_mitolyso
 
+def well_namer(row, col):
+    '''
+        Convert row and column numbers to a well name in the format A01, B02, etc.
+        
+        Args:
+            row (int): The row number (1-8)
+            col (int): The column number (1-12)
+        
+        Returns:
+            str: Well name in the format A01, B02, etc.
+    '''
+    well_name = str(chr(ord('@')+ row)) + str(col).rjust(2, '0')  #make the number have a left align, adding a zero
+    return well_name
 
 def define_cell_features(df):
     # Get the columns of the dataframe
