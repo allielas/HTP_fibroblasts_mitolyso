@@ -58,10 +58,12 @@ def remove_outliers_iqr(df, col = None):
     df.dropna(subset=cols, inplace=True) # drop rows with NaN in numerical columns
     return df
 
-def make_superplot_with_kruskal(data, group, feature_meas, replicates, ytitle = None, pallete='pastel', ylim = None, remove_outliers = remove_outliers):
+def make_superplot_with_kruskal(data, group, feature_meas, replicates, ytitle = None, pallete='pastel', ylim = None, order=None, remove_outliers = False):
     
-    order = ['P6-8', 'P9-10', 'P11-13', 'P14-16', 'P17-18', 'P20-21']#, 'P22-24']
     
+    if order is None:
+        order = data[group].dropna().unique().tolist()
+        
     if ytitle is None:
         ytitle = feature_meas.replace('_', ' ')
 
@@ -159,11 +161,7 @@ def make_superswarmplot_with_kruskal(data, group, feature_meas, replicates, orde
     feature_df = make_single_feature_df(data, group=group, feature=feature_meas, replicates=replicates)
     pairs = getpairs(data, group, order)
     print(pairs)
-
-    #Remove the n=1 replicate in the passage group code
-    if group == "Passage Group":
-        order = ['P6-8', 'P9-10', 'P11-13', 'P14-16', 'P17-18', 'P20-21']#, 'P22-24']
-        feature_df = feature_df[feature_df[group] != "P22-24"]
+    
 
     group_avg_df = average_groups_by_plate(feature_df, x_value=group, y_value=feature_meas, replicates=replicates)
     group_avg_df_pivot = average_groups_pivot(group_avg_df, x_value=group, y_value=feature_meas, replicates=replicates)
@@ -244,9 +242,9 @@ def make_superswarmplot_with_anova(data, group, feature_meas, replicates, order 
     print(pairs)
 
     #Remove the n=1 replicate in the passage group code
-    if group == "Passage Group":
-        order = ['P6-8', 'P9-10', 'P11-13', 'P14-16', 'P17-18', 'P20-21']#, 'P22-24']
-        feature_df = feature_df[feature_df[group] != "P22-24"]
+    if group == "Passage Group" and order==None:
+        order = ['P6-8', 'P9-10', 'P11-13', 'P14-16', 'P17-18', 'P19-21', 'P22-24','P25-26','P27-28','P29+', 'Doxo']
+        #feature_df = feature_df[feature_df[group] != "P22-24"]
 
     group_avg_df = average_groups_by_plate(feature_df, x_value=group, y_value=feature_meas, replicates=replicates)
     group_avg_df_pivot = average_groups_pivot(group_avg_df, x_value=group, y_value=feature_meas, replicates=replicates)
@@ -332,8 +330,8 @@ def make_superswarmplot_with_calculated_pval(data, group, feature_meas, replicat
 
     #Remove the n=1 replicate in the passage group code
     if group == "Passage Group":
-        order = ['P6-8', 'P9-10', 'P11-13', 'P14-16', 'P17-18', 'P20-21']#, 'P22-24']
-        feature_df = feature_df[feature_df[group] != "P22-24"]
+        order = ['P6-8', 'P9-10', 'P11-13', 'P14-16', 'P17-18', 'P19-21', 'P22-24','P25-26','P27-28','P29+', 'Doxo']
+        #feature_df = feature_df[feature_df[group] != "P22-24"]
 
     group_avg_df = average_groups_by_plate(feature_df, x_value=group, y_value=feature_meas, replicates=replicates)
     group_avg_df_pivot = average_groups_pivot(group_avg_df, x_value=group, y_value=feature_meas, replicates=replicates)

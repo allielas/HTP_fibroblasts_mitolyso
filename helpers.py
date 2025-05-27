@@ -17,28 +17,51 @@ def passage_group(passage_num):
     '''
     #use this function to group passages into groups for plotting
     passage = int(passage_num)
-    if 6 <= passage <= 8:
-        return 'P6-8'
-    elif 9 <= passage <= 10:
-        return 'P9-10'
-    elif 11 <= passage <= 13:
-        return 'P11-13'
+    if 6 <= passage <= 9:
+        return 'P6-9'
+    elif 10 <= passage <= 13:
+        return 'P10-13'
     elif 14 <= passage <= 16:
         return 'P14-16'
-    elif 17 <= passage <= 18:
-        return 'P17-18'
-    elif 19 <= passage <= 21:
-        return 'P19-21'
-    elif 22 <= passage <= 24:
-        return 'P22-24'
-    elif 25 <= passage <= 26:
-        return 'P25-26'
+    elif 17 <= passage <= 19:
+        return 'P17-19'
+    elif 18 <= passage <= 20:
+        return 'P18-20'
+    elif 21 <= passage <= 23:
+        return 'P21-23'
+    elif 24 <= passage <= 25:
+        return 'P24-25'
+    elif 26 <= passage <= 27:
+        return 'P26-27'
     elif 27 <= passage <= 28:
-        return 'P27-28'
+        return 'P28-29'
     elif passage >= 29:
         return 'P29+'
     else:
         return 'Unknown'
+
+def get_all_group_order():
+    '''
+    Get the order of the passage groups for plotting
+    Returns a list of the passage groups in order
+    '''
+    order = ['P6-9', 'P10-13', 'P14-16', 'P17-19', 'P18-20', 'P21-23', 'P24-25', 'P26-27', 'P28-29', 'P29+']
+    return order
+    
+def add_drug_to_group(init_df, group, drug):
+    '''
+        Add the name of a drug treatment from the "Drug" column to the main "group" column
+        
+        Returns
+            Series object: A series containing the column with the drug added to the group
+    '''
+    if drug is not None:
+        # Replace values in 'col1' with values from 'col2' only if 'col2' is not None or NaN
+        df = init_df.copy()
+        df[group] = np.where(df[drug].notna(), df[drug], df[group])
+        newcol = df[group]
+
+    return newcol
 
 
 def plate_df_setup_fromcsv(curr_plates, curr_plate_datafolders, parent_dir, csv_names = ['Cell.csv', 'Nuclei.csv','MergedMitoPerCell.csv','MergedLysoPerCell.csv']):
@@ -126,10 +149,18 @@ def well_namer(row, col):
 def define_cell_features(df):
     # Get the columns of the dataframe
     columns_list = df.columns.tolist()
-    columns_list = [col for col in columns_list if 'Metadata' not in col and 'FileName' not in col and 'PathName' not in col]
+    columns_list = [col for col in columns_list if 'Metadata' not in col and 'FileName' not in col and 'PathName' not in col and pd.api.types.is_numeric_dtype(df[col])]
+    #old_columns_list = columns_list = [col for col in columns_list if 'Metadata' not in col and 'FileName' not in col and 'PathName' not in col]
+    #print("Original columns:", len(old_columns_list), "Filtered columns:", len(columns_list))
     return columns_list
 
 def make_feature_dict(columns_list):
+    '''
+    Create a dictionary of features from the columns list.
+    Args:
+        columns_list (list): List of column names from the DataFrame.
+    Returns:
+        dict: A dictionary with keys as feature types and values as lists of corresponding column names.'''
     # Add the different types of features to a dictionary 
     feature_dict = {
         'intensity': [],
@@ -147,7 +178,7 @@ def make_feature_dict(columns_list):
             feature_dict['texture'].append(col)
         elif 'Intensity' in col:
             feature_dict['intensity'].append(col)
-        elif 'Math_' in col:
+        elif 'Math_' in col or 'Corr_' in col:
             feature_dict['arearatios'].append(col)
         elif 'Count' in col:
             feature_dict['count'].append(col)
@@ -164,9 +195,19 @@ def make_feature_dict(columns_list):
 
     return feature_dict
 
-def getpairs(df, group, order = []):
+def getpairs(df, group, order = None):
     from itertools import combinations
+    '''
+    Get pairs of unique values from a specified column in the DataFrame.
+    Args:
+        df (DataFrame): The DataFrame containing the data.
+        group (str): The name of the column to get unique values from.
+        order (list): A list of values to order the unique values by. If empty, uses the unique values as is.
+    Returns:
+        list: A list of tuples containing pairs of unique values from the specified column.'''
     # Get the unique values of the categorical column, Order the unique values according to the specified order
+    if order is None:
+        order = df[group].dropna().unique().tolist()
     unique_values = df[group].dropna().unique()
     
     ordered_values = [value for value in order if value in unique_values]
@@ -193,25 +234,13 @@ def standardize_group(df, columns):
     scaled_df = scaler.fit_transform(df[columns])
     return scaled_df
     
-def group_by_time(df, feature_list):
-    #Group columns by time and apply groupby function to the DF
-    df_groupby = df.groupby('Time').apply(lambda x: standardize_group(x,feature_list))
+def group_by_condition(df, feature_list, groupby_column = 'AgeGroup'):
+    #Group columns by age group and apply groupby function to the DF
+    df_groupby = df.groupby(groupby_column).apply(lambda x: standardize_group(x,feature_list))
     return df_groupby
 
-def normalize_to_control(df, feature):
-    # Take the t0 df - lowest passage data point
-    t0_df = df[df['Time']==0]
-    treatment_df = df[[feature, 'Time']].copy()
-    #calculate the mean
-    mean_zero = t0_df[feature].mean()
-    
-    #now update the column to have all rows dividied by the mean of time 0
-    treatment_df["norm_" + feature] = treatment_df[feature] / mean_zero  
-    #return the normalized feature columnn
-    return treatment_df["norm_" + feature]
-
 def outlier_removal(df, nuclei_df, column):
-    # Create a copy of the column and the 'Time' column, along with parent nuclei
+    # Create a copy of the column and the 'group' column, along with parent nuclei
     mini_df = pd.DataFrame({
         column: df[column].copy(),
         'Time': df['Time'].copy(),
@@ -244,8 +273,40 @@ def outlier_removal(df, nuclei_df, column):
     final_filtered_df = filtered_cell_df[filtered_cell_df[column] > 0].dropna()
     return final_filtered_df
 
+def normalize_to_control(df, feature, norm_column = 'AgeGroup'):
+    '''
+    Normalize a feature to the control group (AgeGroup = 0) for each plate.
+    Args:
+        df (DataFrame): The DataFrame containing the feature to be normalized.
+        feature (str): The name of the feature column to normalize.
+        norm_column (str): The column used to identify the control group (default is 'AgeGroup').'`
+    Returns:
+        Series: A Series containing the normalized feature values.
+    '''
+    # Take the t0 df - lowest passage data point
+    t0_df = df[df[norm_column]==0]
+    treatment_df = df[[feature, norm_column]].copy()
+
+    #calculate the mean
+    mean_zero = t0_df[feature].mean()
+    # Check for non-numeric values
+    if not pd.api.types.is_numeric_dtype(treatment_df[feature]):
+        print(f"[normalize_to_control] WARNING: {feature} is not numeric!")
+    #now update the column to have all rows dividied by the mean of group 0
+    treatment_df["norm_" + feature] = treatment_df[feature] / mean_zero  
+    #return the normalized feature columnn
+    return treatment_df["norm_" + feature]
+
 def normalize_features(df, feature_list):
-    # Normalize the features to the control (Time 0) for each plate
+    '''
+    Normalize the features in the DataFrame to the control (age group 0) for each plate.
+    Args:
+        df (DataFrame): The DataFrame containing the features to be normalized.
+        feature_list (list): A list of feature column names to normalize.
+    Returns:
+        DataFrame: A DataFrame with normalized features for each plate.
+    '''
+    # Normalize the features to the control (age group 0) for each plate
     norm_df = df.copy()
     for feature in feature_list:
         #print('Normalizing feature: ', feature, '...', norm_df[feature].values[0])
@@ -255,14 +316,23 @@ def normalize_features(df, feature_list):
 
 
 def apply_feature_normalization(df, feature_dict, curr_plates):
-    # Normalize the features to the control (Time 0) for each plate
+    '''
+    Apply feature normalization to the DataFrame for each plate in a list of plates.
+    Args:
+        df (DataFrame): The DataFrame containing the features to be normalized.
+        feature_dict (dict): A dictionary containing lists of feature columns to normalize.
+        curr_plates (list): A list of plate names to apply normalization to.
+    Returns:
+        DataFrame: A DataFrame with normalized features for each plate.
+    '''
+    # Normalize the features to the control (age group 0) for each plate
     norm_cell_df = df.copy()
     for plate in curr_plates:
         curr_plate_df = norm_cell_df[norm_cell_df['Metadata_Plate'] == plate].copy()
         for feature_type in feature_dict:
             #get the normalized features, locate the corresponding features on the plate, and replace them on that plate to the plate
             curr_plate_features_df = normalize_features(curr_plate_df, feature_dict[feature_type])
-            curr_plate_df.loc[:, feature_dict[feature_type]] = curr_plate_features_df[feature_dict[feature_type]]
+            curr_plate_df.loc[:, feature_dict[feature_type]] = curr_plate_features_df[feature_dict[feature_type]].astype(float)
         norm_cell_df.loc[norm_cell_df['Metadata_Plate'] == plate] = curr_plate_df
     return norm_cell_df
 
@@ -288,10 +358,24 @@ def proportion_area_occupied_per_cell(df, compartment):
     df[colname] = df.apply(lambda x: (x[organelle_area]) / x[cell_area], axis=1)
     return df[colname]
 
+def remove_outliers_iqr(df, cols = None):
+    if cols is None:
+        cols = df.select_dtypes('number').columns  # limits to a (float), b (int) and e (timedelta)
+    df_sub = df.loc[:, cols]
+
+    iqr = df_sub.quantile(0.75, numeric_only=False) - df_sub.quantile(0.25, numeric_only=False)
+    
+    #calculate  extreme outlisers by dividing median by iqr
+    lim = np.abs((df_sub - df_sub.median()) / iqr) < 2.22
+
+    # replace outliers with nan
+    df.loc[:, cols] = df_sub.where(lim, np.nan)
+    df.dropna(subset=cols, inplace=True) # drop rows with NaN in numerical columns
+    return df
 
 def make_superviolinplot_with_kruskal(data, group, feature_meas, replicates, ytitle = None, pallete='bright', ylim = None):
     
-    order = ['P6-8', 'P9-10', 'P11-13', 'P14-16', 'P17-18', 'P20-21']#, 'P22-24']
+    order = get_all_group_order()
     
     if ytitle is None:
         ytitle = feature_meas.replace('_', ' ')
@@ -406,6 +490,7 @@ def average_groups_by_plate(df, x_value, y_value, replicates):
    
     return average_df
 
+
 def make_single_feature_df(data, group, feature, replicates):
   pd.options.mode.copy_on_write = True
   
@@ -477,4 +562,3 @@ def average_groups_by_plate_v0(df, x_value, y_value, replicates):
 def average_groups_pivot(df, x_value, y_value, replicates):
     group_ave_pivot = df.pivot_table(columns=x_value, values=y_value, index=replicates)
     return group_ave_pivot
-    
