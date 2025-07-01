@@ -452,8 +452,7 @@ def remove_outliers_iqr(df, cols=None):
 
 
 def make_superviolinplot_with_kruskal(
-    data, group, feature_meas, replicates, ytitle=None, pallete="bright", ylim=None
-):
+    data, group, feature_meas, replicates, ytitle=None, pallete="bright", ylim=None):
     order = get_all_group_order()
 
     if ytitle is None:
