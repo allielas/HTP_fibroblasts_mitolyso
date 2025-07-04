@@ -105,15 +105,17 @@ def print_grouped_files(grouped_files_by_channel):
       item = grouped_files_by_channel[i][j]
       print(" "+ item.name)
 
-def get_plate_location(filepath):
+def get_plate_location(filepath, rowcolonly=False):
     field_pattern = r"f(\d{2})"  # Matches "FXX" where XX are digits
     filename = os.path.basename(filepath)
     parts = filename.split("-")
     channel = parts[0][-1:] # get the last character of the first part for the channel number
     location_withextension = parts[1]
     location = location_withextension.split(".")[0]
-    
-    return location
+    if rowcolonly:
+      return location[:6]
+    else:
+      return location
 
 def block_a_order_key(filepath):
     location = get_plate_location(filepath)
