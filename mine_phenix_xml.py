@@ -85,40 +85,49 @@ coordinates_df = pd.DataFrame(img_data)
 resolution = 9.4916838247105038E-02 # microns per pixel
 well_size = 2160 * resolution # microns
 
+def calculate_bbox(row):
+    return {
+        'min_bbox_PositionX (um)': row['PositionX (um)'] - well_size / 2, # Calculate min bbox PositionX, given that (X,Y) is the center of the well
+        'max_bbox_PositionX (um)': row['PositionX (um)'] + well_size / 2,
+        'min_bbox_PositionY (um)': row['PositionY (um)'] - well_size / 2,
+        'max_bbox_PositionY (um)': row['PositionY (um)'] + well_size / 2
+    }
+
 for col in ['PositionX', 'PositionY', 'PositionZ']:
     coordinates_df[col] = pd.to_numeric(coordinates_df[col], errors='coerce')
-    coordinates_df[f'{col} (um)'] = round(coordinates_df[col] * 1E6,5) # Convert to micrometers
-    coordinates_df[f'{col} (pixels)'] = coordinates_df[col] / resolution
-    coordinates_df[f'max_bbox_{col} (um)'] = round(coordinates_df[col] *1E6 + well_size,5)
-    coordinates_df[f'min_bbox_{col} (um)'] = round(coordinates_df[col] *1E6 - well_size,5)
-
-from matplotlib.path import Path
-from matplotlib.transforms import Bbox
-
-coordinates_df['bbox_coords'] = coordinates_df.apply(lambda row: f"{round(row['min_bbox_PositionX (um)'],1)},{round(row['min_bbox_PositionY (um)'],1)},{round(row['max_bbox_PositionX (um)']),1},{round(row['max_bbox_PositionY (um)'],1)}", axis=1)
-fig, ax = plt.subplots(figsize=(12, 12))
-ax.scatter(coordinates_df['PositionX (um)'], coordinates_df['PositionY (um)'], c='blue', s=30, alpha=0.5, zorder = 2, label='Image Position (center)')
-for i, row in coordinates_df.iterrows():
-    bbox = patches.Rectangle((row['min_bbox_PositionX (um)'], row['min_bbox_PositionY (um)']), 
-                             well_size, well_size, 
-                             linewidth=1, edgecolor='c', facecolor='m', fill=False, alpha=0.2)
+    coordinates_df[f'{col} (um)'] = np.round(coordinates_df[col] * 1E6,5) # Convert to micrometers
+    coordinates_df[f'{col} (pixels)'] = np.round(coordinates_df[f'{col} (um)'] / resolution,3)
     
-    ax.add_patch(bbox)
-    ax.annotate(coordinates_df['Field'][i], (coordinates_df['PositionX (um)'][i] + well_size/2, coordinates_df['PositionY (um)'][i]+ well_size/2),
-                fontsize=10, ha='center', va='center', color='black')
-    ax.annotate(coordinates_df['bbox_coords'][i], (coordinates_df['min_bbox_PositionX (um)'][i] , coordinates_df['min_bbox_PositionY (um)'][i]),
-                fontsize=8, ha='center', va='center', color='black')
-    #bbox = Bbox.from_bounds(coordinates_df['min_bbox_PositionX (um)'][i], coordinates_df['min_bbox_PositionY (um)'][i], well_size, well_size)
+
+coordinates_df[['min_bbox_PositionX (um)', 'max_bbox_PositionX (um)', 'min_bbox_PositionY (um)', 'max_bbox_PositionY (um)']] = coordinates_df.apply(calculate_bbox, axis=1, result_type='expand')
+coordinates_df['bbox_coords'] = coordinates_df.apply(lambda row: f"{round(row['min_bbox_PositionX (um)'],1)},{round(row['min_bbox_PositionY (um)'],1)},{round(row['max_bbox_PositionX (um)'],1)},{round(row['max_bbox_PositionY (um)'],1)}", axis=1)
+
+def plot_well_coordinates(coordinates_df, save = False):
+    fig, ax = plt.subplots(figsize=(12, 12))
+    ax.scatter(coordinates_df['PositionX (um)'], coordinates_df['PositionY (um)'], c='blue', s=30, alpha=0.5, zorder = 2, label='Image Position (center)')
+    for i, row in coordinates_df.iterrows():
+        bbox = patches.Rectangle((row['min_bbox_PositionX (um)'], row['min_bbox_PositionY (um)']), 
+                                well_size , well_size, 
+                                linewidth=1, edgecolor='c', facecolor='m', fill=False, alpha=0.5)
+        
+        ax.add_patch(bbox)
+        ax.annotate(coordinates_df['Field'][i], (coordinates_df['PositionX (um)'][i] + well_size/2, coordinates_df['PositionY (um)'][i]+ well_size/2),
+                    fontsize=10, ha='center', va='center', color='black')
+        ax.annotate(coordinates_df['bbox_coords'][i], (coordinates_df['min_bbox_PositionX (um)'][i] , coordinates_df['min_bbox_PositionY (um)'][i]),
+                    fontsize=8, ha='center', va='center', color='black')
+        #bbox = Bbox.from_bounds(coordinates_df['min_bbox_PositionX (um)'][i], coordinates_df['min_bbox_PositionY (um)'][i], well_size, well_size)
 
 #plt.annotate(coordinates_df['min_bbox_PositionX (um)'], coordinates_df['min_bbox_PositionY (um)'], c='red', s=10, alpha=0.5, label='Min BBox')
 #plt.scatter(coordinates_df['max_bbox_PositionX (um)'], coordinates_df['max_bbox_PositionY (um)'], c='green', s=10, alpha=0.5, label='Max BBox')
-plt.legend()
-plt.title('Image Coordinates')
-plt.xlabel('PositionX (um)')
-plt.ylabel('PositionY (um)')
-plt.grid(True)
-plt.axis('equal')
-plt.show()
+    plt.legend()
+    plt.title('Image Coordinates')
+    plt.xlabel('PositionX (um)')
+    plt.ylabel('PositionY (um)')
+    plt.grid(True)
+    plt.axis('equal')
+    if save:
+        plt.savefig(f"Well {coordinates_df['Well'][0]}.png")
+    plt.show()
 
 coordinates_df.to_csv("image_coordinates.csv", index=False) #should be 1120 rows for one well
 
@@ -139,12 +148,15 @@ def block_a_order_key(img_id):
     #print (filename, field_order)
     return field_order
 
-unique_coordinates_df = coordinates_df[['Image_ID','Field_ID','PositionX (um)', 'PositionY (um)']].drop_duplicates(subset=['PositionX (um)','PositionY (um)'])
+unique_coordinates_df = coordinates_df.drop_duplicates(subset=['PositionX (um)','PositionY (um)'])
 sorted_unique_coordinates_df = unique_coordinates_df.sort_values(by='Image_ID', key=lambda x: x.apply(block_a_order_key))
 sorted_unique_coordinates_df.reset_index(drop=True, inplace=True)
+readable_sorted_unique_coordinates_df = sorted_unique_coordinates_df[['Image_ID','Field_ID','PositionX (um)', 'PositionY (um)']]
 
+plot_well_coordinates(coordinates_df)
+plot_well_coordinates(sorted_unique_coordinates_df, save=True)
 
-print(sorted_unique_coordinates_df)
+print(readable_sorted_unique_coordinates_df)
   
 # ...existing code...   
 #print('well', well)
