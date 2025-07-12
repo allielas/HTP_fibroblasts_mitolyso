@@ -111,23 +111,25 @@ def plot_well_coordinates(coordinates_df, save = False):
                                 linewidth=1, edgecolor='c', facecolor='m', fill=False, alpha=0.5)
         
         ax.add_patch(bbox)
-        ax.annotate(coordinates_df['Field'][i], (coordinates_df['PositionX (um)'][i] + well_size/2, coordinates_df['PositionY (um)'][i]+ well_size/2),
+        ax.annotate(coordinates_df['Field'][i], (coordinates_df['PositionX (um)'][i], coordinates_df['PositionY (um)'][i] + 30),
                     fontsize=10, ha='center', va='center', color='black')
-        ax.annotate(coordinates_df['bbox_coords'][i], (coordinates_df['min_bbox_PositionX (um)'][i] , coordinates_df['min_bbox_PositionY (um)'][i]),
-                    fontsize=8, ha='center', va='center', color='black')
+        '''
+        ax.annotate(coordinates_df['bbox_coords'][i], (coordinates_df['PositionX (um)'][i] , coordinates_df['PositionY (um)'][i]-30),
+                    fontsize=5, ha='center', va='center', color='black')
         #bbox = Bbox.from_bounds(coordinates_df['min_bbox_PositionX (um)'][i], coordinates_df['min_bbox_PositionY (um)'][i], well_size, well_size)
-
+        '''
 #plt.annotate(coordinates_df['min_bbox_PositionX (um)'], coordinates_df['min_bbox_PositionY (um)'], c='red', s=10, alpha=0.5, label='Min BBox')
 #plt.scatter(coordinates_df['max_bbox_PositionX (um)'], coordinates_df['max_bbox_PositionY (um)'], c='green', s=10, alpha=0.5, label='Max BBox')
-    plt.legend()
+    #plt.legend()
     plt.title('Image Coordinates')
     plt.xlabel('PositionX (um)')
     plt.ylabel('PositionY (um)')
     plt.grid(True)
     plt.axis('equal')
     if save:
-        plt.savefig(f"Well {coordinates_df['Well'][0]}.png")
-    plt.show()
+        plt.savefig(f"Well {coordinates_df['Well'][0]}.png", dpi=400)
+    else:
+        plt.show()
 
 coordinates_df.to_csv("image_coordinates.csv", index=False) #should be 1120 rows for one well
 
@@ -151,12 +153,13 @@ def block_a_order_key(img_id):
 unique_coordinates_df = coordinates_df.drop_duplicates(subset=['PositionX (um)','PositionY (um)'])
 sorted_unique_coordinates_df = unique_coordinates_df.sort_values(by='Image_ID', key=lambda x: x.apply(block_a_order_key))
 sorted_unique_coordinates_df.reset_index(drop=True, inplace=True)
-readable_sorted_unique_coordinates_df = sorted_unique_coordinates_df[['Image_ID','Field_ID','PositionX (um)', 'PositionY (um)']]
+readable_sorted_unique_coordinates_df = sorted_unique_coordinates_df[['Image_ID','Well','Field_ID','PositionX (um)', 'PositionY (um)']]
 
 plot_well_coordinates(coordinates_df)
 plot_well_coordinates(sorted_unique_coordinates_df, save=True)
 
 print(readable_sorted_unique_coordinates_df)
+readable_sorted_unique_coordinates_df.to_csv(f"Well_{readable_sorted_unique_coordinates_df["Well"][0]}_coordinates.csv")
   
 # ...existing code...   
 #print('well', well)
