@@ -197,7 +197,7 @@ def img_01_normalization(img):
     norm_img = (img - np.min(img)) / (np.max(img) - np.min(img))
     return norm_img
 
-def img_rescaled(img, factor=0.5, anti_aliasing=False):
+def img_rescaled(img, factor=0.5, anti_aliasing=False, channel_axis=-1):
     '''
       Rescale a multichannel grayscale image by a given factor using skimage.transform.rescale
       Parameters:
@@ -208,7 +208,7 @@ def img_rescaled(img, factor=0.5, anti_aliasing=False):
             rescaled_image (3D array): a 3D array containing the rescaled grayscale image
     '''
     from skimage import transform
-    rescaled_img = transform.rescale(img, factor, anti_aliasing=anti_aliasing, channel_axis=-1)
+    rescaled_img = transform.rescale(img, factor, anti_aliasing=anti_aliasing, channel_axis=channel_axis)
     return rescaled_img 
   
 def load_model(model_name = None, gpu = True):
