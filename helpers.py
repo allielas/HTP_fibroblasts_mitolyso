@@ -75,101 +75,6 @@ def add_drug_to_group(init_df, group, drug):
     return newcol
 
 
-def plate_df_setup_fromcsv(
-    curr_plates,
-    curr_plate_datafolders,
-    parent_dir,
-    csv_names=[
-        "Cell.csv",
-        "Nuclei.csv",
-        "MergedMitoPerCell.csv",
-        "MergedLysoPerCell.csv",
-    ],
-):
-    """
-    Combine the cellprofiler feature data from different plates into a single DataFrame
-    Returns a DataFrame with the combined data
-    """
-    # Initialize a list to store the combined DataFrames
-    plate_dfs = {}
-
-    for i, plate in enumerate(curr_plates):
-        # Construct the full path to the folder
-        folder_path = os.path.join(parent_dir, plate)
-
-        # Construct the full path to the metadata file and CSV file
-        map_file = os.path.join(folder_path, "metadata/map.csv")
-        csv_folder_path = os.path.join(folder_path, curr_plate_datafolders[i])
-
-        # Make a list of the csv file paths for each compartment
-        compartment_paths = []
-
-        for file in csv_names:
-            cp_file = os.path.join(csv_folder_path, file)
-            if os.path.exists(cp_file) and file in csv_names:
-                compartment_paths.append(cp_file)
-
-        # Join the file dataframes
-        if "Cell.csv" in compartment_paths[0]:
-            pre_cell_df = pd.read_csv(compartment_paths[0])
-        else:
-            return FileNotFoundError("Cell.csv not found in the folder")
-
-        for j, compartment in enumerate(compartment_paths):
-            if j == 0 and "Cell.csv" in compartment:
-                continue
-
-            compartment_df = pd.read_csv(compartment)
-            excluded_columns = ["ImageNumber", "ObjectNumber"]
-
-            prefix = csv_names[j].replace(".csv", "") + "_"
-
-            keys_df = compartment_df[excluded_columns]
-            excluded_keys_df = compartment_df.drop(columns=excluded_columns)
-
-            prefixed_compartment_df = excluded_keys_df.add_prefix(prefix)
-            combined_prefixed_compartment_df = pd.concat(
-                [keys_df, prefixed_compartment_df], axis=1
-            )
-
-            pre_cell_df = pre_cell_df.merge(
-                combined_prefixed_compartment_df,
-                on=["ImageNumber", "ObjectNumber"],
-                how="left",
-            )
-
-        # Join the metadata with the data
-        if os.path.exists(cp_file) and os.path.exists(map_file):
-            # Read the metadata file and merge with dataframes (map.csv)
-            platemap_df = pd.read_csv(map_file)
-            cell_df = pre_cell_df.merge(
-                platemap_df,
-                on=[
-                    "Metadata_Well",
-                    "Metadata_WellRow",
-                    "Metadata_WellColumn",
-                    "Metadata_Field",
-                ],
-                how="left",
-            )
-
-            # Add a column to the cell_df to group passages and identify the plate replicate
-            cell_df["Passage Group"] = cell_df["PassageNumber"].apply(passage_group)
-            cell_df["Metadata_Plate"] = plate
-            cell_df["Replicate_Number"] = i + 1
-            # Append the merged DataFrame to the list
-            plate_dfs[plate] = cell_df
-
-    # Combine all the different replicate DataFrames into a single DataFrame
-    combined_replicates_df = pd.concat(plate_dfs.values(), ignore_index=True)
-
-    # Filter DataFrames to only include cells that were stained with LAMP1-488 and MitoRed
-    combined_replicates_df_mitolyso = combined_replicates_df[
-        combined_replicates_df["Staining"].str.startswith("LAMP1-488 + MitoRed")
-    ]
-    return combined_replicates_df_mitolyso
-
-
 def well_namer(row, col):
     """
     Convert row and column numbers to a well name in the format A01, B02, etc.
@@ -188,6 +93,14 @@ def well_namer(row, col):
 
 
 def define_cell_features(df):
+    """_summary_
+
+    Args:
+        df (DataFrame): _description_
+
+    Returns:
+        list: A list of columns that are numerical features
+    """    
     # Get the columns of the dataframe
     columns_list = df.columns.tolist()
     columns_list = [
@@ -281,6 +194,15 @@ def ratioCalc(df1, df2, col1, col2):
 
 
 def standardize_group(df, columns):
+    """_summary_
+
+    Args:
+        df (_type_): _description_
+        columns (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """    
     from sklearn.preprocessing import StandardScaler
 
     # Import the scaler and transform all time values to that of a standard distribution - only use for ML, not very desceiptive
@@ -290,6 +212,16 @@ def standardize_group(df, columns):
 
 
 def group_by_condition(df, feature_list, groupby_column="AgeGroup"):
+    """Group by a condition
+
+    Args:
+        df (_type_): _description_
+        feature_list (_type_): _description_
+        groupby_column (str, optional): _description_. Defaults to "AgeGroup".
+
+    Returns:
+        _type_: _description_
+    """    
     # Group columns by age group and apply groupby function to the DF
     df_groupby = df.groupby(groupby_column).apply(
         lambda x: standardize_group(x, feature_list)
@@ -298,6 +230,16 @@ def group_by_condition(df, feature_list, groupby_column="AgeGroup"):
 
 
 def outlier_removal(df, nuclei_df, column):
+    """OLD FUNCTION - DO NOT USE
+
+    Args:
+        df (_type_): _description_
+        nuclei_df (_type_): _description_
+        column (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """    
     # Create a copy of the column and the 'group' column, along with parent nuclei
     mini_df = pd.DataFrame(
         {
@@ -406,6 +348,16 @@ def apply_feature_normalization(df, feature_dict, curr_plates):
 
 
 def mean_intesity_per_compartment_per_cell(df, compartment, tag):
+    """_summary_
+
+    Args:
+        df (_type_): _description_
+        compartment (_type_): _description_
+        tag (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """    
     # Calculate the mean intensity of each compartment per cell
     # mean_intesity_per_compartment = integrated / (children*mean_area)
     colname = "MeanIntensity_Per_" + compartment + "_Per_Cell"
@@ -419,6 +371,15 @@ def mean_intesity_per_compartment_per_cell(df, compartment, tag):
 
 
 def proportion_area_occupied_per_cell(df, compartment):
+    """_summary_
+
+    Args:
+        df (_type_): _description_
+        compartment (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """    
     # proportion of area occupied = children * mean organelle area / cell area
     colname = "Total_Area_Proportion_" + compartment + "_Per_Cell"
 
@@ -431,121 +392,16 @@ def proportion_area_occupied_per_cell(df, compartment):
     return df[colname]
 
 
-def remove_outliers_iqr(df, cols=None):
-    if cols is None:
-        cols = df.select_dtypes(
-            "number"
-        ).columns  # limits to a (float), b (int) and e (timedelta)
-    df_sub = df.loc[:, cols]
-
-    iqr = df_sub.quantile(0.75, numeric_only=False) - df_sub.quantile(
-        0.25, numeric_only=False
-    )
-
-    # calculate  extreme outlisers by dividing median by iqr
-    lim = np.abs((df_sub - df_sub.median()) / iqr) < 2.22
-
-    # replace outliers with nan
-    df.loc[:, cols] = df_sub.where(lim, np.nan)
-    df.dropna(subset=cols, inplace=True)  # drop rows with NaN in numerical columns
-    return df
-
-
-def make_superviolinplot_with_kruskal(
-    data, group, feature_meas, replicates, ytitle=None, pallete="bright", ylim=None):
-    order = get_all_group_order()
-
-    if ytitle is None:
-        ytitle = feature_meas.replace("_", " ")
-    if ylim is None:
-        ylim = (-1, 12)
-
-    feature_df = make_single_feature_df(
-        data, group=group, feature=feature_meas, replicates=replicates
-    )
-    pairs = getpairs(feature_df, group, order)
-
-    # Remove the n=1 replicate
-    feature_df = feature_df[feature_df[group] != "P22-24"]
-
-    group_avg_df = average_groups_by_plate(
-        feature_df, x_value=group, y_value=feature_meas, replicates=replicates
-    )
-    group_avg_df_pivot = average_groups_pivot(
-        group_avg_df, x_value=group, y_value=feature_meas, replicates=replicates
-    )
-
-    sns.set_theme(style="ticks")
-    sns.set_context("talk", font_scale=0.6)
-
-    plt.figure(dpi=300)
-
-    sns.violinplot(
-        data=feature_df,
-        x=group,
-        y=feature_meas,
-        order=order,
-        fill=False,
-        color="gainsboro",
-        cut=2,
-        native_scale=True,
-        linecolor="k",
-        inner=None,
-        # inner_kws=dict(box_width = 5)
-    )
-
-    ax = sns.swarmplot(
-        data=group_avg_df,
-        x=group,
-        y=feature_meas,
-        hue=replicates,
-        order=order,
-        palette=pallete,
-        size=10,
-        edgecolor="k",
-        linewidth=1,
-        dodge=0.5,
-    )
-
-    sns.pointplot(
-        data=group_avg_df,
-        x=group,
-        y=feature_meas,
-        color="dimgray",
-        order=order,
-        dodge=False,
-        markers="_",
-        linestyle=None,
-        errorbar=None,
-        ax=ax,
-    )
-
-    ax.legend_.remove()
-
-    sns.despine()
-    plt.gcf()  # .set_size_inches(10, 6)
-    plt.xlabel(group)
-    plt.ylabel(ytitle)
-    plt.ylim(ylim)
-
-    from statannotations.Annotator import Annotator
-
-    annotator = Annotator(ax, pairs, data=group_avg_df_pivot, order=order)
-    annotator.configure(
-        test="Kruskal",
-        text_format="star",
-        loc="inside",
-        hide_non_significant=True,
-        color="black",
-        verbose=2,
-    )
-    annotator.apply_and_annotate()
-
-    plt.savefig(feature_meas + "_superviolinplot.png", dpi=300)
-    plt.show()
-
-
 def proportion_area_occupied_per_cell_fromtotal(df, compartment):
+    """_summary_
+
+    Args:
+        df (DataFrame): _description_
+        compartment (string): _description_
+
+    Returns:
+        Series: The column to add
+    """    
     # proportion of area occupied = children * mean organelle area / cell area
     colname = "Total_Area_Proportion_" + compartment + "_Per_Cell"
 
@@ -559,6 +415,17 @@ def proportion_area_occupied_per_cell_fromtotal(df, compartment):
 
 
 def mean_intesity_per_compartment_per_cell_fromtotal(df, compartment, name, tag):
+    """_summary_
+
+    Args:
+        df (DataFrame): _description_
+        compartment (_type_): _description_
+        name (_type_): _description_
+        tag (_type_): _description_
+
+    Returns:
+        Series: the column to add
+    """    
     # Calculate the mean intensity of each compartment per cell
     # mean_intesity_per_compartment = integrated / (children*mean_area)
     colname = "MeanIntensity_Per_" + compartment + "_Per_Cell"
@@ -574,23 +441,41 @@ def average_groups_by_plate(df, x_value, y_value, replicates):
     """
     Group the DataFrame by the specified columns and calculate the mean of the y_value column.
     Returns the averaged dataframe for plotting
+    
+    Args:
+        df (DataFrame): your dataframe
+        x_value (string): the grouping variable (x value)
+        y_value (string): the quantitavie feature to measure (y value)
+        replicates (string): the variable representing experimental replicates for grouping
+
+    Returns:
+        DataFrame: your data grouped by replicate
     """
     df = df.dropna(subset=[x_value, y_value, replicates])
     df = df[df[y_value] != 0]
 
     df.reset_index(drop=True, inplace=True)
-
-    group_averages = df.groupby(
-        [x_value, replicates], as_index=False, observed=True
-    ).agg({y_value: "mean"})
-
+    
+    group_averages = df.groupby([x_value, replicates], as_index=False, observed=True).agg({y_value: "mean"})
+    
     # Reset the index to get a clean DataFrame
     average_df = group_averages.reset_index()
-
+   
     return average_df
 
 
 def make_single_feature_df(data, group, feature, replicates):
+    """Make a dataframe for a single feature from a larger dataframe in "tidy" format
+
+    Args:
+        data (DataFrame): your dataframe
+        group (string): the grouping variable (x value)
+        feature (string): the quantitavie feature to measure (y value)
+        replicates (string): the variable representing experimental replicates for grouping
+
+    Returns:
+        _type_: _description_
+    """    
     pd.options.mode.copy_on_write = True
 
     subset = [group, feature, replicates]
@@ -605,53 +490,19 @@ def make_single_feature_df(data, group, feature, replicates):
     return df_subset
 
 
-def oneway_anova(data, group_name, feature_meas):
-    from scipy.stats import f_oneway
-
-    data = data.dropna(subset=[group_name, feature_meas])
-    data = data[data[feature_meas] != 0]
-
-    groups = data[group_name].unique()
-    data = [data[data[group_name] == group][feature_meas].dropna() for group in groups]
-    anova_result = f_oneway(*data)
-
-    print(
-        f"ANOVA F-statistic: {anova_result.statistic}, ANOVA p-value: {anova_result.pvalue}"
-    )
-    return anova_result
-
-
-def tukey_test(data, test_groups, feature):
-    """
-    Perform a oneway anova test and a pairwise tukey post hoc test using averaged values per replicate
-    Returns a dataframe
-    """
-    from scipy.stats import f_oneway
-    from statsmodels.stats.multicomp import pairwise_tukeyhsd
-
-    df = data.copy()
-
-    # groups = getpairs(temp_copy, 'Passage Group')
-    # calculate tukey HSD
-
-    tukey = pairwise_tukeyhsd(endog=df[feature], groups=df[test_groups], alpha=0.05)
-
-    # Extract relevant results
-    results = np.array(tukey.summary().data)[:, [0, 1, 3, 6]]
-    df_results = pd.DataFrame(
-        results, columns=["Group 1", "Group 2", "p-value", "Reject"]
-    ).drop([0])
-    df_results.reset_index(drop=True, inplace=True)
-    df_results[["Group 1", "Group 2"]] = df_results[["Group 1", "Group 2"]]
-    df_results["p-value"] = df_results["p-value"].astype(float)
-
-    return df_results
-
-
 def average_groups_by_plate_v0(df, x_value, y_value, replicates):
     """
     Group the DataFrame by the specified columns and calculate the mean of the y_value column.
     Returns the averaged dataframe for plotting
+    
+    Args:
+        df (DataFrame): your dataframe
+        x_value (string): the grouping variable (x value)
+        y_value (string): the quantitavie feature to measure (y value)
+        replicates (string): the variable representing experimental replicates for grouping
+
+    Returns:
+        DataFrame: your data grouped by replicate
     """
     df = df.dropna(subset=[x_value, y_value, replicates])
     # df.reset_index(drop=True, inplace=True) - don't need this?
@@ -667,5 +518,16 @@ def average_groups_by_plate_v0(df, x_value, y_value, replicates):
 
 
 def average_groups_pivot(df, x_value, y_value, replicates):
+    """Make a pivot table from the averaged dataframe
+
+    Args:
+        df (DataFrame): your dataframe output from average_groups_by_plate()
+        x_value (string): the grouping variable (x value)
+        y_value (string): the quantitavie feature to measure (y value)
+        replicates (string): the variable representing experimental replicates for grouping
+
+    Returns:
+        DataFrame: a pivot table
+    """    
     group_ave_pivot = df.pivot_table(columns=x_value, values=y_value, index=replicates)
     return group_ave_pivot

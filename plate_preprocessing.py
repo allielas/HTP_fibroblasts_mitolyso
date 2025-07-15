@@ -32,6 +32,100 @@ def multinucleate_cells(df):
     multinuc_df = df[df["Cell_Classify_multinucleate"] ==1]
     return multinuc_df
 
+def plate_df_setup_fromcsv(
+    curr_plates,
+    curr_plate_datafolders,
+    parent_dir,
+    csv_names=[
+        "Cell.csv",
+        "Nuclei.csv",
+        "MergedMitoPerCell.csv",
+        "MergedLysoPerCell.csv",
+    ]):
+    """
+    Combine the cellprofiler feature data from different plates into a single DataFrame
+    Returns a DataFrame with the combined data
+    """
+    # Initialize a list to store the combined DataFrames
+    plate_dfs = {}
+
+    for i, plate in enumerate(curr_plates):
+        # Construct the full path to the folder
+        folder_path = os.path.join(parent_dir, plate)
+
+        # Construct the full path to the metadata file and CSV file
+        map_file = os.path.join(folder_path, "metadata/map.csv")
+        csv_folder_path = os.path.join(folder_path, curr_plate_datafolders[i])
+
+        # Make a list of the csv file paths for each compartment
+        compartment_paths = []
+
+        for file in csv_names:
+            cp_file = os.path.join(csv_folder_path, file)
+            if os.path.exists(cp_file) and file in csv_names:
+                compartment_paths.append(cp_file)
+
+        # Join the file dataframes
+        if "Cell.csv" in compartment_paths[0]:
+            pre_cell_df = pd.read_csv(compartment_paths[0])
+        else:
+            return FileNotFoundError("Cell.csv not found in the folder")
+
+        for j, compartment in enumerate(compartment_paths):
+            if j == 0 and "Cell.csv" in compartment:
+                continue
+
+            compartment_df = pd.read_csv(compartment)
+            excluded_columns = ["ImageNumber", "ObjectNumber"]
+
+            prefix = csv_names[j].replace(".csv", "") + "_"
+
+            keys_df = compartment_df[excluded_columns]
+            excluded_keys_df = compartment_df.drop(columns=excluded_columns)
+
+            prefixed_compartment_df = excluded_keys_df.add_prefix(prefix)
+            combined_prefixed_compartment_df = pd.concat(
+                [keys_df, prefixed_compartment_df], axis=1
+            )
+
+            pre_cell_df = pre_cell_df.merge(
+                combined_prefixed_compartment_df,
+                on=["ImageNumber", "ObjectNumber"],
+                how="left",
+            )
+
+        # Join the metadata with the data
+        if os.path.exists(cp_file) and os.path.exists(map_file):
+            # Read the metadata file and merge with dataframes (map.csv)
+            platemap_df = pd.read_csv(map_file)
+            cell_df = pre_cell_df.merge(
+                platemap_df,
+                on=[
+                    "Metadata_Well",
+                    "Metadata_WellRow",
+                    "Metadata_WellColumn",
+                    "Metadata_Field",
+                ],
+                how="left",
+            )
+
+            # Add a column to the cell_df to group passages and identify the plate replicate
+            cell_df["Passage Group"] = cell_df["PassageNumber"].apply(passage_group)
+            cell_df["Metadata_Plate"] = plate
+            cell_df["Replicate_Number"] = i + 1
+            # Append the merged DataFrame to the list
+            plate_dfs[plate] = cell_df
+
+    # Combine all the different replicate DataFrames into a single DataFrame
+    combined_replicates_df = pd.concat(plate_dfs.values(), ignore_index=True)
+
+    # Filter DataFrames to only include cells that were stained with LAMP1-488 and MitoRed
+    combined_replicates_df_mitolyso = combined_replicates_df[
+        combined_replicates_df["Staining"].str.startswith("LAMP1-488 + MitoRed")
+    ]
+    return combined_replicates_df_mitolyso
+
+
 def calculate_median_object_features(parent_df, object_df, feature, parent_key, child_key="Cell_Number_Object_Number"):
     """
     Calculate the median of specified features grouped by a parent key.
