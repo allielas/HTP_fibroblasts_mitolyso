@@ -1,0 +1,16 @@
+{
+  "folders": [
+    {
+      "path": "."
+    }
+  ],
+  "settings": {
+    "files.autoSave": "onFocusChange",
+    "editor.defaultFormatter": "ms-python.vscode-pylance",
+    "editor.formatOnSave": true,
+    "editor.formatOnPaste": true,
+    "[jsonc]": {
+      "editor.defaultFormatter": "vscode.json-language-features"
+    }
+  }
+}
