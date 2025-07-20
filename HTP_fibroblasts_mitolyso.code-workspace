@@ -11,6 +11,7 @@
     "editor.formatOnPaste": true,
     "[jsonc]": {
       "editor.defaultFormatter": "vscode.json-language-features"
-    }
+    },
+    "terminal.integrated.defaultProfile.linux": "bash"
   }
 }
