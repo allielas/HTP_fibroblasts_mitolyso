@@ -1,349 +1,411 @@
-''' 
+"""
 Helper functions for cellpose segmentation and mask saving
 Allie Spangaro, Toronto Metropolitan University
-'''
+"""
+
 import numpy as np
 from cellpose import models, core, io, plot
 from pathlib import Path
 from tqdm import trange
 import matplotlib.pyplot as plt
-import cv2 as cv 
+import cv2 as cv
 import tifffile as tf
 
+
 def file_sort_key(filename):
-  '''
+    """
     Generate a key to sort a list of image files in the 'MAX_chN-rXXcYYfZZ.tif' filename nomenclature by their plate location and channel.
     > e.g: MAX_ch1-r02c02f01.tif, MAX_ch2-r02c02f01.tif, MAX_ch3-r02c02f01.tif, MAX_ch3-r02c02f01.tif, MAX_ch1-r02c02f02.tif, MAX_ch2-r02c02f02.tif, MAX_ch3-r02c02f02.tif, MAX_ch3-r02c02f02.tif
     Parameters:
           filename (str): the filename from the image path
     Returns:
-          (location,channel) (tuple of str): the list of files sorted by location and channel. Images will be ordered by location first, and then by channel to match the order seen in CellProfiler  
-  '''
-  parts = filename.split("-")
-  channel = parts[0][-1:] # get the last character of the first part for the channel number
-  location = parts[1] #get the rXXcYYfZZ.tif portion
-  return (location,channel)
+          (location,channel) (tuple of str): the list of files sorted by location and channel. Images will be ordered by location first, and then by channel to match the order seen in CellProfiler
+    """
+    parts = filename.split("-")
+    channel = parts[0][
+        -1:
+    ]  # get the last character of the first part for the channel number
+    location = parts[1]  # get the rXXcYYfZZ.tif portion
+    return (location, channel)
+
 
 def plate_location(filename):
-  '''
+    """
     Parse a string from an image filename in the MAX_chN-rXXcYYfZZ.tif filename nomenclature
     Parameters:
           filename (str): the filename from the image path
     Returns:
-          location (str): the rowcolfield plate location of the image 
-  '''
-  parts = filename.split("-") #split from the MAX_chN
-  pre_location = parts[1]
-  location = pre_location.split(".")[0] # get the first part of the second part (avoid the .tif)
-  return location
-  
+          location (str): the rowcolfield plate location of the image
+    """
+    parts = filename.split("-")  # split from the MAX_chN
+    pre_location = parts[1]
+    location = pre_location.split(".")[
+        0
+    ]  # get the first part of the second part (avoid the .tif)
+    return location
+
+
 def sort_files(dir, image_ext):
-  '''
-    Sort the list of directories sorted by their plate location and channel 
+    """
+    Sort the list of directories sorted by their plate location and channel
     Parameters:
           dir (Path object or str): the directory containing the images
           image_ext (str, optional): the image extension, tif by default
     Returns:
-          files (list of Path objects): the list of files sorted by location and channel  
-  '''
-  if not dir.exists():
-    raise FileNotFoundError("directory does not exist")
-  files = sorted([f for f in dir.glob("*"+image_ext) if "_masks" not in f.name and "_flows" not in f.name and "SUM" not in f.name],
-                           key=lambda x: file_sort_key(x.name))
- # sort by number in filename
-  if(len(files)==0):
-    raise FileNotFoundError("no image files found, did you specify the correct folder and extension?")
-  else:
-    return files
-  
+          files (list of Path objects): the list of files sorted by location and channel
+    """
+    if not dir.exists():
+        raise FileNotFoundError("directory does not exist")
+    files = sorted(
+        [
+            f
+            for f in dir.glob("*" + image_ext)
+            if "_masks" not in f.name and "_flows" not in f.name and "SUM" not in f.name
+        ],
+        key=lambda x: file_sort_key(x.name),
+    )
+    # sort by number in filename
+    if len(files) == 0:
+        raise FileNotFoundError(
+            "no image files found, did you specify the correct folder and extension?"
+        )
+    else:
+        return files
+
+
 def print_files(files):
-  '''
+    """
     Print a list of filenames from a list of Path objects
     Parameters:
             grouped_files_by_channel (2D list of Path objects): list of files grouped into image sets by their channels
-  '''
-  for f in files:
-    print(f.name)
+    """
+    for f in files:
+        print(f.name)
+
 
 def load_sorted_directory_list(dir, image_ext=".tif"):
-    '''
+    """
     Load the list of directories sorted by their location and channel to allow grouping into a 2D list and force the objects to be Path objects
     Parameters:
           dir (Path object or str): the directory containing the images
           image_ext (str, optional): the image extension, tif by default
     Returns:
-          file_list (list of Path objects): the list of files sorted by location and channel  
-    '''
-    dir = Path(dir) 
+          file_list (list of Path objects): the list of files sorted by location and channel
+    """
+    dir = Path(dir)
     file_list = sort_files(dir, image_ext)
     return file_list
-  
+
+
 def get_nchannels(ordered_files):
-  '''
+    """
     Get the number of channels based on the last element list element in a list of image files ordered by channels
     Parameters:
           ordered_files (1D list of Path objects): list of files grouped into image sets by their channels
     Returns:
           nchannels (int): the number of channels based on the length of the first element
-  '''
-  lastitem = ordered_files[-1].name
-  parts = lastitem.split("-")
-  ch_char = parts[0][-1:]
-  nchannels = int(ch_char)
-  return nchannels
-      
+    """
+    lastitem = ordered_files[-1].name
+    parts = lastitem.split("-")
+    ch_char = parts[0][-1:]
+    nchannels = int(ch_char)
+    return nchannels
+
+
 def group_files_by_channel(files, nchannels=None):
-  '''
+    """
     Load the list of directories
     Parameters:
           dir (Path object or str): the directory containing the images
           nchannels (int,optionsl): the number of image channels to use for grouping
     Returns:
           grouped_files_by_channel (2D list of Path objects): list of files grouped into image sets by their channels
-  '''
-  grouped_files_by_channel = []
-  if nchannels==None:
-    nchannels = get_nchannels(files)
-    
-  for i in range(0,len(files),nchannels):
-    grouped_files_by_channel.append(files[i:i+nchannels])
-  return grouped_files_by_channel
+    """
+    grouped_files_by_channel = []
+    if nchannels == None:
+        nchannels = get_nchannels(files)
+
+    for i in range(0, len(files), nchannels):
+        grouped_files_by_channel.append(files[i : i + nchannels])
+    return grouped_files_by_channel
+
 
 def print_grouped_files(grouped_files_by_channel):
-  '''
+    """
     Print a list of files grouped by channel to confirm that the images are loaded in the correct order
     Parameters:
             grouped_files_by_channel (2D list of Path objects): list of files grouped into image sets by their channels
-  '''
-  for i in range(len(grouped_files_by_channel)):
-    print(f"\n Group {i+1} of {len(grouped_files_by_channel)}")
-    for j in range(len(grouped_files_by_channel[i])):
-      item = grouped_files_by_channel[i][j]
-      print(" "+ item.name)
-  
+    """
+    for i in range(len(grouped_files_by_channel)):
+        print(f"\n Group {i + 1} of {len(grouped_files_by_channel)}")
+        for j in range(len(grouped_files_by_channel[i])):
+            item = grouped_files_by_channel[i][j]
+            print(" " + item.name)
+
+
 def load_image_set(single_grouped_files_by_channel, nchannels=None):
-  '''
+    """
     Load an image set given file paths for a single image set; load images from a single element of the list made by the `group_files_by_channel` function
     Parameters:
-          single_grouped_files_by_channel (list of Path objects): list of file paths grouped by channel and ordered by platemap location 
+          single_grouped_files_by_channel (list of Path objects): list of file paths grouped by channel and ordered by platemap location
           nchannels (int or None): the number of channels. Assumes based on length of first element otherwise
     Returns:
           image_set (list of 2D arrays): a list of 2D arrays representing the loaded single-channel grayscale images
-  '''
-  if nchannels == None:
-    nchannels = len(single_grouped_files_by_channel) 
-  # load the images from the channels - skip ch3 at position 2 as DAPI is always the last channel
-  lastindex = nchannels - 1 #subtract 1 to convert to the 0-index
-  ch1,ch2,ch3 = io.imread(single_grouped_files_by_channel[0]), io.imread(single_grouped_files_by_channel[1]), io.imread(single_grouped_files_by_channel[lastindex])
-  image_set = [ch1,ch2*2,ch3]
-  return image_set
+    """
+    if nchannels == None:
+        nchannels = len(single_grouped_files_by_channel)
+    # load the images from the channels - skip ch3 at position 2 as DAPI is always the last channel
+    lastindex = nchannels - 1  # subtract 1 to convert to the 0-index
+    ch1, ch2, ch3 = (
+        io.imread(single_grouped_files_by_channel[0]),
+        io.imread(single_grouped_files_by_channel[1]),
+        io.imread(single_grouped_files_by_channel[lastindex]),
+    )
+    image_set = [ch1, ch2 * 2, ch3]
+    return image_set
+
 
 def get_image_set_name(grouped_files_by_channel, index=1):
-  '''
+    """
     Get the name of the image set from the specified index in a list of filenames grouped by channel
     Corresponds to image set index in cellprofiler based on the order in the folder
     Parameters:
-          grouped_files_by_channel (2D list of Path objects): an ordered 2D list of file paths grouped by channel and ordered by platemap location 
+          grouped_files_by_channel (2D list of Path objects): an ordered 2D list of file paths grouped by channel and ordered by platemap location
           index (int, optional): the index to look up the rowcolfield of that image set
     Returns:
           set_name (str): String name of the image set from the rowcolfield filename nomenclature
-  '''
-  set_name = plate_location(grouped_files_by_channel[index-1].name)
-  return set_name
-    
+    """
+    set_name = plate_location(grouped_files_by_channel[index - 1].name)
+    return set_name
+
+
 def img_preprocessing(img_set):
-  '''
+    """
     Preprocess a grayscale image given an list of single-channel grayscale images and stack the image together
     Parameters:
            img_set (list of 2D arrays): a list of 2D arrays representing grayscale images
     Returns:
           multi_channel_image (3D array): a 3D array containing the preprocessed grayscale images
-  '''
-  from skimage import exposure, filters, morphology
-  #ch1,ch2,ch3 = io.imread(files[0]), io.imread(files[1]), io.imread(files[3])
-  #channels = [ch1, ch2, ch3]
-  img_stack = []
-  for channel in img_set:
-      #footprint = morphology.disk(5)
-      channel = img_01_normalization(channel)
-      channel = exposure.equalize_adapthist(channel, kernel_size=100, clip_limit=0.05)
-      channel = filters.gaussian(channel, sigma=2)
-      img_stack.append(channel)
+    """
+    from skimage import exposure, filters, morphology
 
-  multi_channel_image = np.stack(img_stack, axis=-1)
-  return multi_channel_image
-    
+    # ch1,ch2,ch3 = io.imread(files[0]), io.imread(files[1]), io.imread(files[3])
+    # channels = [ch1, ch2, ch3]
+    img_stack = []
+    for channel in img_set:
+        # footprint = morphology.disk(5)
+        channel = img_01_normalization(channel)
+        channel = exposure.equalize_adapthist(channel, kernel_size=100, clip_limit=0.05)
+        channel = filters.gaussian(channel, sigma=2)
+        img_stack.append(channel)
+
+    multi_channel_image = np.stack(img_stack, axis=-1)
+    return multi_channel_image
+
+
 def img_zscore_normalization(img):
-    '''
-      ### Preprocess a grayscale image by normalizing pixels to a standard-scaled distribution (mean of 0, std of 1)
-      Recommented for 2D only
-      Parameters:
-            img (2D or 3D array): a grayscale image as a 2D array
-      Returns:
-            norm_img (2D or 3D array): the grayscale image array normalized by z score
-    '''
+    """
+    ### Preprocess a grayscale image by normalizing pixels to a standard-scaled distribution (mean of 0, std of 1)
+    Recommented for 2D only
+    Parameters:
+          img (2D or 3D array): a grayscale image as a 2D array
+    Returns:
+          norm_img (2D or 3D array): the grayscale image array normalized by z score
+    """
     # Normalize each channel to z score
     norm_img = (img - np.mean(img)) / np.std(img)
     return norm_img
 
+
 def img_01_normalization(img):
-    '''
-      Normalize the intensity of each channel in a grayscale image to the range [0, 1] to aid in preprocessing or segmentation by some algorithms
-      Parameters:
-            img (2D or 3D array): a grayscale image as a 2D array
-      Returns:
-            norm_img (2D or 3D array): the grayscale image array normalized by to [0,1]
-    '''
+    """
+    Normalize the intensity of each channel in a grayscale image to the range [0, 1] to aid in preprocessing or segmentation by some algorithms
+    Parameters:
+          img (2D or 3D array): a grayscale image as a 2D array
+    Returns:
+          norm_img (2D or 3D array): the grayscale image array normalized by to [0,1]
+    """
     norm_img = (img - np.min(img)) / (np.max(img) - np.min(img))
     return norm_img
 
+
 def img_rescaled(img, factor=0.5, anti_aliasing=False, channel_axis=-1):
-    '''
-      Rescale a multichannel grayscale image by a given factor using skimage.transform.rescale
-      Parameters:
-            img (3D array): 3D array containing the grayscale image stack
-            factor (float, optional): Factor to rescale the image by, 50% by default
-            anti_aliasing (bool, optional): Flag whether to downsample the image or not, will downsample by default to reduce noise
-      Returns:
-            rescaled_image (3D array): a 3D array containing the rescaled grayscale image
-    '''
+    """
+    Rescale a multichannel grayscale image by a given factor using skimage.transform.rescale
+    Parameters:
+          img (3D array): 3D array containing the grayscale image stack
+          factor (float, optional): Factor to rescale the image by, 50% by default
+          anti_aliasing (bool, optional): Flag whether to downsample the image or not, will downsample by default to reduce noise
+    Returns:
+          rescaled_image (3D array): a 3D array containing the rescaled grayscale image
+    """
     from skimage import transform
-    rescaled_img = transform.rescale(img, factor, anti_aliasing=anti_aliasing, channel_axis=channel_axis)
-    return rescaled_img 
-  
-def load_model(model_name = None, gpu = True):
-  '''
+
+    rescaled_img = transform.rescale(
+        img, factor, anti_aliasing=anti_aliasing, channel_axis=channel_axis
+    )
+    return rescaled_img
+
+
+def load_model(model_name=None, gpu=True):
+    """
     Loads a cellpose model, uses cp_sam by default but can specify any model
     Parameters:
           model_name (None or str): the name of the model specified, by default assumes cpsam
           gpu (bool, optional): specify whether or not to use gpu, true by default
-          
+
     Returns:
           model (Cellpose.model object): the model loaded
-  '''
-  io.logger_setup()
-  if gpu==True:
-    if core.use_gpu()==False:
-      raise ImportError("No GPU access, change your runtime")
-  
-  model = models.CellposeModel(gpu=gpu)  
-  return model
+    """
+    io.logger_setup()
+    if gpu == True:
+        if core.use_gpu() == False:
+            raise ImportError("No GPU access, change your runtime")
+
+    model = models.CellposeModel(gpu=gpu)
+    return model
+
 
 def segment_cell(img, model, show_plot=True):
-    '''
+    """
     Run cellpose on a grayscale cell image and return the predicted masks
     Parameters:
            img (2D or 3D array): grayscale image to be segmented by cellpose
            model (Cellpose.model): the cellpose model used for segmentation
-           show (bool, optional): flag whether to show a plot of the predicted mask flow   
+           show (bool, optional): flag whether to show a plot of the predicted mask flow
     Returns:
-          masks (list of 2D or 3D arrays): the predicted masks from the cellpose model 
-    '''  
+          masks (list of 2D or 3D arrays): the predicted masks from the cellpose model
+    """
     flow_threshold = 0.5
     cellprob_threshold = -1
     tile_norm_blocksize = 0
     diameter = 60
 
-    masks, flows, styles = model.eval(img, batch_size=32, diameter=diameter, flow_threshold=flow_threshold, cellprob_threshold=cellprob_threshold,
-                                    normalize={"tile_norm_blocksize": tile_norm_blocksize})
-    #plot if true
+    masks, flows, styles = model.eval(
+        img,
+        batch_size=32,
+        diameter=diameter,
+        flow_threshold=flow_threshold,
+        cellprob_threshold=cellprob_threshold,
+        normalize={"tile_norm_blocksize": tile_norm_blocksize},
+    )
+    # plot if true
     if show_plot:
-        fig = plt.figure(figsize=(12,5))
+        fig = plt.figure(figsize=(12, 5))
         plot.show_segmentation(fig, img, masks, flows[0])
         plt.tight_layout()
         plt.show()
     return masks
 
+
 def segment_cell_v2(img, model, show_plot=True):
-    '''
+    """
     Run cellpose on a grayscale cell image and return the predicted masks - this time combining channels
     Parameters:
            img (2D or 3D array): grayscale image to be segmented by cellpose
            model (Cellpose.model): the cellpose model used for segmentation
-           show (bool, optional): flag whether to show a plot of the predicted mask flow   
+           show (bool, optional): flag whether to show a plot of the predicted mask flow
     Returns:
-          masks (list of 2D or 3D arrays): the predicted masks from the cellpose model 
-    ''' 
-    from skimage import exposure,filters,morphology
-    gfp = img[:,:,0] #combine the ch1 and ch2 images to help cellpose out a bit
-    rfp = img[:,:,1]
-    dapi = img[:,:,2] #save ch3 for later
-    
-    img_combo = gfp+rfp
-    img_combo = img_01_normalization(img_combo) #normalize to match cellpose training data
-    #adjust contrast
+          masks (list of 2D or 3D arrays): the predicted masks from the cellpose model
+    """
+    from skimage import exposure, filters, morphology
+
+    gfp = img[:, :, 0]  # combine the ch1 and ch2 images to help cellpose out a bit
+    rfp = img[:, :, 1]
+    dapi = img[:, :, 2]  # save ch3 for later
+
+    img_combo = gfp + rfp
+    img_combo = img_01_normalization(
+        img_combo
+    )  # normalize to match cellpose training data
+    # adjust contrast
     img_combo = exposure.equalize_adapthist(img_combo, kernel_size=68, clip_limit=0.01)
-    #smooth and subtract background
+    # smooth and subtract background
     dog = filters.difference_of_gaussians(img_combo, low_sigma=2.5)
     img_combo = img_combo - dog
-    
-    #sharpen image and improve outline
+
+    # sharpen image and improve outline
     img_combo = filters.unsharp_mask(img_combo, radius=2, amount=1)
-    
-    #stack the images
-    img_selected_channels = np.stack([img_combo, dapi],axis=-1)
-    
+
+    # stack the images
+    img_selected_channels = np.stack([img_combo, dapi], axis=-1)
+
     """ fig, (ax1, ax2) = plt.subplots(ncols=2, figsize=(12,5),sharex=True, sharey=True)
     ax1.imshow(img_selected_channels[:,:,0])
     ax2.imshow(img_selected_channels[:,:,1]) """
-     
+
     flow_threshold = 0.6
     cellprob_threshold = -1
     tile_norm_blocksize = 0
     diameter = 40
 
-    masks, flows, styles = model.eval(img_selected_channels, batch_size=32, diameter=diameter, flow_threshold=flow_threshold, cellprob_threshold=cellprob_threshold,
-                                    normalize={"tile_norm_blocksize": tile_norm_blocksize})
-    #plot if true
+    masks, flows, styles = model.eval(
+        img_selected_channels,
+        batch_size=32,
+        diameter=diameter,
+        flow_threshold=flow_threshold,
+        cellprob_threshold=cellprob_threshold,
+        normalize={"tile_norm_blocksize": tile_norm_blocksize},
+    )
+    # plot if true
     if show_plot:
-        fig = plt.figure(figsize=(12,5))
+        fig = plt.figure(figsize=(12, 5))
         plot.show_segmentation(fig, img_selected_channels, masks, flows[0])
         plt.tight_layout()
         plt.show()
     return masks
-    
+
+
 def segment_nuclei(orig_img, model, show_plot=True):
-    '''
+    """
     Preprocess a grayscale image of the nuclear channel, run cellpose on the image, and return the predicted masks
     Parameters:
            img (2D or 3D array): grayscale image to be segmented by cellpose
            model (Cellpose.model): the cellpose model used for segmentation
            show (bool, optional): flag whether to show a plot of the predicted mask flow
-           
+
     Returns:
-          masks (list of 2D or 3D arrays): the predicted nuclear masks from the cellpose model 
-    ''' 
+          masks (list of 2D or 3D arrays): the predicted nuclear masks from the cellpose model
+    """
     from skimage import morphology, exposure, filters
-    img = orig_img[:,:,2] #get the DAPI channel
-    
+
+    img = orig_img[:, :, 2]  # get the DAPI channel
+
     # remove background
     dog = filters.difference_of_gaussians(img, low_sigma=2.5)
     seed = np.minimum(dog, img)  # ensure seed is not greater than the original image
-    bg = morphology.reconstruction(seed, img, method='dilation')
+    bg = morphology.reconstruction(seed, img, method="dilation")
     img = img - bg
-    
+
     # remove speckle-shaped autofluor
     bg2 = morphology.white_tophat(img, morphology.disk(3))
     img = img - bg2
     img = morphology.closing(img, morphology.disk(2.5))
     img = filters.gaussian(img, sigma=1)
-    
+
     flow_threshold = 0.5
     cellprob_threshold = 0
     tile_norm_blocksize = 0
     diameter = None
 
-    masks, flows, styles = model.eval(img, batch_size=32, diameter=diameter, flow_threshold=flow_threshold, cellprob_threshold=cellprob_threshold,
-                                    normalize={"tile_norm_blocksize": tile_norm_blocksize})
+    masks, flows, styles = model.eval(
+        img,
+        batch_size=32,
+        diameter=diameter,
+        flow_threshold=flow_threshold,
+        cellprob_threshold=cellprob_threshold,
+        normalize={"tile_norm_blocksize": tile_norm_blocksize},
+    )
     if show_plot:
-        fig = plt.figure(figsize=(12,5))
+        fig = plt.figure(figsize=(12, 5))
         plot.show_segmentation(fig, img, masks, flows[0])
         plt.tight_layout()
         plt.show()
     return masks
-  
+
+
 def save_masks(set_name, masks, outdir, image_ext=".tif", mask_type="cell"):
-  '''
+    """
     Save masks from a previously run cellpose model to a folder given an output directory
     Parameters:
            set_name (str): the image set name to be saved in the output file
@@ -351,89 +413,121 @@ def save_masks(set_name, masks, outdir, image_ext=".tif", mask_type="cell"):
            outdir (Path or str): the output directory to save masks
            image_ext (str, optional): image extension, .tif by default
            mask_type (str, optional): specify the mask type to save, cell by default
-  '''  
-  # save the masks to a file
-  masks_ext = ".png" if image_ext == ".png" else ".tif"
-  io.imsave(outdir / (set_name + "_" + mask_type + "_masks" + masks_ext), masks)
+    """
+    # save the masks to a file
+    masks_ext = ".png" if image_ext == ".png" else ".tif"
+    io.imsave(outdir / (set_name + "_" + mask_type + "_masks" + masks_ext), masks)
 
-def save_mask_folder(ordered_files, outdir, image_ext=".tif", nchannels=None, resize_factor=0.25, v2=False):
-  '''
+
+def save_mask_folder(
+    ordered_files,
+    outdir,
+    image_ext=".tif",
+    nchannels=None,
+    resize_factor=0.25,
+    v2=False,
+):
+    """
     Run cellpose and save cell and nuclear masks to a folder given an ordered list of files ordered by channel and an output directory
     Parameters:
           ordered_files (list): an ordered list of image file paths to be processed and saved; assumed to be ordered by location,channel by the `load_sorted_directory_list`
           outdir (Path or str): the output directory to save masks
           image_ext (str, optional): image extension, .tif by default
           nchannels (int, optional): specify the number of channels, default from the number of elements in the 1st element of the 2D list given
-          resize_factor (float): the factor to rescale the image by for cellpose, 512x512 by default  
-  '''
-  model = load_model()
-  if nchannels == None: #handle default case when nchannels isn't specified
-    nchannels = get_nchannels(ordered_files)
-    
-  grouped_files_by_channel = group_files_by_channel(ordered_files,nchannels)
-  
-  for i in trange(len(grouped_files_by_channel)):
-      file_group = grouped_files_by_channel[i]
-      img_set = load_image_set(file_group, nchannels)
-      img_set_name = get_image_set_name(file_group)
-      #print("Set name: ", img_set_name)
-      
-      stacked_img = img_preprocessing(img_set)
-      rescaled_img = img_rescaled(stacked_img, factor=resize_factor) #rescale to 512 by 512 for cellpose
-      
-      nuc_masks = segment_nuclei(rescaled_img, model, show_plot=False) 
-      save_masks(img_set_name, nuc_masks, outdir, image_ext=image_ext, mask_type="nuclei")
-      
-      if v2:
-        cell_v2_masks = segment_cell_v2(rescaled_img, model, show_plot=False)
-        save_masks(img_set_name, cell_v2_masks, outdir, image_ext=image_ext, mask_type="v2_cell") 
-      else:
-        cell_masks = segment_cell(rescaled_img, model, show_plot=False)
-        save_masks(img_set_name, cell_masks, outdir, image_ext=image_ext, mask_type="cell")
-        
+          resize_factor (float): the factor to rescale the image by for cellpose, 512x512 by default
+    """
+    model = load_model()
+    if nchannels == None:  # handle default case when nchannels isn't specified
+        nchannels = get_nchannels(ordered_files)
+
+    grouped_files_by_channel = group_files_by_channel(ordered_files, nchannels)
+
+    for i in trange(len(grouped_files_by_channel)):
+        file_group = grouped_files_by_channel[i]
+        img_set = load_image_set(file_group, nchannels)
+        img_set_name = get_image_set_name(file_group)
+        # print("Set name: ", img_set_name)
+
+        stacked_img = img_preprocessing(img_set)
+        rescaled_img = img_rescaled(
+            stacked_img, factor=resize_factor
+        )  # rescale to 512 by 512 for cellpose
+
+        nuc_masks = segment_nuclei(rescaled_img, model, show_plot=False)
+        save_masks(
+            img_set_name, nuc_masks, outdir, image_ext=image_ext, mask_type="nuclei"
+        )
+
+        if v2:
+            cell_v2_masks = segment_cell_v2(rescaled_img, model, show_plot=False)
+            save_masks(
+                img_set_name,
+                cell_v2_masks,
+                outdir,
+                image_ext=image_ext,
+                mask_type="v2_cell",
+            )
+        else:
+            cell_masks = segment_cell(rescaled_img, model, show_plot=False)
+            save_masks(
+                img_set_name, cell_masks, outdir, image_ext=image_ext, mask_type="cell"
+            )
+
+
 def save_imageJ_masks(set_name, masks, outdir, image_ext=".tif", mask_type="cell"):
-  '''
-  Save masks as ImageJ ROIs
-  Parameters:
-           set_name (str): the image set name to be saved in the output file
-           masks (list of 2D or 3D arrays): the masks output from Cellpose
-           outdir (Path or str): the output directory to save masks
-           image_ext (str, optional): image extension, .tif by default
-           mask_type (str, optional): specify the mask type to save, cell by default
-  '''
-  masks_ext = ".png" if image_ext == ".png" else ".tif"
-  masks0 = io.imsave(outdir / (set_name + "_" + mask_type + "_masks" + masks_ext))
-  io.save_rois(masks0, masks)
-    
-def preload_and_save_masks(ordered_files, outdir, masks_ext=".tif", mask_type="cell", nchannels=None):
-  '''
+    """
+    Save masks as ImageJ ROIs
+    Parameters:
+             set_name (str): the image set name to be saved in the output file
+             masks (list of 2D or 3D arrays): the masks output from Cellpose
+             outdir (Path or str): the output directory to save masks
+             image_ext (str, optional): image extension, .tif by default
+             mask_type (str, optional): specify the mask type to save, cell by default
+    """
+    masks_ext = ".png" if image_ext == ".png" else ".tif"
+    masks0 = io.imsave(outdir / (set_name + "_" + mask_type + "_masks" + masks_ext))
+    io.save_rois(masks0, masks)
+
+
+def preload_and_save_masks(
+    ordered_files, outdir, masks_ext=".tif", mask_type="cell", nchannels=None
+):
+    """
     Load all images into memory and then batch-run cellpose on GPU
     ONLY use if image files are small, will crash with large files
     Parameters:
            ordered_files (list): a 1D list of file paths ordered by location,channel
            outdir (Path or str): the output directory to save masks
            image_ext (str, optional): image extension, .tif by default
-           nchannels (int, optional): specify the number of channels, default = 4  
-  '''
-  model = load_model()
-  if nchannels == None: #handle default case when nchannels isn't specified
-    nchannels = get_nchannels(ordered_files)
-    
-  grouped_files_by_channel = group_files_by_channel(ordered_files,nchannels)
-  #if you have small images, you may want to load all of them first and then run, so that they can be batched together on the GPU
-  print("loading images")
-  imgs = load_image_set([grouped_files_by_channel[i] for i in trange(len(grouped_files_by_channel))],nchannels)
+           nchannels (int, optional): specify the number of channels, default = 4
+    """
+    model = load_model()
+    if nchannels == None:  # handle default case when nchannels isn't specified
+        nchannels = get_nchannels(ordered_files)
 
-  print("running cellpose-SAM")
-  flow_threshold = 0.4
-  cellprob_threshold = 0
-  tile_norm_blocksize = 0
+    grouped_files_by_channel = group_files_by_channel(ordered_files, nchannels)
+    # if you have small images, you may want to load all of them first and then run, so that they can be batched together on the GPU
+    print("loading images")
+    imgs = load_image_set(
+        [grouped_files_by_channel[i] for i in trange(len(grouped_files_by_channel))],
+        nchannels,
+    )
 
-  masks, flows, styles = model.eval(imgs, batch_size=32, flow_threshold=flow_threshold, cellprob_threshold=cellprob_threshold,
-                                  normalize={"tile_norm_blocksize": tile_norm_blocksize})
+    print("running cellpose-SAM")
+    flow_threshold = 0.4
+    cellprob_threshold = 0
+    tile_norm_blocksize = 0
 
-  print("saving masks")
-  for i in trange(len(grouped_files_by_channel)):
-      f = grouped_files_by_channel[i]
-      set_name = get_image_set_name(f)
-      io.imsave(outdir / (set_name + mask_type +  "_masks" + masks_ext), masks[i])
+    masks, flows, styles = model.eval(
+        imgs,
+        batch_size=32,
+        flow_threshold=flow_threshold,
+        cellprob_threshold=cellprob_threshold,
+        normalize={"tile_norm_blocksize": tile_norm_blocksize},
+    )
+
+    print("saving masks")
+    for i in trange(len(grouped_files_by_channel)):
+        f = grouped_files_by_channel[i]
+        set_name = get_image_set_name(f)
+        io.imsave(outdir / (set_name + mask_type + "_masks" + masks_ext), masks[i])

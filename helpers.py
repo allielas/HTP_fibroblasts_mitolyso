@@ -100,7 +100,7 @@ def define_cell_features(df):
 
     Returns:
         list: A list of columns that are numerical features
-    """    
+    """
     # Get the columns of the dataframe
     columns_list = df.columns.tolist()
     columns_list = [
@@ -202,7 +202,7 @@ def standardize_group(df, columns):
 
     Returns:
         _type_: _description_
-    """    
+    """
     from sklearn.preprocessing import StandardScaler
 
     # Import the scaler and transform all time values to that of a standard distribution - only use for ML, not very desceiptive
@@ -221,7 +221,7 @@ def group_by_condition(df, feature_list, groupby_column="AgeGroup"):
 
     Returns:
         _type_: _description_
-    """    
+    """
     # Group columns by age group and apply groupby function to the DF
     df_groupby = df.groupby(groupby_column).apply(
         lambda x: standardize_group(x, feature_list)
@@ -239,7 +239,7 @@ def outlier_removal(df, nuclei_df, column):
 
     Returns:
         _type_: _description_
-    """    
+    """
     # Create a copy of the column and the 'group' column, along with parent nuclei
     mini_df = pd.DataFrame(
         {
@@ -357,7 +357,7 @@ def mean_intesity_per_compartment_per_cell(df, compartment, tag):
 
     Returns:
         _type_: _description_
-    """    
+    """
     # Calculate the mean intensity of each compartment per cell
     # mean_intesity_per_compartment = integrated / (children*mean_area)
     colname = "MeanIntensity_Per_" + compartment + "_Per_Cell"
@@ -379,7 +379,7 @@ def proportion_area_occupied_per_cell(df, compartment):
 
     Returns:
         _type_: _description_
-    """    
+    """
     # proportion of area occupied = children * mean organelle area / cell area
     colname = "Total_Area_Proportion_" + compartment + "_Per_Cell"
 
@@ -401,7 +401,7 @@ def proportion_area_occupied_per_cell_fromtotal(df, compartment):
 
     Returns:
         Series: The column to add
-    """    
+    """
     # proportion of area occupied = children * mean organelle area / cell area
     colname = "Total_Area_Proportion_" + compartment + "_Per_Cell"
 
@@ -425,7 +425,7 @@ def mean_intesity_per_compartment_per_cell_fromtotal(df, compartment, name, tag)
 
     Returns:
         Series: the column to add
-    """    
+    """
     # Calculate the mean intensity of each compartment per cell
     # mean_intesity_per_compartment = integrated / (children*mean_area)
     colname = "MeanIntensity_Per_" + compartment + "_Per_Cell"
@@ -441,7 +441,7 @@ def average_groups_by_plate(df, x_value, y_value, replicates):
     """
     Group the DataFrame by the specified columns and calculate the mean of the y_value column.
     Returns the averaged dataframe for plotting
-    
+
     Args:
         df (DataFrame): your dataframe
         x_value (string): the grouping variable (x value)
@@ -455,12 +455,14 @@ def average_groups_by_plate(df, x_value, y_value, replicates):
     df = df[df[y_value] != 0]
 
     df.reset_index(drop=True, inplace=True)
-    
-    group_averages = df.groupby([x_value, replicates], as_index=False, observed=True).agg({y_value: "mean"})
-    
+
+    group_averages = df.groupby(
+        [x_value, replicates], as_index=False, observed=True
+    ).agg({y_value: "mean"})
+
     # Reset the index to get a clean DataFrame
     average_df = group_averages.reset_index()
-   
+
     return average_df
 
 
@@ -475,7 +477,7 @@ def make_single_feature_df(data, group, feature, replicates):
 
     Returns:
         _type_: _description_
-    """    
+    """
     pd.options.mode.copy_on_write = True
 
     subset = [group, feature, replicates]
@@ -494,7 +496,7 @@ def average_groups_by_plate_v0(df, x_value, y_value, replicates):
     """
     Group the DataFrame by the specified columns and calculate the mean of the y_value column.
     Returns the averaged dataframe for plotting
-    
+
     Args:
         df (DataFrame): your dataframe
         x_value (string): the grouping variable (x value)
@@ -528,6 +530,6 @@ def average_groups_pivot(df, x_value, y_value, replicates):
 
     Returns:
         DataFrame: a pivot table
-    """    
+    """
     group_ave_pivot = df.pivot_table(columns=x_value, values=y_value, index=replicates)
     return group_ave_pivot
