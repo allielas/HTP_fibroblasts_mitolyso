@@ -922,6 +922,85 @@ def superplot_for_area_threshold_comparisons(
         group_avg_df_2_pivot.to_csv(os.path.join(pivot_dir, f"area_pivot_{title2}.csv"))
 
 
+def single_feature_super_splitviolinplot(
+    data_df,
+    group_avg_df,
+    x_value="AllGroups",
+    y_value="Cell_AreaShape_Area",
+    replicate_col_name="Replicate_Number",
+    out_dir="",
+    xtitle=None,
+    ytitle=None,
+    order=None,
+    legend=True,
+    annotate=False,
+    test=None,
+    show_hist=False,
+):
+    """Make a superplot to do multiple comparisons for a feature between different conditions
+    Args:
+        data_df_1 (_type_): _description_
+        group_avg_df_1 (_type_): _description_
+        data_df_2 (_type_): _description_
+        group_avg_df_2 (_type_): _description_
+        x_value (str, optional): _description_. Defaults to "AllGroups".
+        y_value (str, optional): _description_. Defaults to "Cell_AreaShape_Area".
+        replicate_col_name (str, optional): _description_. Defaults to "Replicate_Number".
+        csv_dir (str, optional): _description_. Defaults to "".
+        xtitle (_type_, optional): _description_. Defaults to None.
+        ytitle (_type_, optional): _description_. Defaults to None.
+    """
+    import matplotlib.lines as mlines
+    from statannotations.Annotator import Annotator
+    from statannotations.stats.StatTest import StatTest
+    from pathlib import Path
+
+    if order == None:
+        order = get_all_group_order()
+    pairs = getpairs(data_df, x_value, order=order)
+    print(pairs)
+
+    if show_hist:
+        import plotly.express as px
+
+        hist = sns.kdeplot(data_df, x=y_value, hue=replicate_col_name, palette="pastel")
+        plt.show()
+        plt.close(hist.figure)
+
+        hist2 = px.histogram(data_df_1, x=y_value, color=x_value)
+        hist2.show()
+
+    fig, ax = plt.subplots(figsize=(15, 8))
+    # plt.style.use("ggplot")
+    sns.set_context("talk", font_scale=1.2)
+    sns.set_theme(style="whitegrid")
+
+    ax = super_splitviolinplot_helper(
+        data_df,
+        group_avg_df,
+        ax,
+        x_value,
+        y_value,
+        replicate_col_name,
+        order=order,
+        annotate=annotate,
+        test=test,
+    )
+
+    if legend:
+        ax = annotate_legend_with_shapiro(ax, group_avg_df, replicate_col_name)
+    else:
+        ax.legend_.remove()
+    if ytitle is not None:
+        ax.set_ylabel(ytitle)
+    if xtitle is not None:
+        ax.set_xlabel(xtitle)
+
+    plt.tight_layout()
+    plt.savefig(os.path.join(out_dir, f"{y_value}_{test}.png"))
+    plt.show()
+
+
 ### Archived
 
 
