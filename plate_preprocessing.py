@@ -84,7 +84,7 @@ def enforce_objects_one_to_one(df, parent_obj="Cell", child_obj="Nuclei"):
     if child_obj == "Nuclei" and parent_obj == "Cell":
         not_empty_df = df[df["Metadata_EmptyImage_Cell"] == 0]
         normal_cells = not_empty_df[
-            not_empty_df["Cell_Classify_Normal"] == 1
+            not_empty_df["Cell_Classify_one_nuc"] == 1
         ]  # one nucleus only
         size_filtered_cells = normal_cells[
             normal_cells["Cell_AreaShape_Area"]
@@ -114,6 +114,19 @@ def enforce_objects_one_to_one(df, parent_obj="Cell", child_obj="Nuclei"):
 def multinucleate_cells(df):
     multinuc_df = df[df["Cell_Classify_multinucleate"] == 1]
     return multinuc_df
+
+
+def filter_saturated_cells(df):
+    """Filter a cellprofiler output dataframe to only have cells classified as "normal" by having pixels vales below 65535
+
+    Args:
+        df (DataFrame): Cellprofiler output
+
+    Returns:
+        DataFrame: the filtered dataframe
+    """
+    not_saturated_df = df["Cell_Classify_Normal"] == 1
+    return not_saturated_df
 
 
 def plate_df_setup_fromcsv(
