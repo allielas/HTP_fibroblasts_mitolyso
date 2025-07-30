@@ -3,6 +3,9 @@ import numpy as np
 import pandas as pd
 import sqlite3
 
+# import matplotlib.pyplot as plt
+from scipy import stats
+
 
 # Debugging functions
 def passage_group(passage_num):
@@ -48,27 +51,6 @@ def add_drug_to_group(init_df, group, drug):
     return newcol
 
 
-def get_all_group_order():
-    """
-    Get the order of the passage groups for plotting
-    Returns a list of the passage groups in order
-    Returns:
-        list: A list of strings representing the group order
-    """
-    order = [
-        "P6-10",
-        "P11-13",
-        "P14-16",
-        "P17-19",
-        "P20-22",
-        "P23-25",
-        "P26-28",
-        "P29+",
-        "Doxo",
-    ]
-    return order
-
-
 def enforce_objects_one_to_one(df, parent_obj="Cell", child_obj="Nuclei"):
     """apply filters based on the number of nuclei to remove:
     - Cells that have less or more than one nucleus
@@ -109,6 +91,72 @@ def enforce_objects_one_to_one(df, parent_obj="Cell", child_obj="Nuclei"):
                 final_df = normal_cells.reset_index(drop=True)
                 return final_df
     return final_df
+
+
+def define_cell_features(df):
+    """_summary_
+
+    Args:
+        df (DataFrame): _description_
+
+    Returns:
+        list: A list of columns that are numerical features
+    """
+    # Get the columns of the dataframe
+    columns_list = df.columns.tolist()
+    columns_list = [
+        col
+        for col in columns_list
+        if "Metadata" not in col
+        and "FileName" not in col
+        and "PathName" not in col
+        and pd.api.types.is_numeric_dtype(df[col])
+    ]
+    # old_columns_list = columns_list = [col for col in columns_list if 'Metadata' not in col and 'FileName' not in col and 'PathName' not in col]
+    # print("Original columns:", len(old_columns_list), "Filtered columns:", len(columns_list))
+    return columns_list
+
+
+def make_feature_dict(columns_list):
+    """
+    Create a dictionary of features from the columns list.
+    Args:
+        columns_list (list): List of column names from the DataFrame.
+    Returns:
+        dict: A dictionary with keys as feature types and values as lists of corresponding column names."""
+    # Add the different types of features to a dictionary
+    feature_dict = {
+        "intensity": [],
+        "texture": [],
+        "areashape": [],
+        "granularity": [],
+        "radialdistribution": [],
+        "arearatios": [],
+        "count": [],
+        "distance": [],
+        "metadata": [],
+    }
+    for col in columns_list:
+        if "Texture" in col:
+            feature_dict["texture"].append(col)
+        elif "Intensity" in col:
+            feature_dict["intensity"].append(col)
+        elif "Math_" in col or "Corr_" in col:
+            feature_dict["arearatios"].append(col)
+        elif "Count" in col:
+            feature_dict["count"].append(col)
+        elif "AreaShape" in col:
+            feature_dict["areashape"].append(col)
+        elif "Distance" in col:
+            feature_dict["distance"].append(col)
+        elif "Granularity" in col:
+            feature_dict["granularity"].append(col)
+        elif "RadialDistribution" in col:
+            feature_dict["radialdistribution"].append(col)
+        else:
+            feature_dict["metadata"].append(col)
+
+    return feature_dict
 
 
 def multinucleate_cells(df):
@@ -432,3 +480,217 @@ def group_by_condition(df, feature_list, groupby_column="AgeGroup"):
         lambda x: standardize_group(x, feature_list)
     )
     return df_groupby
+
+
+def average_groups_by_plate(df, x_value, y_value, replicates):
+    """
+    Group the DataFrame by the specified columns and calculate the mean of the y_value column.
+    Returns the averaged dataframe for plotting
+
+    Args:
+        df (DataFrame): your dataframe
+        x_value (string): the grouping variable (x value)
+        y_value (string): the quantitavie feature to measure (y value)
+        replicates (string): the variable representing experimental replicates for grouping
+
+    Returns:
+        DataFrame: your data grouped by replicate
+    """
+    df = df.dropna(subset=[x_value, y_value, replicates])
+    df = df[df[y_value] != 0]
+
+    df.reset_index(drop=True, inplace=True)
+
+    group_averages = df.groupby(
+        [x_value, replicates], as_index=False, observed=True
+    ).agg({y_value: "mean"})
+
+    # Reset the index to get a clean DataFrame
+    average_df = group_averages.reset_index()
+
+    return average_df
+
+
+def normalize_features(df, feature_list):
+    """
+    Normalize the features in the DataFrame to the control (age group 0) for each plate.
+    Args:
+        df (DataFrame): The DataFrame containing the features to be normalized.
+        feature_list (list): A list of feature column names to normalize.
+    Returns:
+        DataFrame: A DataFrame with normalized features for each plate.
+    """
+    # Normalize the features to the control (age group 0) for each plate
+    norm_df = df.copy()
+    for feature in feature_list:
+        # print('Normalizing feature: ', feature, '...', norm_df[feature].values[0])
+        norm_df[feature] = normalize_to_control(df, feature)
+        # print('Normalized feature: ', feature, '...', norm_df[feature].values[0])
+    return norm_df
+
+
+def normalize_to_control(df, feature, norm_column="AgeGroup"):
+    """
+    Normalize a feature to the control group (AgeGroup = 0) for each plate.
+    Args:
+        df (DataFrame): The DataFrame containing the feature to be normalized.
+        feature (str): The name of the feature column to normalize.
+        norm_column (str): The column used to identify the control group (default is 'AgeGroup').'`
+    Returns:
+        Series: A Series containing the normalized feature values.
+    """
+    # Take the t0 df - lowest passage data point
+    t0_df = df[df[norm_column] == 0]
+    treatment_df = df[[feature, norm_column]].copy()
+
+    # calculate the mean
+    mean_zero = t0_df[feature].mean()
+    # Check for non-numeric values
+    if not pd.api.types.is_numeric_dtype(treatment_df[feature]):
+        print(f"[normalize_to_control] WARNING: {feature} is not numeric!")
+    # now update the column to have all rows dividied by the mean of group 0
+    treatment_df["norm_" + feature] = treatment_df[feature] / mean_zero
+    # return the normalized feature columnn
+    return treatment_df["norm_" + feature]
+
+
+def apply_feature_normalization(df, feature_dict, curr_plates):
+    """
+    Apply feature normalization to the DataFrame for each plate in a list of plates.
+    Args:
+        df (DataFrame): The DataFrame containing the features to be normalized.
+        feature_dict (dict): A dictionary containing lists of feature columns to normalize.
+        curr_plates (list): A list of plate names to apply normalization to.
+    Returns:
+        DataFrame: A DataFrame with normalized features for each plate.
+    """
+    # Normalize the features to the control (age group 0) for each plate
+    norm_cell_df = df.copy()
+    for plate in curr_plates:
+        curr_plate_df = norm_cell_df[norm_cell_df["Metadata_Plate"] == plate].copy()
+        for feature_type in feature_dict:
+            # get the normalized features, locate the corresponding features on the plate, and replace them on that plate to the plate
+            curr_plate_features_df = normalize_features(
+                curr_plate_df, feature_dict[feature_type]
+            )
+            curr_plate_df.loc[:, feature_dict[feature_type]] = curr_plate_features_df[
+                feature_dict[feature_type]
+            ].astype(float)
+        norm_cell_df.loc[norm_cell_df["Metadata_Plate"] == plate] = curr_plate_df
+    return norm_cell_df
+
+
+def mean_intesity_per_compartment_per_cell(df, compartment, tag):
+    """_summary_
+
+    Args:
+        df (_type_): _description_
+        compartment (_type_): _description_
+        tag (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
+    # Calculate the mean intensity of each compartment per cell
+    # mean_intesity_per_compartment = integrated / (children*mean_area)
+    colname = "MeanIntensity_Per_" + compartment + "_Per_Cell"
+    integrated = "Intensity_IntegratedIntensity_" + tag
+    children = "Children_" + compartment + "_Count"
+    mean_area = "Mean_" + compartment + "_AreaShape_Area"
+    df[colname] = df.apply(
+        lambda x: x[integrated] / (x[children] * x[mean_area]), axis=1
+    )
+    return df[colname]
+
+
+def proportion_area_occupied_per_cell(df, compartment):
+    """_summary_
+
+    Args:
+        df (_type_): _description_
+        compartment (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
+    # proportion of area occupied = children * mean organelle area / cell area
+    colname = "Total_Area_Proportion_" + compartment + "_Per_Cell"
+
+    # children = 'Children_' + compartment + '_Count'
+    # mean_organelle_area = 'Mean_'+ compartment + '_AreaShape_Area'
+    organelle_area = compartment + "_AreaShape_Area"
+    cell_area = "AreaShape_Area"
+    # df[colname] = df.apply(lambda x: (x[children] * x[mean_organelle_area]) / x[cell_area], axis=1)
+    df[colname] = df.apply(lambda x: (x[organelle_area]) / x[cell_area], axis=1)
+    return df[colname]
+
+
+def proportion_area_occupied_per_cell_fromtotal(df, compartment):
+    """_summary_
+
+    Args:
+        df (DataFrame): _description_
+        compartment (string): _description_
+
+    Returns:
+        Series: The column to add
+    """
+    # proportion of area occupied = children * mean organelle area / cell area
+    colname = "Total_Area_Proportion_" + compartment + "_Per_Cell"
+
+    # children = 'Children_' + compartment + '_Count'
+    # mean_organelle_area = 'Mean_'+ compartment + '_AreaShape_Area'
+    organelle_area = compartment + "_AreaShape_Area"
+    cell_area = "AreaShape_Area"
+    # df[colname] = df.apply(lambda x: (x[children] * x[mean_organelle_area]) / x[cell_area], axis=1)
+    df[colname] = df.apply(lambda x: (x[organelle_area]) / x[cell_area], axis=1)
+    return df[colname]
+
+
+def mean_intesity_per_compartment_per_cell_fromtotal(df, compartment, name, tag):
+    """_summary_
+
+    Args:
+        df (DataFrame): _description_
+        compartment (_type_): _description_
+        name (_type_): _description_
+        tag (_type_): _description_
+
+    Returns:
+        Series: the column to add
+    """
+    # Calculate the mean intensity of each compartment per cell
+    # mean_intesity_per_compartment = integrated / (children*mean_area)
+    colname = "MeanIntensity_Per_" + compartment + "_Per_Cell"
+    integrated = "Intensity_IntegratedIntensity_" + tag
+    # children = 'Children_' + compartment + '_Count'
+    # mean_area = 'Mean_'+ compartment + '_AreaShape_Area'
+    total_organelle_area = name + "_AreaShape_Area"
+    df[colname] = df.apply(lambda x: x[integrated] / x[total_organelle_area], axis=1)
+    return df[colname]
+
+
+def make_single_feature_df(data, group, feature, replicates):
+    """Make a dataframe for a single feature from a larger dataframe in "tidy" format
+
+    Args:
+        data (DataFrame): your dataframe
+        group (string): the grouping variable (x value)
+        feature (string): the quantitavie feature to measure (y value)
+        replicates (string): the variable representing experimental replicates for grouping
+
+    Returns:
+        _type_: _description_
+    """
+    pd.options.mode.copy_on_write = True
+
+    subset = [group, feature, replicates]
+
+    df = data.dropna(subset=subset).reset_index(drop=True)
+    df = df[df[feature] != 0]
+
+    df_subset = df[subset]
+    df_subset[group] = df[group].astype("category")
+    df_subset.reset_index(drop=True, inplace=True)
+
+    return df_subset
