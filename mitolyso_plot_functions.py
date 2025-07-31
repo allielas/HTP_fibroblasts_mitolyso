@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy import stats
 from plate_preprocessing import *
+from plate_information import getpairs
 
 import scipy
 import seaborn as sns
@@ -322,10 +323,10 @@ def pvalues_anova_and_tukeyhsd_posthoc(
     # display(pivot_df)
     for col in pivot_df:
         if col == x_value or col == replicate_number_col:
-            print("Skipping col:" + col)
+            # print("Skipping col:" + col)
             continue  # Skip the first column (usually the index or grouping variable)
         else:
-            print("Adding col:" + col)
+            # print("Adding col:" + col)
             groups.append(pivot_df[col].dropna())
     # One-Way ANOVA
     # display(groups)
@@ -349,7 +350,7 @@ def pvalues_anova_and_tukeyhsd_posthoc(
         )
         pairs = list(tukey_result_pairs)
         p_values = tukey_result_df["p-adj"].tolist()
-
+        # display(tukey_result_df)
         return (pairs, p_values)
     else:
         print("ANOVA test is not significant, skipping Tukey's HSD post-hoc test.")
@@ -379,9 +380,8 @@ def anova_with_tukey_posthoc(
     print(f"ANOVA p value: {anova_result_pvalue}")
 
     if anova_result_pvalue < 0.05:
-        # posthoc dunn test
+        # posthoc turkey test
         tukey_df = posthoc_tukey(data_df, val_col=y_value, group_col=x_value)
-        print(tukey_df)
 
         # melt the dunn_df to long format
         remove = np.tril(np.ones(tukey_df.shape), k=0).astype("bool")
@@ -389,7 +389,7 @@ def anova_with_tukey_posthoc(
         molten_df = tukey_df.melt(ignore_index=False).reset_index().dropna()
 
         if display_results:
-            print(tukey_df)
+            # display(tukey_df)
             print(molten_df)
 
         dunn_pairs = molten_df[["index", "variable"]].itertuples(index=False, name=None)
@@ -436,7 +436,7 @@ def kruskal_with_dunn_posthoc(
         molten_df = dunn_df.melt(ignore_index=False).reset_index().dropna()
 
         if display_results:
-            print(dunn_df)
+            # display(dunn_df)
             print(molten_df)
         dunn_pairs = molten_df[["index", "variable"]].itertuples(index=False, name=None)
         pairs = list(dunn_pairs)
@@ -967,7 +967,7 @@ def single_feature_super_splitviolinplot(
         plt.show()
         plt.close(hist.figure)
 
-        hist2 = px.histogram(data_df_1, x=y_value, color=x_value)
+        hist2 = px.histogram(data_df, x=y_value, color=x_value)
         hist2.show()
 
     fig, ax = plt.subplots(figsize=(15, 8))
@@ -981,7 +981,9 @@ def single_feature_super_splitviolinplot(
         ax,
         x_value,
         y_value,
-        replicate_col_name,
+        title=" ",
+        replicate_col_name=replicate_col_name,
+        pairs=pairs,
         order=order,
         annotate=annotate,
         test=test,

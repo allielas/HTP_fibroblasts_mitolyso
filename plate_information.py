@@ -76,6 +76,32 @@ def well_namer(row, col):
     return well_name
 
 
+def find_replicate(path):
+    import re
+
+    replicate_pattern = r"R(\d{1})"  # Matches "RX" where X is the replicate number (placeholder for now)
+    match = re.search(replicate_pattern, path)
+    if match:
+        replicate = int(match.group(1))
+    else:
+        replicate = None
+    return replicate
+
+
+def find_row_col(well_code):
+    import re
+
+    rowcol_pattern = r"r(\d{1,2})c(\d{1,2})"  # Matches "RX" where X is the replicate number (placeholder for now)
+    match = re.search(rowcol_pattern, well_code)
+    if match:
+        row_metadata = int(match.group(1))
+        col_metadata = int(match.group(2))
+    else:
+        row_metadata = None
+        col_metadata = None
+    return row_metadata, col_metadata
+
+
 def define_cell_features(df):
     """_summary_
 
@@ -247,7 +273,7 @@ def average_groups_by_plate_v0(df, x_value, y_value, replicates):
     return average_df
 
 
-def average_groups_pivot(df, x_value, y_value, replicates):
+def average_groups_pivot(group_avg_df, x_value, y_value, replicate_col_name):
     """Make a pivot table from the averaged dataframe
 
     Args:
@@ -259,25 +285,27 @@ def average_groups_pivot(df, x_value, y_value, replicates):
     Returns:
         DataFrame: a pivot table
     """
-    group_ave_pivot = df.pivot_table(columns=x_value, values=y_value, index=replicates)
-    return group_ave_pivot
+    group_avg_pivot = group_avg_df.pivot_table(
+        columns=x_value, values=y_value, index=replicate_col_name
+    )
+    return group_avg_pivot
 
 
-def cell_nuc_area_ratio(
-    row,
-    cell_area_col="Cell_AreaShape_Area",
-    nuc_area_col="Cell_Mean_Nuclei_AreaShape_Area",
-):
+def passage_groups_sort_key(group_name):
+    import re
+
     """
-    Calculate the ratio of cell area to nuclear area.
-
-    Args:
-        row (Series): A row from the DataFrame containing 'Cell_AreaShape_Area' and 'Cell_Mean_Nuclei_AreaShape_Area'.
-
-    Returns:
-        float: The ratio of cell area to nuclear area.
+    Key function for natural sorting of strings containing numbers.
+    Extract numeric parts and convert to int .
     """
-    if row[nuc_area_col] > 0:
-        return row[cell_area_col] / row[nuc_area_col]
+    digit_pattern = r"([0-9]+)"  # Matches "RX" where X is the replicate number (placeholder for now)
+    match = re.search(digit_pattern, group_name)
+    if match:
+        first_digit = int(match.group(1))
+        return first_digit
     else:
-        return np.nan  # Return NaN if nuclear area is zero or negative
+        text = group_name.lower()
+        if text == "doxo":
+            return 999
+        else:
+            return ValueError

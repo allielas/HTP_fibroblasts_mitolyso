@@ -51,7 +51,13 @@ def add_drug_to_group(init_df, group, drug):
     return newcol
 
 
-def enforce_objects_one_to_one(df, parent_obj="Cell", child_obj="Nuclei"):
+def enforce_objects_one_to_one(
+    df,
+    parent_obj="Cell",
+    child_obj="Nuclei",
+    parent_colname="Cell_AreaShape_Area",
+    child_colname="Cell_Mean_Nuclei_AreaShape_Area",
+):
     """apply filters based on the number of nuclei to remove:
     - Cells that have less or more than one nucleus
     - Poorly segmented cells where the cell area is smaller than the nuclei area
@@ -64,19 +70,20 @@ def enforce_objects_one_to_one(df, parent_obj="Cell", child_obj="Nuclei"):
         _type_: _description_
     """
     if child_obj == "Nuclei" and parent_obj == "Cell":
-        not_empty_df = df[df["Metadata_EmptyImage_Cell"] == 0]
-        normal_cells = not_empty_df[
-            not_empty_df["Cell_Classify_one_nuc"] == 1
-        ]  # one nucleus only
+        try:
+            not_empty_df = df[df["Metadata_EmptyImage_Cell"] == 0]
+            normal_cells = not_empty_df[
+                not_empty_df["Cell_Classify_one_nuc"] == 1
+            ]  # one nucleus only
+        except KeyError as e:
+            print(f"KeyError {e}; skipping emptyimage")
+            normal_cells = df[df["Cell_Classify_one_nuc"] == 1]
         size_filtered_cells = normal_cells[
-            normal_cells["Cell_AreaShape_Area"]
-            > normal_cells["Cell_Mean_Nuclei_AreaShape_Area"]
+            normal_cells[parent_colname] > normal_cells[child_colname]
         ]  # cell area bigger than nuclear area
 
         # convenience column for area
-        normal_cells["Nuclei_AreaShape_Area"] = normal_cells[
-            "Cell_Mean_Nuclei_AreaShape_Area"
-        ]
+        normal_cells["Nuclei_AreaShape_Area"] = normal_cells[child_colname]
         final_df = size_filtered_cells.reset_index(drop=True)
     else:
         try:
@@ -668,6 +675,27 @@ def mean_intesity_per_compartment_per_cell_fromtotal(df, compartment, name, tag)
     total_organelle_area = name + "_AreaShape_Area"
     df[colname] = df.apply(lambda x: x[integrated] / x[total_organelle_area], axis=1)
     return df[colname]
+
+
+def cell_nuc_area_ratio(
+    df,
+    cell_area_col="Cell_AreaShape_Area",
+    nuc_area_col="Cell_Mean_Nuclei_AreaShape_Area",
+    ratio_col_name="Cell_Nuclei_Area_Ratio",
+):
+    """
+    Calculate the ratio of cell area to nuclear area.
+
+    Args:
+        df (Series): A DataFrame containing 'Cell_AreaShape_Area' and 'Cell_Mean_Nuclei_AreaShape_Area' cols.
+
+    Returns:
+        Series: The column with the cell/nuc area ratio column to be added
+    """
+    df_overzero = df[df[nuc_area_col] > 0]
+    final_df = df_overzero.dropna(reset_index=True)
+    final_df[ratio_col_name] = final_df[cell_area_col] / final_df[nuc_area_col]
+    return final_df[ratio_col_name]
 
 
 def make_single_feature_df(data, group, feature, replicates):

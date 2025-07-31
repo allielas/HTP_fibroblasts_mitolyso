@@ -294,3 +294,11 @@ __marimo__/
 
 ## Prettier extension
 .prettierrc
+
+# Papermill
+cell_area_size_comparison_output_2.ipynb
+cell_area_size_comparison_output_1.ipynb
+cell_area_size_comparison_output_0.ipynb
+__pycache__/mitolyso_plot_functions.cpython-313.pyc
+__pycache__/plate_preprocessing.cpython-313.pyc
+
