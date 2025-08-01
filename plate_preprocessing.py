@@ -693,7 +693,7 @@ def cell_nuc_area_ratio(
         Series: The column with the cell/nuc area ratio column to be added
     """
     df_overzero = df[df[nuc_area_col] > 0]
-    final_df = df_overzero.dropna(reset_index=True)
+    final_df = df_overzero.dropna(subset=[nuc_area_col]).reset_index(drop=True)
     final_df[ratio_col_name] = final_df[cell_area_col] / final_df[nuc_area_col]
     return final_df[ratio_col_name]
 
