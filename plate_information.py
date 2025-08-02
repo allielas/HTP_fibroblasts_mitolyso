@@ -197,82 +197,6 @@ def group_by_condition(df, feature_list, groupby_column="AgeGroup"):
     return df_groupby
 
 
-def outlier_removal(df, nuclei_df, column):
-    """OLD FUNCTION - DO NOT USE
-
-    Args:
-        df (_type_): _description_
-        nuclei_df (_type_): _description_
-        column (_type_): _description_
-
-    Returns:
-        _type_: _description_
-    """
-    # Create a copy of the column and the 'group' column, along with parent nuclei
-    mini_df = pd.DataFrame(
-        {
-            column: df[column].copy(),
-            "Time": df["Time"].copy(),
-            "Parent_Nuclei": df["Parent_Nuclei"].copy(),
-            "ImageNumber": df["ImageNumber"].copy(),
-        }
-    )
-
-    # remove stuff within 1 SD above of the mean of the oldest passage
-    nuc_oldest_mean = []
-    nuc_oldest_std_dev = []
-    try:
-        nuc_oldest_mean = mini_df[mini_df["Time"] == 6][column].mean()
-        nuc_oldest_std_dev = mini_df[mini_df["Time"] == 6][column].std()
-    except:
-        nuc_oldest_mean = mini_df[mini_df["Time"] == 4][column].mean()
-        nuc_oldest_std_dev = mini_df[mini_df["Time"] == 4][column].std()
-    nuc_threshold = nuc_oldest_mean + (nuc_oldest_std_dev)
-
-    # print('threshold ', nuc_threshold, 'stdev=',nuc_t4_std_dev, 'mean=', nuc_t4_mean)
-    # Filter the nuclei dataframe to remove rows with AreaShape_Area above the threshold
-    filtered_nuclei_df = nuclei_df[nuclei_df["AreaShape_MeanRadius"] <= nuc_threshold]
-
-    # Filter the cell dataframe to keep only rows where Parent_Nuclei is in the filtered DF
-    filtered_cell_df = mini_df.merge(
-        filtered_nuclei_df[["Number_Object_Number", "ImageNumber"]],
-        left_on=["Parent_Nuclei", "ImageNumber"],
-        right_on=["Number_Object_Number", "ImageNumber"],
-        how="inner",
-    )
-
-    # Filter out values less than 0
-    final_filtered_df = filtered_cell_df[filtered_cell_df[column] > 0].dropna()
-    return final_filtered_df
-
-
-def average_groups_by_plate_v0(df, x_value, y_value, replicates):
-    """
-    Group the DataFrame by the specified columns and calculate the mean of the y_value column.
-    Returns the averaged dataframe for plotting
-
-    Args:
-        df (DataFrame): your dataframe
-        x_value (string): the grouping variable (x value)
-        y_value (string): the quantitavie feature to measure (y value)
-        replicates (string): the variable representing experimental replicates for grouping
-
-    Returns:
-        DataFrame: your data grouped by replicate
-    """
-    df = df.dropna(subset=[x_value, y_value, replicates])
-    # df.reset_index(drop=True, inplace=True) - don't need this?
-
-    group_averages = df.groupby(
-        [x_value, replicates], as_index=False, observed=True
-    ).agg({y_value: "mean"})
-
-    # Reset the index to get a clean DataFrame
-    average_df = group_averages.reset_index()
-
-    return average_df
-
-
 def average_groups_pivot(group_avg_df, x_value, y_value, replicate_col_name):
     """Make a pivot table from the averaged dataframe
 
@@ -309,3 +233,65 @@ def passage_groups_sort_key(group_name):
             return 999
         else:
             return ValueError
+
+
+def make_summary_stats_for_df_and_feature(
+    df,
+    x_value,
+    feature,
+    summary_outpath,
+    df_tag="original",
+    replicate_col_name="Replicate_Number",
+    feature_name="area",
+    group_name="passage_group",
+    include_cols=[],
+):
+    from pathlib import Path
+
+    try:
+        table_csvname = f"{df_tag}_total_combined_{feature_name}_stats.csv"
+        feature_csvname = f"{df_tag}_{feature_name}_by_{group_name}_stats.csv"
+        agg_feature_csvname = f"{df_tag}_agg_{feature_name}_by_{group_name}_stats.csv"
+
+        subfolder_name = f"{df_tag}_{feature_name}_summary_stats"
+        parent_folder = Path(summary_outpath, subfolder_name)
+        parent_folder.mkdir(exist_ok=True)
+
+        if not include_cols:
+            df_to_summarize = df
+        else:
+            df_to_summarize = df[include_cols]
+        df_to_summarize.describe().to_csv(
+            os.path.join(summary_outpath, subfolder_name, table_csvname)
+        )
+        group_averages = df.groupby(
+            [x_value, replicate_col_name], as_index=False, observed=True
+        )[feature]
+        # Reset the index to get a clean DataFrame
+        # average_df = group_averages.reset_index()
+        avg_summary = group_averages.describe()
+        avg_summary_sorted = avg_summary.sort_values(
+            by=[x_value], key=lambda x: x.map(passage_groups_sort_key)
+        ).reset_index(drop=True)
+        avg_summary_sorted.to_csv(
+            os.path.join(summary_outpath, subfolder_name, feature_csvname)
+        )
+
+        # do the agg by passage group only
+        group_averages_agg = df.groupby([x_value], as_index=False, observed=True)[
+            feature
+        ]
+        avg_agg_summary = group_averages_agg.describe()
+        avg_agg_summary_sorted = avg_agg_summary.sort_values(
+            by=[x_value], key=lambda x: x.map(passage_groups_sort_key)
+        )
+        avg_agg_summary_sorted.to_csv(
+            os.path.join(summary_outpath, subfolder_name, agg_feature_csvname)
+        )
+        print(
+            f"saved files {(table_csvname, feature_csvname, agg_feature_csvname)} to {summary_outpath}"
+        )
+        return True
+    except ValueError as e:
+        print(f"Could not make summary stats: {e}")
+        return False

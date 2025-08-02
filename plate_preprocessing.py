@@ -306,6 +306,8 @@ def calculate_median_object_features(
 
 
 # group by parent key to find median
+
+
 def add_median_object_features_to_parent(
     parent_df, object_df, object_name, child_key="Cell_Number_Object_Number"
 ):
@@ -342,18 +344,48 @@ def add_median_object_features_to_parent(
         )
 
     for feature in object_df.columns:
-        print("checking feature:", feature)
+        # print("checking feature:", feature)
         # Exclude if matches any in other_channels, unless it also matches feature_types
         if object_name not in feature or (any(ch in feature for ch in other_channels)):
-            print("oops, skipping:", feature)
+            # print("oops, skipping:", feature)
             continue  # Skip the parent key column or non-feature columns
         if any(ft in feature for ft in feature_types):
-            print("FEATURE TYPE MATCH:", feature)
             modified_df = calculate_median_object_features(
                 modified_df, object_df, feature, parent_key, child_key
             )
 
     return modified_df
+
+
+def load_organelle_medians(db_path, df):
+    """
+    Load organelle median features from the database.
+
+    Parameters:
+    db_path (str): Path to the database file.
+    organelle (str): Name of the organelle (e.g., 'Lysosomes', 'Mitochondria', 'Nuclei').
+
+    Returns:
+    DataFrame: DataFrame containing the median features for the specified organelle.
+    """
+    import gc
+    import sqlite3
+
+    organelles = ["Lysosomes", "Mitochondria", "Nuclei"]
+    if not isinstance(df, pd.DataFrame):
+        raise ValueError("Input must be a pandas DataFrame.")
+    cell_df = df.copy()
+
+    conn = sqlite3.connect(db_path)
+    for organelle in organelles:
+        query = f"SELECT * FROM Per_{organelle}"
+        org_df = pd.read_sql_query(query, conn)
+        cell_df = add_median_object_features_to_parent(cell_df, org_df, organelle)
+        del org_df  # Free memory
+        gc.collect()
+
+    # conn.close()
+    return cell_df
 
 
 def exclude_borders(
@@ -722,3 +754,184 @@ def make_single_feature_df(data, group, feature, replicates):
     df_subset.reset_index(drop=True, inplace=True)
 
     return df_subset
+
+
+def relate_objects(
+    obj_df_1,
+    obj_df_2,
+    obj1_name="",
+    obj2_name="",
+    feature_cols=[],
+    ratio_colname="Cell_Nuclei_Area_Ratio",
+    metadata_cols=[
+        "ImageNumber",
+        "Replicate_Number",
+        "Metadata_WellRow",
+        "Metadata_WellColumn",
+        "Metadata_Field",
+        "SerialPassage_BatchNumber",
+        "AgeGroup",
+        "Drug",
+        "slice",
+        "Filename",
+        "Parent_Folder",
+        "Path",
+        "Metadata_Well_ID",
+        "Metadata_Well_x",
+        "Block",
+        "Metadata_Well_y",
+        "TimepointName",
+        "Staining",
+        "Passage Group",
+        "AllGroups",
+    ],
+):
+    """Relates two tables of segmented images
+    Based off of ImageNumber and where objects in obj_df_2 are contained within larger objects in obj_df_1.
+    NOTE: Bounding box (min_row, min_col, max_row, max_col). Pixels belonging to the bounding box are in the half-open interval [min_row; max_row) and [min_col; max_col)
+    Args:
+        obj_df_1 (pd.DataFrame): DataFrame for the first (larger) objects e.g. cells.
+                                 Expected columns: "ImageNumber", "label", "bbox-0", "bbox-1", "bbox-2", "bbox-3".
+                                 "bbox-0", "bbox-1" typically represent min_x, max_x.
+                                 "bbox-2", "bbox-3" typically represent max_y, max_y.
+        obj_df_2 (pd.DataFrame): DataFrame for the second (smaller, contained) objects e.g. nuclei.
+                                 Expected columns: "ImageNumber", "label", "bbox-0", "bbox-1", "bbox-2", "bbox-3".
+                                 "bbox-0", "bbox-1" typically represent min_x, max_x.
+                                 "bbox-2", "bbox-3" typically represent max_y, max_y.
+        obj1_name (str, optional): Name of the first object (e.g., "Cell"). Defaults to "".
+        obj2_name (str, optional): Name of the second object (e.g., "Nucleus"). Defaults to "".
+
+    Returns:
+        pd.DataFrame: DataFrame with the related objects, including a "Parent_Obj1Name_Number_Object_Number"
+                      column in the obj_df_2 data, and a combined DataFrame with aggregated means
+                      and a calculated ratio.
+    """
+    obj_df_1 = obj_df_1.sort_values(by="ImageNumber").copy()
+    obj_df_2 = obj_df_2.sort_values(by="ImageNumber").copy()
+
+    related_second_objects = []
+    for i, obj1_row in obj_df_1.iterrows():
+        obj1_min_x, obj1_min_y, obj1_max_x, obj1_max_y = (
+            # Bounding box (min_row, min_col, max_row, max_col)
+            obj1_row["bbox-0"],
+            obj1_row["bbox-1"],
+            obj1_row["bbox-2"],
+            obj1_row["bbox-3"],
+        )
+        parent_obj_label = obj1_row["label"]
+        img_number = obj1_row["ImageNumber"]
+
+        # Filter obj_df_2 to only use the current ImageNumber
+        current_img_obj2_df = obj_df_2[obj_df_2["ImageNumber"] == img_number]
+
+        for j, obj2_row in current_img_obj2_df.iterrows():
+            if obj_df_2["ImageNumber"][j] > i:
+                break
+            # relate if the second object is contained within the parent object  (min_row, min_col, max_row, max_col)
+            obj2_min_x, obj2_min_y, obj2_max_x, obj2_max_y = (
+                obj2_row["bbox-0"],
+                obj2_row["bbox-1"],
+                obj2_row["bbox-2"],
+                obj2_row["bbox-3"],
+            )
+
+            # assign conditions to booleans
+            # Pixels belonging to the bounding box: [min_row; max_row) and [min_col; max_col)
+            is_contained_x = (obj2_min_x >= obj1_min_x) and (obj2_max_x <= obj1_max_x)
+            is_contained_y = (obj2_min_y >= obj1_min_y) and (obj2_max_y <= obj1_max_y)
+
+            # also make a flag to check if second object is toucjing border
+            touching_border_nuc = bool(
+                (obj2_min_x == 0)
+                or (
+                    obj2_max_x == (max_x * 0.25)
+                )  # multiply by in the origial downlampling factor from the masks (0.25)
+                or (obj2_min_y == 0)
+                or (obj2_max_y == (max_y * 0.25))
+            )
+
+            if is_contained_x and is_contained_y:
+                # print(f"second object bbox: {obj2_row["slice"]}, touching border? {touching_border_nuc}")
+                # Create a copy to avoid SettingWithCopyWarning
+                second_obj_with_parent = obj2_row.copy()
+                second_obj_with_parent[f"Parent_{obj1_name}_Number_Object_Number"] = (
+                    parent_obj_label
+                )
+                second_obj_with_parent[f"{obj2_name}_Touching_Border"] = (
+                    touching_border_nuc
+                )
+                related_second_objects.append(second_obj_with_parent)
+
+    # case when you don't have any relationships
+    if not related_second_objects:
+        return pd.DataFrame  # empty df
+
+    second_objs_related_df = pd.DataFrame(related_second_objects)
+    # Aggregate means of the second objects by their assigned parent and ImageNumber - group by the parent label and ImageNumber for aggregation
+    boolean_cols = second_objs_related_df.select_dtypes(include=bool).columns
+
+    if not feature_cols:
+        feature_cols = second_objs_related_df.select_dtypes(
+            include=np.number
+        ).columns.tolist()  # list of all numeric cols only
+
+    # make a dictionary to tell pandas what aggregations to do
+    aggregations = {col: "mean" for col in feature_cols}
+
+    for col in boolean_cols:
+        aggregations[col] = "mean"  # Proportion of True values
+
+    for col in metadata_cols:
+        aggregations[col] = "first"  # Assuming metadata is consistent within a group
+
+    # Get a count column to see # of nuclei
+    second_obj_counts = second_objs_related_df.groupby(
+        ["ImageNumber", f"Parent_{obj1_name}_Number_Object_Number"]
+    ).count()["area"]  # arbitrary col
+
+    # aggregate using the dictionary above
+    second_obj_means = second_objs_related_df.groupby(
+        ["ImageNumber", f"Parent_{obj1_name}_Number_Object_Number"]
+    ).agg(aggregations)  # Ensure only numeric columns are averaged
+
+    second_obj_means[f"Children_{obj2_name}_Count"] = second_obj_counts
+
+    # second_obj_means = second_objs_related_df.groupby(
+    #     ["ImageNumber", f"Parent_{obj1_name}_Number_Object_Number"]
+    # ).mean(numeric_only=True)  # Ensure only numeric columns are averaged
+    second_obj_means = second_obj_means.rename_axis(  # change index of df to "label"
+        index={f"Parent_{obj1_name}_Number_Object_Number".format(obj1_name): "label"}
+    )
+
+    # second_obj_means = second_obj_means[second_obj_means["label"] +1] #one-indexed
+    # Join on ImageNumber and the label of the first object (which is the parent label in second_obj_means)
+    joined_obj_df = obj_df_1.join(
+        second_obj_means,
+        on=["ImageNumber", "label"],
+        how="left",
+        rsuffix=f"_mean_{obj2_name}",
+    )
+    # display(joined_obj_df)
+    # display(joined_obj_df.head(10), joined_obj_df.shape)
+    # Calculate the ratio, ensuring the columns exist and handling potential NaNs
+    if (
+        f"{obj1_name}_AreaShape_Area" in joined_obj_df.columns
+        and f"{obj2_name}_AreaShape_Area" in joined_obj_df.columns
+    ):
+        joined_obj_df[ratio_colname] = (
+            joined_obj_df[f"{obj1_name}_AreaShape_Area"]
+            / joined_obj_df[f"{obj2_name}_AreaShape_Area"]
+        )
+    else:
+        print(
+            f"Warning: 'AreaShape_Area' columns not found for ratio calculation. Expected: {obj1_name}_AreaShape_Area and {obj2_name}_AreaShape_Area_mean"
+        )
+        joined_obj_df[ratio_colname] = float("nan")
+
+    # Drop rows where the ratio could not be calculated (due to missing second object data)
+    relate_objects_df = joined_obj_df.dropna(subset=[ratio_colname])
+    # second_obj_means = second_objs_df.groupby("ImageNumber").agg("mean")
+    # joined_df = obj_df_1.join(second_obj_means, on=["ImageNumber","label"], x=obj1_name,y=obj2_name, how="left")
+    # joined_df["CellNucRatio"] = joined_df.apply(lambda x: x[f"{obj1_name}_AreaShape_Area"]/x[f"{obj2_name}_AreaShape_Area"])
+
+    return relate_objects_df

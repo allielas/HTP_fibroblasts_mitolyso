@@ -6,19 +6,16 @@ from pathlib import Path
 import shutil
 
 # Set your folder path here
-folder = Path("/media/mattiazzilab/AllieS/20250710_MRC5_BetaGal_SerialPassagingH2O2")
+folder = Path(
+    "/media/mattiazzilab/AllieS/Microscopy Images/20250710_MRC5_IF_Ki67+LMNB1/P28"
+)
 
 # Define the string(s) to find and their replacements
 replacements = {
     # "T": "AG",
     # "R": "SPB",
-    "BetaGal2O2": "BetaGal_H2O2",
-    "P15_Doxo": "P15_Doxo_250",
-    "-50": "_50",
-    "P28": "P28_Old",
-    "P12": "P12_Ctrl",
-    "H2O2": "P16_H2O2",
-    "Doxo": "P15_Doxo",
+    "_Ctrl_": "_",
+    # "20250710_MRC5_Ki67+LMNB1-488_P12_Ctrl_": "20250710_MRC5_Ki67+LMNB1-488_P28_Ctrl_",
     # Add more as needed
 }
 
