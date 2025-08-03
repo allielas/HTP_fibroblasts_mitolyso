@@ -14,25 +14,29 @@ def passage_group(passage_num):
     returns string of the group that the passage number belongs to
     """
     # use this function to group passages into groups for plotting
-    passage = int(passage_num)
-    if 6 <= passage <= 10:
-        return "P6-10"
-    elif 11 <= passage <= 13:
-        return "P11-13"
-    elif 14 <= passage <= 16:
-        return "P14-16"
-    elif 17 <= passage <= 19:
-        return "P17-19"
-    elif 20 <= passage <= 22:
-        return "P20-22"
-    elif 23 <= passage <= 25:
-        return "P23-25"
-    elif 26 <= passage <= 28:
-        return "P26-28"
-    elif passage >= 29:
-        return "P29+"
-    else:
-        return "Unknown"
+    try:
+        passage = int(passage_num)
+        if 6 <= passage <= 10:
+            return "P6-10"
+        elif 11 <= passage <= 13:
+            return "P11-13"
+        elif 14 <= passage <= 16:
+            return "P14-16"
+        elif 17 <= passage <= 19:
+            return "P17-19"
+        elif 20 <= passage <= 22:
+            return "P20-22"
+        elif 23 <= passage <= 25:
+            return "P23-25"
+        elif 26 <= passage <= 28:
+            return "P26-28"
+        elif passage >= 29:
+            return "P29+"
+        else:
+            return "Unknown"
+    except ValueError as e:
+        # print(f"value is not a number, caught {e}; returning NaN")
+        return None
 
 
 def add_drug_to_group(init_df, group, drug):
@@ -47,6 +51,32 @@ def add_drug_to_group(init_df, group, drug):
         df = init_df.copy()
         df[group] = np.where(df[drug].notna(), df[drug], df[group])
         newcol = df[group]
+
+    return newcol
+
+
+def take_drug_from_condition(init_df, group_variable_col, drug_metadata_col, drug_name):
+    """Grab a string "drug name" from a column with the drug metadata and add it to the grouping variable column
+
+    Args:
+        init_df (DataFrame): The dataframe to add to
+        group_variable_col (str): _description_
+        drug_metadata_col (str): The column to take from
+        drug_name (str): The drug used
+
+    Returns:
+        Series: The modified grouping variable column with the added drug
+    """
+    if drug_metadata_col is not None:
+        # Replace values in 'col1' with values from 'col2' only if 'col2' is not None or NaN
+        df = init_df.copy()
+
+        df[group_variable_col] = np.where(
+            df[drug_metadata_col].str.contains(drug_name, na=False),
+            df[drug_metadata_col],
+            df[group_variable_col],
+        )
+        newcol = df[group_variable_col]
 
     return newcol
 

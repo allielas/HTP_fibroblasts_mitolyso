@@ -510,6 +510,7 @@ def annotate_pairs_with_calculated_pvalues(
     pairs=None,
     order=None,
     plot="violinplot",
+    show_test_name=False,
 ):
     """Add statistical annotations to the plot using Tukey's HSD test.
     see https://statannotations.readthedocs.io/en/latest/custom-test.html for more examples
@@ -585,6 +586,7 @@ def annotate_pairs_with_calculated_pvalues(
             hide_non_significant=True,
             color="black",
             verbose=2,
+            show_test_name=show_test_name,
         )
         annotator.set_pvalues_and_annotate(p_values)
         return ax
@@ -688,6 +690,50 @@ def annotate_legend_with_shapiro(
     return ax
 
 
+def annotate_legend_replicatesonly(
+    ax,
+    group_avg_df,
+    group_col_name,
+    palette="pastel",
+    title="Replicate",
+):
+    """add an annotation to the legend of an axis to show color coded replicates
+
+    Args:
+        ax (_type_): _description_
+        group_avg_df (_type_): _description_
+        replicate_col_name (_type_): _description_
+    """
+    import matplotlib.lines as mlines
+
+    unique_replicates = group_avg_df[group_col_name].unique()
+    unique_replicates = sorted(unique_replicates)
+    L = plt.legend()
+    custom_labels = []
+    for rep in unique_replicates:
+        label = str(rep)
+        custom_labels.append(label)
+
+    # Create custom legend handles (using the same colors as swarmplot)
+    palette = sns.color_palette(palette, n_colors=len(unique_replicates))
+    handles = [
+        mlines.Line2D(
+            [],
+            [],
+            color=palette[i],
+            marker="o",
+            linestyle="None",
+            markersize=12,
+            markeredgecolor="black",
+            label=custom_labels[i],
+        )
+        for i in range(len(unique_replicates))
+    ]
+    ax.legend_.set_title(title)
+    ax.legend(handles=handles, title=title, loc="best")
+    return ax
+
+
 def super_splitviolinplot_helper(
     data_df,
     group_avg_df,
@@ -700,6 +746,8 @@ def super_splitviolinplot_helper(
     order=None,
     annotate=False,
     test=None,
+    shapiro=True,
+    show_test_on_plot=False,
 ):
     if pairs is None:
         pairs = getpairs(data_df, x_value, order=order)
@@ -772,6 +820,7 @@ def super_splitviolinplot_helper(
                 test_name=test,
                 order=order,
                 plot="violinplot",
+                show_test_name=show_test_on_plot,
             )
         except Exception as e:
             print(f"Error annotating with statistical test: {e}")
@@ -787,7 +836,8 @@ def super_splitviolinplot_helper(
         #         replicate_col_name=replicate_col_name,
         #         plot="violinplot",
         #     )
-        ax = annotate_legend_with_shapiro(ax, group_avg_df, replicate_col_name)
+        if shapiro:
+            ax = annotate_legend_with_shapiro(ax, group_avg_df, replicate_col_name)
 
     return ax
 
@@ -1003,650 +1053,96 @@ def single_feature_super_splitviolinplot(
     plt.show()
 
 
-### Archived
-
-
-def oneway_anova(data, group_name, feature_meas):
-    from scipy.stats import f_oneway
-
-    data = data.dropna(subset=[group_name, feature_meas])
-    data = data[data[feature_meas] != 0]
-
-    groups = data[group_name].unique()
-    data = [data[data[group_name] == group][feature_meas].dropna() for group in groups]
-    anova_result = f_oneway(*data)
-
-    print(
-        f"ANOVA F-statistic: {anova_result.statistic}, ANOVA p-value: {anova_result.pvalue}"
-    )
-    return anova_result
-
-
-def tukey_test(data, test_groups, feature):
-    """
-    Perform a oneway anova test and a pairwise tukey post hoc test using averaged values per replicate
-    Returns a dataframe
-    """
-    from scipy.stats import f_oneway
-    from statsmodels.stats.multicomp import pairwise_tukeyhsd
-
-    df = data.copy()
-
-    # groups = getpairs(temp_copy, 'Passage Group')
-    # calculate tukey HSD
-
-    tukey = pairwise_tukeyhsd(endog=df[feature], groups=df[test_groups], alpha=0.05)
-
-    # Extract relevant results
-    results = np.array(tukey.summary().data)[:, [0, 1, 3, 6]]
-    df_results = pd.DataFrame(
-        results, columns=["Group 1", "Group 2", "p-value", "Reject"]
-    ).drop([0])
-    df_results.reset_index(drop=True, inplace=True)
-    df_results[["Group 1", "Group 2"]] = df_results[["Group 1", "Group 2"]]
-    df_results["p-value"] = df_results["p-value"].astype(float)
-
-    return df_results
-
-
-def make_superviolinplot_with_anova_tukey(
-    data,
-    group,
-    feature_meas,
-    replicates,
-    order,
-    ylabel=None,
+def make_superswarmplot_with_annotation(
+    data_df,
+    x_value,
+    y_value,
+    replicate_col_name="Replicate_Number",
+    pairs=None,
+    order=None,
+    annotate=False,
+    test="tukey",
+    ytitle=None,
+    xtitle=None,
+    ylim=None,
     pallete="pastel",
-    remove_outliers=True,
-    save_path="plots/new_plots/",
-    figsize=(12, 8),
+    figsize=(8, 10),
     dpi=300,
 ):
-    """_summary_
-
-    Args:
-        data (_type_): _description_
-        group (_type_): _description_
-        feature_meas (_type_): _description_
-        replicates (_type_): _description_
-        order (_type_): _description_
-        ylabel (_type_, optional): _description_. Defaults to None.
-        pallete (str, optional): _description_. Defaults to "pastel".
-        remove_outliers (bool, optional): _description_. Defaults to True.
-        save_path (str, optional): _description_. Defaults to "plots/new_plots/".
-        figsize (tuple, optional): _description_. Defaults to (12, 8).
-        dpi (int, optional): _description_. Defaults to 300.
-    """
-    # gather data with the grouping functions in helpers.py
-    pairs = getpairs(data, group, order)
-    feature_df = make_single_feature_df(
-        data, group=group, feature=feature_meas, replicates=replicates
-    )
-    group_avg_df = average_groups_by_plate(
-        feature_df, x_value=group, y_value=feature_meas, replicates=replicates
-    )
-    group_avg_df_pivot = average_groups_pivot(
-        group_avg_df, x_value=group, y_value=feature_meas, replicates=replicates
-    )
-
-    if remove_outliers:
-        feature_df = remove_outliers_iqr(feature_df)
-
-    sns.set_theme(style="ticks")
-    plt.figure(figsize=figsize, dpi=dpi)
-    sns.set_context("talk", font_scale=0.5)
-
-    sns.violinplot(
-        data=feature_df,
-        x=group,
-        y=feature_meas,
-        order=order,
-        fill=False,
-        color="gainsboro",
-        cut=1,
-        native_scale=True,
-        linecolor="k",
-        inner=None,
-    )
-
-    ax = sns.swarmplot(
-        data=group_avg_df,
-        x=group,
-        y=feature_meas,
-        hue=replicates,
-        order=order,
-        palette=pallete,
-        size=10,
-        edgecolor="k",
-        linewidth=1,
-        dodge=0.5,
-    )
-
-    sns.boxplot(
-        data=group_avg_df,
-        x=group,
-        y=feature_meas,
-        showmeans=True,
-        meanline=True,
-        meanprops={"color": "dimgray", "ls": "-", "lw": 2.5},
-        medianprops={"visible": False},
-        whiskerprops={"visible": False},
-        zorder=1,
-        showfliers=False,
-        showbox=False,
-        showcaps=False,
-        ax=ax,
-    )
-
-    ax.legend_.remove()
-    sns.despine()
-    plt.gcf()
-    plt.xlabel(group)
-    if ylabel is None:
-        plt.ylabel(feature_meas.replace("_", " "))
-    else:
-        plt.ylabel(ylabel)
-
-    from statannotations.Annotator import Annotator
-    from statannotations.stats.StatTest import StatTest
-
-    anova = oneway_anova(group_avg_df, group, feature_meas)
-    tukey_results = tukey_test(group_avg_df, test_groups=group, feature=feature_meas)
-
-    annotator = Annotator(ax, pairs, data=group_avg_df_pivot, order=order)
-    annotator.configure(
-        text_format="star", loc="inside", verbose=2, hide_non_significant=True
-    )
-    annotator.set_pvalues_and_annotate(tukey_results["p-value"])
-
-    plt.savefig(f"{save_path}{feature_meas}_anova_superviolinplot.png", dpi=dpi)
-    plt.show()
-
-
-def make_superviolinplot_with_kruskal(
-    data,
-    group,
-    feature_meas,
-    replicates,
-    xtitle=None,
-    ytitle=None,
-    pallete="pastel",
-    ylim=None,
-    order=None,
-    remove_outliers=False,
-):
-    """_summary_
-
-    Args:
-        data (DataFrame): _description_
-        group (string): _descriThe ption_
-        feature_meas (string): _description_
-        replicates (_type_): _description_
-        xtitle (_type_, optional): _description_. Defaults to None.
-        ytitle (_type_, optional): _description_. Defaults to None.
-        pallete (str, optional): _description_. Defaults to 'pastel'.
-        ylim (_type_, optional): _description_. Defaults to None.
-        order (_type_, optional): _description_. Defaults to None.
-        remove_outliers (bool, optional): _description_. Defaults to False.
-    """
-    if order is None:
-        order = data[group].dropna().unique().tolist()
-
-    if ytitle is None:
-        ytitle = feature_meas.replace("_", " ")
-    if xtitle is None:
-        xtitle = group.replace("_", " ")
-
-    feature_df = make_single_feature_df(
-        data, group=group, feature=feature_meas, replicates=replicates
-    )
-
-    if remove_outliers is True:
-        feature_df = remove_outliers_iqr(feature_df)
-
-    pairs = getpairs(feature_df, group, order)
-
-    group_avg_df = average_groups_by_plate(
-        feature_df, x_value=group, y_value=feature_meas, replicates=replicates
-    )
-    group_avg_df_pivot = average_groups_pivot(
-        group_avg_df, x_value=group, y_value=feature_meas, replicates=replicates
-    )
-
-    sns.set_theme(style="ticks")
-    sns.set_context("talk", font_scale=0.5)
-
-    plt.figure(dpi=300)
-
-    sns.violinplot(
-        data=feature_df,
-        x=group,
-        y=feature_meas,
-        order=order,
-        fill=False,
-        color="gainsboro",
-        cut=2,
-        native_scale=True,
-        linecolor="k",
-        inner=None,
-        # inner_kws=dict(box_width = 5)
-    )
-
-    ax = sns.swarmplot(
-        data=group_avg_df,
-        x=group,
-        y=feature_meas,
-        hue=replicates,
-        order=order,
-        palette=pallete,
-        size=10,
-        edgecolor="k",
-        linewidth=1,
-        dodge=0.5,
-    )
-
-    # use a boxplot to draw the mean line - thinking outside the box :)
-    sns.boxplot(
-        data=group_avg_df,
-        x=group,
-        y=feature_meas,
-        showmeans=True,
-        meanline=True,
-        meanprops={"color": "dimgray", "ls": "-", "lw": 2.5},
-        medianprops={"visible": False},
-        whiskerprops={"visible": False},
-        zorder=1,
-        showfliers=False,
-        showbox=False,
-        showcaps=False,
-        ax=ax,
-    )
-
-    ax.legend_.remove()
-
-    sns.despine()
-    plt.gcf()  # .set_size_inches(10, 6)
-    plt.xlabel(xtitle)
-    plt.ylabel(ytitle)
-    plt.ylim(ylim)
-
-    from statannotations.Annotator import Annotator
-
-    annotator = Annotator(ax, pairs, data=group_avg_df_pivot, order=order)
-    annotator.configure(
-        test="Kruskal",
-        text_format="star",
-        # pvalue_format = 'simple',
-        loc="inside",
-        hide_non_significant=True,
-        color="black",
-        verbose=2,
-    )
-    annotator.apply_and_annotate()
-
-    plt.savefig("plots/new_plots/" + feature_meas + "_superviolinplot.png", dpi=300)
-    plt.show()
-
-
-def make_superswarmplot_with_kruskal(
-    data,
-    group,
-    feature_meas,
-    replicates,
-    order=None,
-    ytitle=None,
-    xtitle=None,
-    ylim=None,
-    pallete="pastel",
-):
-    """_summary_
-
-    Args:
-        data (_type_): _description_
-        group (_type_): _description_
-        feature_meas (_type_): _description_
-        replicates (_type_): _description_
-        order (_type_, optional): _description_. Defaults to None.
-        ytitle (_type_, optional): _description_. Defaults to None.
-        xtitle (_type_, optional): _description_. Defaults to None.
-        ylim (_type_, optional): _description_. Defaults to None.
-        pallete (str, optional): _description_. Defaults to 'pastel'.
-    """
     # Set values to defaults if a parameter is not loaded for order or y axis parameters
     if ytitle is None:
-        ytitle = feature_meas.replace("_", " ")
+        ytitle = y_value.replace("_", " ")
     if ylim is None:
-        ylim = (-1, 12)
+        ylim = (0, 100)
     if order is None:
-        order = data[group].dropna().unique().tolist()
+        order = data_df[x_value].dropna().unique().tolist()
     if xtitle is None:
-        xtitle = group
+        xtitle = x_value
 
-    feature_df = make_single_feature_df(
-        data, group=group, feature=feature_meas, replicates=replicates
-    )
-    pairs = getpairs(data, group, order)
-    print(pairs)
-
-    group_avg_df = average_groups_by_plate(
-        feature_df, x_value=group, y_value=feature_meas, replicates=replicates
-    )
-    group_avg_df_pivot = average_groups_pivot(
-        group_avg_df, x_value=group, y_value=feature_meas, replicates=replicates
-    )
-
-    sns.set_theme(style="ticks")
-    sns.set_context("talk", font_scale=0.6)
-
-    plt.figure(dpi=300)
-
-    sns.swarmplot(
-        data=feature_df,
-        x=group,
-        y=feature_meas,
-        hue=replicates,
-        order=order,
-        palette=pallete,
-    )
-
-    ax = sns.swarmplot(
-        data=group_avg_df,
-        x=group,
-        y=feature_meas,
-        hue=replicates,
-        order=order,
-        palette=pallete,
-        size=10,
-        edgecolor="k",
-        linewidth=1,
-        dodge=0.5,
-    )
-
-    sns.boxplot(
-        data=group_avg_df,
-        x=group,
-        y=feature_meas,
-        showmeans=True,
-        meanline=True,
-        meanprops={"color": "dimgray", "ls": "-", "lw": 2.5},
-        medianprops={"visible": False},
-        whiskerprops={"visible": False},
-        zorder=1,
-        showfliers=False,
-        showbox=False,
-        showcaps=False,
-        ax=ax,
-    )
-
-    if ax.legend_ is not None:
-        ax.legend_.remove()
-
-    sns.despine()
-    plt.gcf()  # .set_size_inches(10, 6)
-    plt.xlabel(xtitle)
-    plt.ylabel(ytitle)
-    plt.ylim(ylim)
-
-    from statannotations.Annotator import Annotator
-
-    annotator = Annotator(ax, pairs, data=group_avg_df_pivot, order=order)
-    annotator.configure(
-        test="Kruskal",
-        text_format="star",
-        loc="inside",
-        hide_non_significant=True,
-        color="black",
-        verbose=2,
-    )
-    annotator.apply_and_annotate()
-
-    plt.savefig(xtitle + "_" + feature_meas + "_superswarmplot.png", dpi=300)
-    plt.show()
-
-
-def make_superswarmplot_with_anova(
-    data,
-    group,
-    feature_meas,
-    replicates,
-    order=None,
-    ytitle=None,
-    ylim=None,
-    xtitle=None,
-    pallete="pastel",
-):
-    """_summary_
-
-    Args:
-        data (_type_): _description_
-        group (_type_): _description_
-        feature_meas (_type_): _description_
-        replicates (_type_): _description_
-        order (_type_, optional): _description_. Defaults to None.
-        ytitle (_type_, optional): _description_. Defaults to None.
-        ylim (_type_, optional): _description_. Defaults to None.
-        xtitle (_type_, optional): _description_. Defaults to None.
-        pallete (str, optional): _description_. Defaults to 'pastel'.
-    """
-    # Set values to defaults if a parameter is not loaded for order or y axis parameters
-    if ytitle is None:
-        ytitle = feature_meas.replace("_", " ")
-    if ylim is None:
-        ylim = (-1, 12)
-    if order is None:
-        order = data[group].dropna().unique().tolist()
-    if xtitle is None:
-        xtitle = group
-
-    feature_df = make_single_feature_df(
-        data, group=group, feature=feature_meas, replicates=replicates
-    )
-    pairs = getpairs(data, group, order)
+    # feature_df = make_single_feature_df(
+    #     data_df, group=x_value, feature=y_value, replicates=replicate_col_name
+    # )
+    pairs = getpairs(data_df, x_value, order)
     print(pairs)
 
     # Remove the n=1 replicate in the passage group code
-    if group == "Passage Group" and order == None:
-        order = [
-            "P6-8",
-            "P9-10",
-            "P11-13",
-            "P14-16",
-            "P17-18",
-            "P19-21",
-            "P22-24",
-            "P25-26",
-            "P27-28",
-            "P29+",
-            "Doxo",
-        ]
+    if x_value == "AllGroups":
+        order = get_all_group_order()
         # feature_df = feature_df[feature_df[group] != "P22-24"]
 
     group_avg_df = average_groups_by_plate(
-        feature_df, x_value=group, y_value=feature_meas, replicates=replicates
+        data_df, x_value=x_value, y_value=y_value, replicates=replicate_col_name
     )
+
+    group_avg_df_shapiro = apply_shapiro_wilk_test_to_df(
+        group_avg_df, feature_meas=y_value
+    )
+
     group_avg_df_pivot = average_groups_pivot(
-        group_avg_df, x_value=group, y_value=feature_meas, replicates=replicates
+        group_avg_df=group_avg_df_shapiro,
+        x_value=x_value,
+        y_value=y_value,
+        replicate_col_name=replicate_col_name,
     )
 
     sns.set_theme(style="ticks")
-    sns.set_context("talk", font_scale=0.6)
-
-    plt.figure(dpi=300)
+    plt.figure(figsize=figsize)  # , dpi=dpi)
+    sns.set_context("talk", font_scale=0.5)
 
     sns.swarmplot(
-        data=feature_df,
-        x=group,
-        y=feature_meas,
-        hue=replicates,
+        data=data_df,
+        x=x_value,
+        y=y_value,
+        hue=replicate_col_name,
         order=order,
         palette=pallete,
+        dodge=True,
     )
 
     ax = sns.swarmplot(
         data=group_avg_df,
-        x=group,
-        y=feature_meas,
-        hue=replicates,
+        x=x_value,
+        y=y_value,
+        hue=replicate_col_name,
         order=order,
         palette=pallete,
         size=10,
         edgecolor="k",
         linewidth=1,
-        dodge=0.5,
+        dodge=False,
     )
 
     sns.boxplot(
         data=group_avg_df,
-        x=group,
-        y=feature_meas,
+        x=x_value,
+        y=y_value,
+        order=order,
         showmeans=True,
         meanline=True,
         meanprops={"color": "dimgray", "ls": "-", "lw": 2.5},
         medianprops={"visible": False},
         whiskerprops={"visible": False},
-        zorder=1,
-        showfliers=False,
-        showbox=False,
-        showcaps=False,
-        ax=ax,
-    )
-    if ax.legend_ is not None:
-        ax.legend_.remove()
-
-    sns.despine()
-    plt.gcf()  # .set_size_inches(10, 6)
-    plt.xlabel(xtitle)
-    plt.ylabel(ytitle)
-    plt.ylim(ylim)
-
-    from statannotations.stats.StatTest import StatTest
-
-    custom_long_name = "One-way ANOVA statistical test"
-    custom_short_name = "One-way ANOVA"
-    custom_func = stats.f_oneway
-    custom_test = StatTest(custom_func, custom_long_name, custom_short_name)
-
-    from statannotations.Annotator import Annotator
-
-    annotator = Annotator(ax, pairs, data=group_avg_df_pivot, order=order)
-    annotator.configure(
-        test=custom_test,
-        text_format="star",
-        loc="inside",
-        hide_non_significant=True,
-        color="black",
-        verbose=2,
-    )
-    annotator.apply_and_annotate()
-
-    plt.savefig(xtitle + "_" + feature_meas + "_superswarmplot.png", dpi=300)
-    plt.show()
-
-
-def make_superswarmplot_with_calculated_pval(
-    data,
-    group,
-    feature_meas,
-    replicates,
-    order=None,
-    ytitle=None,
-    xtitle=None,
-    ylim=None,
-    pallete="pastel",
-    stattest_results=None,
-):
-    """_summary_
-
-    Args:
-        data (_type_): _description_
-        group (_type_): _description_
-        feature_meas (_type_): _description_
-        replicates (_type_): _description_
-        order (_type_, optional): _description_. Defaults to None.
-        ytitle (_type_, optional): _description_. Defaults to None.
-        xtitle (_type_, optional): _description_. Defaults to None.
-        ylim (_type_, optional): _description_. Defaults to None.
-        pallete (str, optional): _description_. Defaults to 'pastel'.
-        stattest_results (_type_, optional): _description_. Defaults to None.
-    """
-    # Set values to defaults if a parameter is not loaded for order or y axis parameters
-    if ytitle is None:
-        ytitle = feature_meas.replace("_", " ")
-    if ylim is None:
-        ylim = (-1, 12)
-    if order is None:
-        order = data[group].dropna().unique().tolist()
-
-    if xtitle is None:
-        xtitle = group
-
-    feature_df = make_single_feature_df(
-        data, group=group, feature=feature_meas, replicates=replicates
-    )
-    pairs = getpairs(data, group, order)
-    print(pairs)
-
-    # Remove the n=1 replicate in the passage group code
-    if group == "Passage Group":
-        order = [
-            "P6-8",
-            "P9-10",
-            "P11-13",
-            "P14-16",
-            "P17-18",
-            "P19-21",
-            "P22-24",
-            "P25-26",
-            "P27-28",
-            "P29+",
-            "Doxo",
-        ]
-        # feature_df = feature_df[feature_df[group] != "P22-24"]
-
-    group_avg_df = average_groups_by_plate(
-        feature_df, x_value=group, y_value=feature_meas, replicates=replicates
-    )
-    group_avg_df_pivot = average_groups_pivot(
-        group_avg_df, x_value=group, y_value=feature_meas, replicates=replicates
-    )
-
-    sns.set_theme(style="ticks")
-    sns.set_context("talk", font_scale=0.6)
-
-    plt.figure(dpi=300)
-
-    sns.swarmplot(
-        data=feature_df,
-        x=group,
-        y=feature_meas,
-        hue=replicates,
-        order=order,
-        palette=pallete,
-    )
-
-    ax = sns.swarmplot(
-        data=group_avg_df,
-        x=group,
-        y=feature_meas,
-        hue=replicates,
-        order=order,
-        palette=pallete,
-        size=10,
-        edgecolor="k",
-        linewidth=1,
-        dodge=0.5,
-    )
-
-    sns.boxplot(
-        data=group_avg_df,
-        x=group,
-        y=feature_meas,
-        showmeans=True,
-        meanline=True,
-        meanprops={"color": "dimgray", "ls": "-", "lw": 2.5},
-        medianprops={"visible": False},
-        whiskerprops={"visible": False},
-        zorder=1,
+        zorder=2,
         showfliers=False,
         showbox=False,
         showcaps=False,
@@ -1654,33 +1150,41 @@ def make_superswarmplot_with_calculated_pval(
     )
 
     if ax.legend_ is not None:
-        ax.legend_.remove()
+        ax = annotate_legend_with_shapiro(ax, group_avg_df_shapiro, replicate_col_name)
+        # ax.legend_.remove()
 
     sns.despine()
-    plt.gcf()  # .set_size_inches(10, 6)
+    plt.tight_layout()
     plt.xlabel(xtitle)
     plt.ylabel(ytitle)
     plt.ylim(ylim)
+    if annotate and test is not None:
+        try:
+            print(test)
+            ax = annotate_pairs_with_calculated_pvalues(
+                ax,
+                group_avg_df_shapiro,
+                group_avg_df_pivot,
+                x_value,
+                y_value,
+                replicate_col_name=replicate_col_name,
+                test_name=test,
+                order=order,
+                plot="swarmplot",
+            )
+        except Exception as e:
+            print(f"Error annotating with statistical test: {e}")
+    # from statannotations.Annotator import Annotator
+    # annotator = Annotator(ax, pairs, data=group_avg_df_pivot, order=order)
+    # annotator.configure(
+    #     test="Kruskal",
+    #     text_format="star",
+    #     loc="inside",
+    #     hide_non_significant=True,
+    #     color="black",
+    #     verbose=2,
+    # )
+    # annotator.apply_and_annotate()
 
-    if stattest_results is not None:
-        from statannotations.stats.StatTest import StatTest
-
-        custom_long_name = "One-way ANOVA statistical test"
-        custom_short_name = "One-way ANOVA"
-        custom_func = stats.f_oneway
-        custom_test = StatTest(custom_func, custom_long_name, custom_short_name)
-
-        from statannotations.Annotator import Annotator
-
-        annotator = Annotator(ax, pairs, data=group_avg_df_pivot, order=order)
-        annotator.configure(
-            text_format="star",
-            loc="inside",
-            hide_non_significant=True,
-            color="black",
-            verbose=2,
-        )
-        annotator.set_pvalues_and_annotate(stattest_results["p-value"])
-
-    plt.savefig(xtitle + "_" + feature_meas + "_superswarmplot.png", dpi=300)
+    plt.savefig(xtitle + "_" + y_value + "_superswarmplot.png", dpi=dpi)
     plt.show()
