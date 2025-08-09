@@ -1363,6 +1363,7 @@
 "Median_Nuclei_Location_Center_Y",
 "Median_Nuclei_Location_Center_Z",
 "Nuclei_Area_Ratio",
+"Cell_Nuclei_Area_Ratio",
 
 # Cell Features
 
