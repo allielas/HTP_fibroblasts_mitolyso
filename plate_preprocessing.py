@@ -101,7 +101,7 @@ def enforce_objects_one_to_one(
     """
     if child_obj == "Nuclei" and parent_obj == "Cell":
         try:
-            not_empty_df = df[df["Metadata_EmptyImage_Cell"] == 0]
+            not_empty_df = df[df["Metadata_EmptyImage_Cells"] == 0]
             normal_cells = not_empty_df[
                 not_empty_df["Cell_Classify_one_nuc"] == 1
             ]  # one nucleus only
@@ -116,17 +116,7 @@ def enforce_objects_one_to_one(
         normal_cells["Nuclei_AreaShape_Area"] = normal_cells[child_colname]
         final_df = size_filtered_cells.reset_index(drop=True)
     else:
-        try:
-            not_empty_df = df[df[f"Metadata_EmptyImage_{parent_obj}"] == 0]
-            normal_cells = not_empty_df[
-                not_empty_df[f"{parent_obj}_Children_{child_obj}_Count"] < 2
-            ]
-        except:
-            not_empty_df_child = df[df[f"Metadata_EmptyImage_{child_obj}"] == 0]
-            not_empty_df_parent = df[df[f"Metadata_EmptyImage_{parent_obj}"] == 0]
-            if len(not_empty_df_child.rows()) == len(not_empty_df_parent.rows()):
-                final_df = normal_cells.reset_index(drop=True)
-                return final_df
+        return pd.DataFrame
     return final_df
 
 
