@@ -88,6 +88,22 @@ def find_replicate(path):
     return replicate
 
 
+def search_column_name(df, query=""):
+    """_summary_
+
+    Args:
+        df (DataFrame): _description_
+        query (str, optional): your search query. Defaults to "".
+    Return:
+
+    """
+    query_cols = [col for col in df.columns if query in col]
+    print(f"Query: {query}")
+    for col in query_cols:
+        print(f"    {col}")
+    return query_cols
+
+
 def find_row_col(well_code):
     import re
 
@@ -295,3 +311,49 @@ def make_summary_stats_for_df_and_feature(
     except ValueError as e:
         print(f"Could not make summary stats: {e}")
         return False
+
+
+def find_replicate_cp_output_folder(path):
+    import re
+
+    replicate_pattern = r"_rep0(\d{1})_"  # Matches "RX" where X is the replicate number (placeholder for now)
+    match = re.search(replicate_pattern, path)
+    if match:
+        replicate = int(match.group(1))
+    else:
+        replicate = None
+    return replicate
+
+
+def pull_up_cp_segmentation_image(parent_dir="~/", img_filename="", replicate=0):
+    # Loop over the plates
+    # make sure the filename in the format of: "Image_FileName_MitoTracker_MAX"
+    from matplotlib import image as mpimg
+    from PIL import Image
+
+    img_filename_noext = img_filename.split(".")[0]
+    for root, dirs, files in os.walk(parent_dir):
+        for filename in files:
+            if (
+                img_filename_noext in filename
+                and filename.endswith(".png")
+                and "active" in root
+                and replicate == find_replicate_cp_output_folder(root)
+            ):
+                img_path = os.path.join(
+                    root, img_filename_noext + ".png"
+                )  # make the path
+                try:
+                    img = Image.open(img_path)
+                    fig = plt.figure(figsize=(8, 8))
+                    plt.imshow(img)
+                    plt.axis("off")  # Turn off axis labels for a cleaner image display
+                    plt.title(f"R{replicate}, {filename}, ")
+                    plt.show()
+                    print(f"Segmented image url: {img_path}")
+                    # img.show()
+
+                except FileNotFoundError:
+                    print(
+                        f"Image file {img_path} not found. Please ensure 'your_image.png' exists."
+                    )

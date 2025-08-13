@@ -88,16 +88,20 @@ def enforce_objects_one_to_one(
     parent_colname="Cell_AreaShape_Area",
     child_colname="Cell_Mean_Nuclei_AreaShape_Area",
 ):
-    """apply filters based on the number of nuclei to remove:
+    """apply filters based on the number of nuclei to remove to enforce a 1:1 cell-nucleus relationship:
     - Cells that have less or more than one nucleus
     - Poorly segmented cells where the cell area is smaller than the nuclei area
+    - Image is not flagged as empty by CellProfiler
     Can also use other objects instead of nuclei
 
     Args:
         df (DataFrame): The parent dataframe
+        child_obj (str, optional): _description_. Defaults to "Nuclei".
+        parent_colname (str, optional): _description_. Defaults to "Cell_AreaShape_Area".
+        child_colname (str, optional): _description_. Defaults to "Cell_Mean_Nuclei_AreaShape_Area".
 
     Returns:
-        _type_: _description_
+        DataFrame: the filtered dataframe with the removed objects
     """
     if child_obj == "Nuclei" and parent_obj == "Cell":
         try:
@@ -108,16 +112,94 @@ def enforce_objects_one_to_one(
         except KeyError as e:
             print(f"KeyError {e}; skipping emptyimage")
             normal_cells = df[df["Cell_Classify_one_nuc"] == 1]
+        # remove if my cell area is bigger than nuclear area
         size_filtered_cells = normal_cells[
             normal_cells[parent_colname] > normal_cells[child_colname]
-        ]  # cell area bigger than nuclear area
-
-        # convenience column for area
-        normal_cells["Nuclei_AreaShape_Area"] = normal_cells[child_colname]
+        ]
         final_df = size_filtered_cells.reset_index(drop=True)
+        return final_df
     else:
-        return pd.DataFrame
+        # just do the size excludion
+        not_empty_df = df[df["Metadata_EmptyImage_Cells"] == 0]
+        size_filtered_cells = not_empty_df[
+            not_empty_df[parent_colname] > not_empty_df[child_colname]
+        ]
+        return size_filtered_cells
+
+
+def filter_nuclei_outisde_bbox(overlapped_df, nuc_prefix="Nuclei", cell_prefix=""):
+    """Exclude all rows with cells that have nuclei extruding the cell boundaries
+
+    Args:
+        overlapped_df (Dataframe that contains objects to enforce overlap): _description_
+        nuc_prefix (str, optional): _description_. Defaults to "Nuclei".
+        cell_prefix (str, optional): _description_. Defaults to "".
+
+    Returns:
+        _type_: _description_
+    """
+    df = overlapped_df.copy()
+    # Get the coordinate of the cell and nuclei objects
+    # Note- make sure the cells and nuclei are 1:1 or this will fail
+    nuc_min_x, nuc_min_y, nuc_max_x, nuc_max_y = (
+        df[f"{nuc_prefix}_AreaShape_BoundingBoxMinimum_X"],
+        df[f"{nuc_prefix}_AreaShape_BoundingBoxMinimum_Y"],
+        df[f"{nuc_prefix}_AreaShape_BoundingBoxMaximum_X"],
+        df[f"{nuc_prefix}_AreaShape_BoundingBoxMaximum_Y"],
+    )
+    cell_min_x, cell_min_y, cell_max_x, cell_max_y = (
+        df[f"{cell_prefix}AreaShape_BoundingBoxMinimum_X"],
+        df[f"{cell_prefix}AreaShape_BoundingBoxMinimum_Y"],
+        df[f"{cell_prefix}AreaShape_BoundingBoxMaximum_X"],
+        df[f"{cell_prefix}AreaShape_BoundingBoxMaximum_Y"],
+    )
+    # now get two boolean series that match the conditions
+    df_is_contained_x = (nuc_min_x >= cell_min_x) & (nuc_max_x <= cell_max_x)
+    df_is_contained_y = (nuc_min_y >= cell_min_y) & (nuc_max_y <= cell_max_y)
+    # and then we get the subset of the dataframe where both are true
+    df_is_contained_xy = df[df_is_contained_x & df_is_contained_y]
+
+    final_df = df_is_contained_xy.reset_index(drop=True)
     return final_df
+
+
+def filter_out_images_with_n_cells(
+    df, n, image_count_col="Image_Count_Cell", prefix=""
+):
+    """Filter out rows from images with less than n cells
+
+    Args:
+        df (DataFrame): the cell df
+        n (int): Threshold min number of cells to excluded
+        image_count_col (str, optional): The name of the column counting cells per image. Defaults to "Image_Count_Cell".
+        prefix (str, optional): perfix for column. Defaults to "".
+
+    Returns:
+        DataFrame: the filtered df
+    """
+    filter_df = df.copy()
+    filter_df = filter_df[image_count_col] > n
+    final_df = filter_df.reset_index(drop=True)
+    return final_df
+
+
+def filter_out_empty_compartment_from_cells(df, organelle, prefix=""):
+    """Remove rows from a dataframe where a parent "cell" object doesn't have any child objects of {organelle}
+
+    Args:
+        df (DataFrame): _description_
+        organelle (str): the organelle in plural. Typically "Mitochondria or Lysosomes (or Nuclei)
+        prefix (str, optional): _description_. Defaults to "".
+
+    Returns:
+        Dataframe: _description_
+    """
+    organelle = organelle.title()
+    this_df = df.copy()
+    atleast_one_df = this_df[
+        this_df[f"{prefix}Children_{organelle}_Count"] > 1
+    ].reset_index(drop=True)
+    return atleast_one_df
 
 
 def define_cell_features(df):
@@ -142,6 +224,148 @@ def define_cell_features(df):
     # old_columns_list = columns_list = [col for col in columns_list if 'Metadata' not in col and 'FileName' not in col and 'PathName' not in col]
     # print("Original columns:", len(old_columns_list), "Filtered columns:", len(columns_list))
     return columns_list
+
+
+
+def calculate_corrected_features(full_df):
+    """_summary_
+
+    Args:
+        full_df (DataFrame): _description_
+
+    Returns:
+        df (DataFrame): the df with all the feature calcs
+    """
+    df = full_df.copy()
+    df["Math_Total_Mitochondria_AreaShape_Area_PerCell"] = (
+        df["Children_Mitochondria_Count"] * df["Mean_Mitochondria_AreaShape_Area"]
+    )
+    df["Math_Total_Lysosomes_AreaShape_Area_PerCell"] = (
+        df["Children_Lysosomes_Count"] * df["Mean_Lysosomes_AreaShape_Area"]
+    )
+
+    # Total intensity per cell based on ingegrated instensity if I don't already have the merged area
+    df["Mean_Intensity_Per_Lysosomes_PerCell_Area"] = (
+        mean_intensity_per_compartment_per_cell(
+            df,
+            "Lysosomes",
+            "MergedLysoPerCell",
+            "LAMP1",
+            math="Math_Total_Lysosomes_AreaShape_Area_PerCell",
+        )
+    )
+    df["Mean_Intensity_Per_Mitochondria_PerCell_Area"] = (
+        mean_intensity_per_compartment_per_cell(
+            df,
+            "Mitochondria",
+            "MergedMitoPerCell",
+            "MitoTracker",
+            math="Math_Total_Mitochondria_AreaShape_Area_PerCell",
+        )
+    )
+    # same thing but for medians
+    df["Median_Intensity_Per_Lysosomes_PerCell_Area"] = (
+        df["Children_Lysosomes_Count"]
+        * df["Mean_Lysosomes_Intensity_MeanIntensity_LAMP1"]
+    )
+    df["Median_Intensity_Per_Mitochondria_PerCell_Area"] = (
+        df["Children_Mitochondria_Count"]
+        * df["Mean_Mitochondria_Intensity_MeanIntensity_MitoTracker"]
+    )
+
+    # Corrected mitochondria and lysosomes counts per cell area (density)
+    df["Density_Children_Mitochondria_Count_PerCell_Area"] = (
+        df["Children_Mitochondria_Count"] / df["AreaShape_Area"]
+    )
+    df["Density_Children_Lysosomes_Count_PerCell_Area"] = (
+        df["Children_Lysosomes_Count"] / df["AreaShape_Area"]
+    )
+
+    # organelle area fractions per cell ratio
+    df["OccupiedAreaFraction_Mitochondria_PerCell_Area"] = (
+        df["Math_Total_Mitochondria_AreaShape_Area_PerCell"] / df["AreaShape_Area"]
+    )
+    df["OccupiedAreaFraction_Lysosomes_PerCell_Area"] = (
+        df["Math_Total_Lysosomes_AreaShape_Area_PerCell"] / df["AreaShape_Area"]
+    )
+
+    # Compartment diameter ratios
+    df["Mean_Lysosomes_DiameterRatio_PerCell"] = (
+        df["Mean_Lysosomes_AreaShape_MaxFeretDiameter"]
+        / df["Mean_Lysosomes_AreaShape_MinFeretDiameter"]
+    )
+    df["Mean_Mitochondria_DiameterRatio_PerCell"] = (
+        df["Mean_Mitochondria_AreaShape_MaxFeretDiameter"]
+        / df["Mean_Mitochondria_AreaShape_MinFeretDiameter"]
+    )
+    df["Median_Mitochondria_DiameterRatio_PerCell"] = (
+        df["Median_Mitochondria_AreaShape_MaxFeretDiameter"]
+        / df["Median_Mitochondria_AreaShape_MinFeretDiameter"]
+    )
+    df["Median_Lysosomes_DiameterRatio_PerCell"] = (
+        df["Median_Lysosomes_AreaShape_MaxFeretDiameter"]
+        / df["Median_Lysosomes_AreaShape_MinFeretDiameter"]
+    )
+
+    # mean and median area per organelle per cell area
+    df["Mean_Mitochondria_Area_PerCell_Area"] = (
+        df["Mean_Mitochondria_AreaShape_Area"] / df["AreaShape_Area"]
+    )
+    df["Mean_Lysosomes_Area_PerCell_Area"] = (
+        df["Mean_Lysosomes_AreaShape_Area"] / df["AreaShape_Area"]
+    )
+    df["Median_Mitochondria_Area_PerCell_Area"] = (
+        df["Median_Mitochondria_AreaShape_Area"] / df["AreaShape_Area"]
+    )
+    df["Median_Lysosomes_Area_PerCell_Area"] = (
+        df["Median_Lysosomes_AreaShape_Area"] / df["AreaShape_Area"]
+    )
+
+    # mitolyso related
+    df["Children_Lysosomes_Mitochondria_Ratio"] = (
+        df["Children_Lysosomes_Count"] / df["Children_Mitochondria_Count"]
+    )
+    df["Density_Lysosomes_Mitochondria_Ratio"] = (
+        df["OccupiedAreaFraction_Lysosomes_PerCell_Area"]
+        / df["OccupiedAreaFraction_Mitochondria_PerCell_Area"]
+    )
+    df["Area_Lysosomes_Mitochondria_Ratio"] = (
+        df["Math_Total_Lysosomes_AreaShape_Area_PerCell"]
+        / df["Math_Total_Mitochondria_AreaShape_Area_PerCell"]
+    )
+
+    # Ratio of centroid distance to minimum distance for mitochondria and lysosomes
+    df["Mean_Mitochondria_Distance_Centroid_Minimum_Ratio"] = (
+        df["Mean_Mitochondria_Distance_Centroid_Nuclei"]
+        / df["Mean_Mitochondria_Distance_Minimum_Nuclei"]
+    )
+    df["Mean_Lysosomes_Distance_Centroid_Minimum_Ratio"] = (
+        df["Mean_Lysosomes_Distance_Centroid_Nuclei"]
+        / df["Mean_Lysosomes_Distance_Minimum_Nuclei"]
+    )
+
+    # transform the mitoends - number of ends times the mean to get total per cell
+    df["MitoEnds_Math_Total_NumberBranchEnds_MitoSkeleton"] = (
+        df["Children_MitoEnds_Count"]
+        * df["Mean_MitoEnds_ObjectSkeleton_NumberBranchEnds_MitoSkeleton"]
+    )
+    df["MitoEnds_Math_Total_NumberNonTrunkBranches_MitoSkeleton"] = (
+        df["Children_MitoEnds_Count"]
+        * df["Mean_MitoEnds_ObjectSkeleton_NumberNonTrunkBranches_MtSkltn"]
+    )
+    df["MitoEnds_Math_Total_NumberTrunks_MitoSkeleton"] = (
+        df["Children_MitoEnds_Count"]
+        * df["Mean_MitoEnds_ObjectSkeleton_NumberTrunks_MitoSkeleton"]
+    )
+    df["MitoEnds_Math_TotalObjectSkeltnLngth_MitoSkeleton_PerCell"] = (
+        df["Children_MitoEnds_Count"]
+        * df["Mean_MitoEnds_ObjectSkeleton_TotalObjectSkeltnLngth_MtSkltn"]
+    )
+    df["MitoEnds_Total_ObjectSkeltnLngth_MitoSkeleton_PerCell_Area"] = (
+        df["MitoEnds_Math_TotalObjectSkeltnLngth_MitoSkeleton_PerCell"]
+        / df["AreaShape_Area"]
+    )
+    return df
 
 
 def make_feature_dict(columns_list):

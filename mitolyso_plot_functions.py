@@ -972,13 +972,121 @@ def superplot_for_area_threshold_comparisons(
         group_avg_df_2_pivot.to_csv(os.path.join(pivot_dir, f"area_pivot_{title2}.csv"))
 
 
-def single_feature_super_splitviolinplot(
+def super_splitviolinplot_helper_singleplot(
     data_df,
     group_avg_df,
+    ax,
+    x_value,
+    y_value,
+    title,
+    replicate_col_name,
+    pairs=None,
+    order=None,
+    annotate=False,
+    test=None,
+    shapiro=True,
+    show_test_on_plot=False,
+):
+    if pairs is None:
+        pairs = getpairs(data_df, x_value, order=order)
+    print(pairs)
+    sns.violinplot(
+        data=data_df,
+        x=x_value,
+        y=y_value,  # hue=x_value,
+        # palette="Set2",
+        split=True,  # using split violin plots - only one side, basically looks like a histogram
+        inner="quart",
+        color="gainsboro",
+        # fill = True
+        width=0.9,
+        linewidth=1.5,
+        order=order,
+        ax=ax,
+    )
+    sns.swarmplot(
+        data=group_avg_df,
+        x=x_value,
+        y=y_value,
+        hue=replicate_col_name,
+        order=order,
+        palette="pastel",
+        size=10,
+        edgecolor="k",
+        linewidth=1,
+        dodge=True,
+        ax=ax,
+    )
+    # draw a boxplot to show the mean line
+    sns.boxplot(
+        data=group_avg_df,
+        x=x_value,
+        y=y_value,
+        showmeans=True,
+        meanline=True,
+        meanprops={"color": "dimgray", "ls": "-", "lw": 2.5},
+        medianprops={"visible": False},
+        whiskerprops={"visible": False},
+        zorder=2,
+        showfliers=False,
+        showbox=False,
+        showcaps=False,
+        ax=ax,
+    )
+    ax.set_title(title)
+
+    # axes[0].text(
+    #     x=row[x_value],
+    #     y=row[y_value],
+    #     s=str(row["Shapiro_normality"]),
+    #     color="black",
+    #     fontsize=10,
+    #     ha="center"
+    # )
+    # use pivot table to get the average values for each group
+    if annotate and test is not None:
+        group_avg_pivot_table = average_groups_pivot(
+            group_avg_df, x_value, y_value, replicate_col_name
+        )
+        try:
+            ax = annotate_pairs_with_calculated_pvalues(
+                ax,
+                group_avg_df,
+                group_avg_pivot_table,
+                x_value,
+                y_value,
+                replicate_col_name=replicate_col_name,
+                test_name=test,
+                order=order,
+                plot="violinplot",
+                show_test_name=show_test_on_plot,
+            )
+        except Exception as e:
+            print(f"Error annotating with statistical test: {e}")
+            # ax = annotate_with_anova_tukey(ax, pairs, group_avg_df_pivot, x_value, y_value, replicate_col_name=replicate_col_name, order=order, plot="violinplot")
+        # elif test == "kruskal":
+        #     ax = annotate_with_kruskal(
+        #         ax,
+        #         pairs,
+        #         group_avg_pivot_table,
+        #         x_value,
+        #         y_value,
+        #         order=order,
+        #         replicate_col_name=replicate_col_name,
+        #         plot="violinplot",
+        #     )
+        if shapiro:
+            ax = annotate_legend_with_shapiro(ax, group_avg_df, replicate_col_name)
+
+    return ax
+
+
+def single_feature_super_splitviolinplot(
+    data_df,
     x_value="AllGroups",
     y_value="Cell_AreaShape_Area",
     replicate_col_name="Replicate_Number",
-    out_dir="",
+    out_dir=Path(""),
     xtitle=None,
     ytitle=None,
     order=None,
@@ -986,6 +1094,13 @@ def single_feature_super_splitviolinplot(
     annotate=False,
     test=None,
     show_hist=False,
+    remove_outliers=False,
+    ylim=None,
+    reps_to_exclude=[],
+    shapiro=True,
+    show=True,
+    context="talk",
+    figsize=(8, 6),
 ):
     """Make a superplot to do multiple comparisons for a feature between different conditions
     Args:
@@ -1010,23 +1125,57 @@ def single_feature_super_splitviolinplot(
     pairs = getpairs(data_df, x_value, order=order)
     print(pairs)
 
+    try:
+        bottom_fence = None  # np.percentile(data_df[y_value], 0.000001)
+        top_fence = None  # np.percentile(data_df[y_value], 99.99)
+    except ValueError as e:
+        print(e)
+        top_fence = None
+    axlim = (bottom_fence, top_fence)
     if show_hist:
-        import plotly.express as px
-
         hist = sns.kdeplot(data_df, x=y_value, hue=replicate_col_name, palette="pastel")
+        plt.xlim(axlim)
+        plt.savefig(f"{Path(out_dir, f'{y_value}_{replicate_col_name}_histogram')}.png")
         plt.show()
-        plt.close(hist.figure)
+        plt.close()
 
-        hist2 = px.histogram(data_df, x=y_value, color=x_value)
+        df_sorted = data_df.sort_values(
+            by=[x_value], key=lambda x: x.map(passage_groups_sort_key)
+        ).reset_index(drop=True)
+
+        import kaleido
+
+        hist2 = px.histogram(
+            df_sorted,
+            x=y_value,
+            color=x_value,
+            marginal="box",
+            # histnorm='probability density',
+            # range_x=(0, top_fence),
+        )
+        hist2.write_image(Path(out_dir, f"{y_value}_histogram.png"), scale=1.5)
         hist2.show()
-
-    fig, ax = plt.subplots(figsize=(15, 8))
+    sns.set_context(context=context, font_scale=1.2)
+    sns.set_theme(style="ticks")
+    fig, ax = plt.subplots(figsize=figsize)
     # plt.style.use("ggplot")
-    sns.set_context("talk", font_scale=1.2)
-    sns.set_theme(style="whitegrid")
 
-    ax = super_splitviolinplot_helper(
-        data_df,
+    feature_df = make_single_feature_df(
+        data_df, group=x_value, feature=y_value, replicates=replicate_col_name
+    )
+    if reps_to_exclude:
+        feature_df = feature_df[~feature_df[replicate_col_name].isin(reps_to_exclude)]
+        print(f"removing replicates: {reps_to_exclude}")
+
+    if remove_outliers is True:
+        feature_df = remove_outliers_iqr(feature_df)
+        display(feature_df)
+    group_avg_df = average_groups_by_plate(
+        feature_df, x_value=x_value, y_value=y_value, replicates=replicate_col_name
+    )
+
+    ax = super_splitviolinplot_helper_singleplot(
+        feature_df,
         group_avg_df,
         ax,
         x_value,
@@ -1037,20 +1186,38 @@ def single_feature_super_splitviolinplot(
         order=order,
         annotate=annotate,
         test=test,
+        shapiro=False,
     )
 
     if legend:
-        ax = annotate_legend_with_shapiro(ax, group_avg_df, replicate_col_name)
+        if shapiro:
+            group_avg_df_shapiro = apply_shapiro_wilk_test_to_df(
+                group_avg_df,
+                feature_meas=y_value,
+                replicate_col_name="Replicate_Number",
+                alpha=0.05,
+            )
+            # display(group_avg_df_shapiro)
+            ax = annotate_legend_with_shapiro(
+                ax, group_avg_df_shapiro, replicate_col_name
+            )
     else:
         ax.legend_.remove()
     if ytitle is not None:
         ax.set_ylabel(ytitle)
+    else:
+        ax.set_ylabel(y_value.replace("_", " "))
     if xtitle is not None:
         ax.set_xlabel(xtitle)
+    if ylim is None:
+        ylim = axlim
 
+    ax.set_ylim(ylim)
     plt.tight_layout()
+    sns.despine()
     plt.savefig(os.path.join(out_dir, f"{y_value}_{test}.png"))
-    plt.show()
+    if show:
+        plt.show()
 
 
 def make_superswarmplot_with_annotation(
