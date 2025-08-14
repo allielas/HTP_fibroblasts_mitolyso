@@ -1,0 +1,18 @@
+name: jupyter
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - jupyter
+  - numpy
+  - pandas
+  - matplotlib
+  - seaborn
+  - plotly
+  - scipy
+  - statsmodels
+  - scikit-learn
+  - statannotations
+  - scikit-posthocs
+  - papermill
+prefix: /home/mattiazzilab/.conda/envs/jupyter
