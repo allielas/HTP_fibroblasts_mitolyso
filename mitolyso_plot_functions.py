@@ -357,6 +357,71 @@ def pvalues_anova_and_tukeyhsd_posthoc(
         return ([], [])
 
 
+def pvalues_anova_with_games_howell(
+    data_df,
+    pivot_df,
+    x_value,
+    y_value,
+    replicate_number_col="Replicate_Number",
+    desired_pairs=None,
+    order=None,
+):
+    """Perform Games-Howell post-hoc test on the data. Same function as tukey HSD but with unequal variance / sample size
+    Args:
+        data_df (pd.DataFrame): DataFrame table containing the data.
+        pivot_df (pd.DataFrame): DataFrame pivot table containing the means.
+        x_value (str): Column name for the independent variable.
+        y_value (str): Column name for the dependent variable.
+        grouping_variable (str): Column name for the replicate number.
+        order (list, optional): Order of groups for plotting. Defaults to None.
+
+    Returns:
+        pd.DataFrame: DataFrame with Tukey's HSD results.
+    """
+    from scipy.stats import f_oneway
+    from statsmodels.stats.multicomp import pairwise_tukeyhsd
+
+    groups = []  # Convert pivot table to list of groups
+    # display(pivot_df)
+    for col in pivot_df:
+        if col == x_value or col == replicate_number_col:
+            # print("Skipping col:" + col)
+            continue  # Skip the first column (usually the index or grouping variable)
+        else:
+            # print("Adding col:" + col)
+            groups.append(pivot_df[col].dropna())
+    # One-Way ANOVA
+    # display(groups)
+    f_value, p_value_anova = f_oneway(
+        *list(groups)
+    )  # Pass groups as args to run ANOVA on all groups
+    print(f"ANOVA F statistic: {f_value}")
+    print(f"ANOVA p value: {p_value_anova}")
+
+    # Tukey's HSD (post hoc test)
+    if p_value_anova < 0.05:
+        tukey_result = pairwise_tukeyhsd(
+            endog=data_df[y_value],
+            groups=data_df[x_value],
+            alpha=0.05,
+            use_var="unequal",
+        )
+        # Extract the data from the Statsmodels SimpleTable
+        tukey_data = tukey_result._results_table.data[1:]  # Exclude the header line
+        headers = tukey_result._results_table.data[0]  # Get the header line
+        tukey_result_df = pd.DataFrame(tukey_data, columns=headers)
+        tukey_result_pairs = tukey_result_df[["group1", "group2"]].itertuples(
+            index=False, name=None
+        )
+        pairs = list(tukey_result_pairs)
+        p_values = tukey_result_df["p-adj"].tolist()
+        # display(tukey_result_df)
+        return (pairs, p_values)
+    else:
+        print("ANOVA test is not significant, skipping Games-Howell post-hoc test.")
+        return ([], [])
+
+
 def anova_with_tukey_posthoc(
     data_df,
     x_value,
@@ -366,6 +431,20 @@ def anova_with_tukey_posthoc(
     order=None,
     display_results=False,
 ):
+    """Tukey HSD test using Scikit_posthocs
+
+    Args:
+        data_df (_type_): _description_
+        x_value (_type_): _description_
+        y_value (_type_): _description_
+        replicate_number_col (str, optional): _description_. Defaults to "Replicate_Number".
+        desired_pairs (_type_, optional): _description_. Defaults to None.
+        order (_type_, optional): _description_. Defaults to None.
+        display_results (bool, optional): _description_. Defaults to False.
+
+    Returns:
+        _type_: _description_
+    """
     from scikit_posthocs import posthoc_tukey
 
     # Make groups [x,y] for tukey test
@@ -448,6 +527,138 @@ def kruskal_with_dunn_posthoc(
         return ([], [])
 
 
+def kruskal_with_drubin_posthoc(
+    data_df,
+    x_value,
+    y_value,
+    replicate_number_col="Replicate_Number",
+    desired_pairs=None,
+    order=None,
+    display_results=False,
+    p_correction=None,
+):
+    """Drubin's nonparametric test for unbalenced block design. Uses a grouped_df, not a pivot table as it needs to group the blocks
+
+    Args:
+        data_df (_type_): _description_
+        x_value (_type_): _description_
+        y_value (_type_): _description_
+        replicate_number_col (str, optional): _description_. Defaults to "Replicate_Number".
+        desired_pairs (_type_, optional): _description_. Defaults to None.
+        order (_type_, optional): _description_. Defaults to None.
+        display_results (bool, optional): _description_. Defaults to False.
+
+    Returns:
+        (pairs,pvalues) (tuple): _description_
+    """
+    from scikit_posthocs import posthoc_durbin
+
+    # Make groups [x,y] for kruskal test
+    groups = np.unique(data_df[x_value])
+    data = []
+    for group in groups:
+        data.append(data_df[data_df[x_value] == group][y_value])
+
+    kruskal_result = stats.kruskal(*data)
+    kruskal_pvalue = kruskal_result.pvalue
+    print(f"Kruskal-Wallis H statistic: {kruskal_result.statistic}")
+    print(f"Kruskal-Wallis p value: {kruskal_pvalue}")
+
+    if kruskal_pvalue < 0.05:
+        # posthoc dunn test
+        drubin_df = posthoc_durbin(
+            data_df,
+            y_col=y_value,
+            group_col=x_value,
+            block_col=replicate_number_col,
+            block_id_col=replicate_number_col,
+            melted=True,
+        )
+        # melt the dunn_df to long format
+        remove = np.tril(np.ones(drubin_df.shape), k=0).astype("bool")
+        drubin_df[remove] = np.nan
+        molten_df = drubin_df.melt(ignore_index=False).reset_index().dropna()
+
+        if display_results:
+            # display(dunn_df)
+            print(molten_df)
+        drubin_pairs = molten_df[["index", "variable"]].itertuples(
+            index=False, name=None
+        )
+        pairs = list(drubin_pairs)
+        p_values = molten_df["value"].tolist()
+        return (pairs, p_values)
+
+    else:
+        print(
+            "Kruskal-Wallis test is not significant, skipping Drubin's post-hoc test."
+        )
+        return ([], [])
+
+
+def kruskal_with_conover_posthoc(
+    data_df,
+    x_value,
+    y_value,
+    replicate_number_col="Replicate_Number",
+    desired_pairs=None,
+    order=None,
+    display_results=False,
+    p_correction=None,
+):
+    """Conover's nonparametric post-hoc test for multiple comparisons. Alternative posthoc to Dunn's test with more statistial power
+
+    Args:
+        data_df (_type_): _description_
+        x_value (_type_): _description_
+        y_value (_type_): _description_
+        replicate_number_col (str, optional): _description_. Defaults to "Replicate_Number".
+        desired_pairs (_type_, optional): _description_. Defaults to None.
+        order (_type_, optional): _description_. Defaults to None.
+        display_results (bool, optional): _description_. Defaults to False.
+
+    Returns:
+        (pairs,pvalues) (tuple): _description_
+    """
+    from scikit_posthocs import posthoc_conover
+
+    # Make groups [x,y] for kruskal test
+    groups = np.unique(data_df[x_value])
+    data = []
+    for group in groups:
+        data.append(data_df[data_df[x_value] == group][y_value])
+
+    kruskal_result = stats.kruskal(*data)
+    kruskal_pvalue = kruskal_result.pvalue
+    print(f"Kruskal-Wallis H statistic: {kruskal_result.statistic}")
+    print(f"Kruskal-Wallis p value: {kruskal_pvalue}")
+
+    if kruskal_pvalue < 0.05:
+        # posthoc dunn test
+        con_df = posthoc_conover(
+            data_df, val_col=y_value, group_col=x_value, p_adjust=p_correction
+        )
+
+        # melt the dunn_df to long format
+        remove = np.tril(np.ones(con_df.shape), k=0).astype("bool")
+        con_df[remove] = np.nan
+        molten_df = con_df.melt(ignore_index=False).reset_index().dropna()
+
+        if display_results:
+            # display(dunn_df)
+            print(molten_df)
+        con_pairs = molten_df[["index", "variable"]].itertuples(index=False, name=None)
+        pairs = list(con_pairs)
+        p_values = molten_df["value"].tolist()
+        return (pairs, p_values)
+
+    else:
+        print(
+            "Kruskal-Wallis test is not significant, skipping Conover's post-hoc test."
+        )
+        return ([], [])
+
+
 def annotate_with_anova_tukey(
     ax,
     pairs,
@@ -514,6 +725,7 @@ def annotate_pairs_with_calculated_pvalues(
 ):
     """Add statistical annotations to the plot using Tukey's HSD test.
     see https://statannotations.readthedocs.io/en/latest/custom-test.html for more examples
+    Also see https://www.graphpad.com/guides/prism/latest/statistics/stat_summary_of_multiple_comparison.htm for a list of posthoc tests and when to use them
 
     Args:
         ax (_type_): _description_
@@ -535,6 +747,7 @@ def annotate_pairs_with_calculated_pvalues(
     if pairs is None:
         pairs = getpairs(data, x_value, order=order)
 
+    # nonparametric tests
     if test_name in ["kruskal", "dunn", "kruskal-wallis"]:
         used_pairs, p_values = kruskal_with_dunn_posthoc(
             data,
@@ -545,12 +758,37 @@ def annotate_pairs_with_calculated_pvalues(
             p_correction="fdr_bh",
             display_results=True,
         )
+    elif test_name in ["drubin", "drubin_posthoc"]:
+        used_pairs, p_values = kruskal_with_drubin_posthoc(
+            data,
+            x_value=x_value,
+            y_value=y_value,
+            order=order,
+            desired_pairs=pairs,
+            p_correction=None,
+            display_results=True,
+        )
+    elif test_name in ["conover", "con", "kruskal-conover"]:
+        used_pairs, p_values = kruskal_with_dunn_posthoc(
+            data,
+            x_value=x_value,
+            y_value=y_value,
+            order=order,
+            desired_pairs=pairs,
+            p_correction="fdr_bh",
+            display_results=True,
+        )
+    # parametric tests
     elif test_name in ["anova", "tukey", "tukeyhsd"]:
         # perform anova and tukey's post-hoc test
         used_pairs, p_values = pvalues_anova_and_tukeyhsd_posthoc(
             data, pivot_data, x_value, y_value, order=order, desired_pairs=pairs
         )
-    elif test_name == "tukey_v2":
+    elif test_name in ["games", "games-howell"]:
+        used_pairs, p_values = pvalues_anova_and_tukeyhsd_posthoc(
+            data, pivot_data, x_value, y_value, order=order, desired_pairs=pairs
+        )
+    elif test_name in ["tukey_v2", "tukey_posthocs"]:
         used_pairs, p_values = anova_with_tukey_posthoc(
             data,
             x_value=x_value,
@@ -559,9 +797,10 @@ def annotate_pairs_with_calculated_pvalues(
             order=order,
             desired_pairs=pairs,
         )
+
     else:
         raise ValueError(
-            f"Test name '{test_name}' is invalid. Use 'tukey', 'anova', 'kruskal', or 'dunn'."
+            f"Test name '{test_name}' is invalid. Use 'tukey', 'anova', 'kruskal', 'games-howell', 'drubin', 'tukey_v2', or 'dunn'."
         )
     if used_pairs is None or len(used_pairs) == 0:
         print(f"No significant pairs found for the {test_name} test.")
