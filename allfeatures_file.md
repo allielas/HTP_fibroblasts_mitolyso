@@ -87,7 +87,6 @@
 "Median_Mitochondria_Location_MaxIntensity_Z_MitoTracker",
 "Mean_Intensity_Per_Mitochondria Per_Cell",
 "Mean_Intensity_Per_Mitochondria_PerCell_Area",
-"Median_Intensity_Per_Mitochondria_PerCell_Area",
 
 ## Texture
 "Texture_AngularSecondMoment_RescaleIntensityMito_3_00_256",
@@ -347,14 +346,14 @@
 "RadialDistribution_RadialCV_MitoTracker_3of4",
 "RadialDistribution_RadialCV_MitoTracker_4of4",
 
-## Arearatios
+## Totals
 "Math_Total_Mitochondria_AreaShape_Area_PerCell",
 "Math_OccupiedAreaFraction_Mitochondria_AreaShape_Area_PrCll",
 "Mean_Mitochondria_Math_DimtrRt_Mtchndr_ArShp_Mx_t_MnFrtDmtr",
 "MitoEnds_Math_Total_NumberBranchEnds_MitoSkeleton",
 "MitoEnds_Math_Total_NumberNonTrunkBranches_MitoSkeleton",
 "MitoEnds_Math_Total_NumberTrunks_MitoSkeleton",
-"MitoEnds_Math_TotalObjectSkeltnLngth_MitoSkeleton_PerCell",
+"MitoEnds_Math_TotalObjectSkeltnLngth_MitoSkeleton",
 
 ## Count
 "Children_MitoEnds_Count",
@@ -374,9 +373,30 @@
 "Median_Mitochondria_Distance_Centroid_Nuclei",
 "Median_Mitochondria_Distance_Minimum_Cell",
 "Median_Mitochondria_Distance_Minimum_Nuclei",
-"Mean_Mitochondria_Distance_Centroid_Minimum_Ratio",
+"Mean_Mitochondria_Distance_Centroid_Nuclei_Minimum_Nuclei_QuinRatio",
+"Mean_Mitochondria_Distance_Centroid_Nuclei_Minimum_Cell_QuinRatio",
+"Mean_Mitochondria_Distance_Centroid_Nuclei_PerCell_Area",
+"Mean_Mitochondria_Distance_Centroid_Cell_PerCell_Area",
+"Mean_Mitochondria_Distance_Minimum_Nuclei_PerCell_Area",
+"Mean_Mitochondria_Distance_Minimum_Cell_PerCell_Area",
 
-## Metadata
+## Per_cell_area
+"OccupiedAreaFraction_Mitochondria_PerCell_Area",
+"Mean_Mitochondria_MaxMinFeret_DiameterRatio_PerCell",
+"Median_Mitochondria_DiameterRatio_PerCell",
+"Mean_Mitochondria_Area_PerCell_Area",
+"Median_Mitochondria_Area_PerCell_Area",
+"MitoEnds_NumberBranchEnds_PerCell_Area",
+"MitoEnds_NumberNonTrunkBranches_PerCell_Area",
+"MitoEnds_NumberTrunks_PerCell_Area",
+"MitoEnds_TotalObjectSkeltnLngth_PerCell_Area",
+
+## Coloc
+"Children_Lysosomes_Mitochondria_Ratio",
+"Density_Lysosomes_Mitochondria_Ratio",
+"Area_Lysosomes_Mitochondria_Ratio",
+
+## Other
 "Mean_MitoEnds_Location_Center_X",
 "Mean_MitoEnds_Location_Center_Y",
 "Mean_MitoEnds_Number_Object_Number",
@@ -420,15 +440,6 @@
 "Median_Mitochondria_Location_Center_X",
 "Median_Mitochondria_Location_Center_Y",
 "Median_Mitochondria_Location_Center_Z",
-"OccupiedAreaFraction_Mitochondria_PerCell_Area",
-"Mean_Mitochondria_DiameterRatio_PerCell",
-"Median_Mitochondria_DiameterRatio_PerCell",
-"Mean_Mitochondria_Area_PerCell_Area",
-"Median_Mitochondria_Area_PerCell_Area",
-"Children_Lysosomes_Mitochondria_Ratio",
-"Density_Lysosomes_Mitochondria_Ratio",
-"Area_Lysosomes_Mitochondria_Ratio",
-"MitoEnds_Total_ObjectSkeltnLngth_MitoSkeleton_PerCell_Area",
 
 # Lysosome Features
 
@@ -561,7 +572,6 @@
 "Median_Lysosomes_Location_MaxIntensity_Z_LAMP1_MAX",
 "Mean_Intensity_Per_Lysosomes Per_Cell",
 "Mean_Intensity_Per_Lysosomes_PerCell_Area",
-"Median_Intensity_Per_Lysosomes_PerCell_Area",
 
 ## Texture
 "Texture_AngularSecondMoment_RescaleIntensityLAMP1_3_00_256",
@@ -777,7 +787,7 @@
 "RadialDistribution_RadialCV_LAMP1_3of4",
 "RadialDistribution_RadialCV_LAMP1_4of4",
 
-## Arearatios
+## Totals
 "Math_Total_Lysosomes_AreaShape_Area_PerCell",
 "Math_OccupiedAreaFraction_Lysosomes_AreaShape_Area_PerCell",
 "Mean_Lysosomes_Math_DiameterRat_Lyssms_ArShp_Mx_t_MnFrtDmtr",
@@ -799,9 +809,23 @@
 "Median_Lysosomes_Distance_Centroid_Nuclei",
 "Median_Lysosomes_Distance_Minimum_Cell",
 "Median_Lysosomes_Distance_Minimum_Nuclei",
-"Mean_Lysosomes_Distance_Centroid_Minimum_Ratio",
+"Mean_Lysosomes_Distance_Centroid_Nuclei_Minimum_Nuclei_QuinRatio",
+"Mean_Lysosomes_Distance_Centroid_Nuclei_Minimum_Cell_QuinRatio",
+"Mean_Lysosomes_Distance_Centroid_Nuclei_PerCell_Area",
+"Mean_Lysosomes_Distance_Centroid_Cell_PerCell_Area",
+"Mean_Lysosomes_Distance_Minimum_Nuclei_PerCell_Area",
+"Mean_Lysosomes_Distance_Minimum_Cell_PerCell_Area",
 
-## Metadata
+## Per_cell_area
+"OccupiedAreaFraction_Lysosomes_PerCell_Area",
+"Mean_Lysosomes_MaxMinFeret_DiameterRatio_PerCell",
+"Median_Lysosomes_DiameterRatio_PerCell",
+"Mean_Lysosomes_Area_PerCell_Area",
+"Median_Lysosomes_Area_PerCell_Area",
+
+## Coloc
+
+## Other
 "Mean_Lysosomes_Location_Center_X",
 "Mean_Lysosomes_Location_Center_Y",
 "Mean_Lysosomes_Location_Center_Z",
@@ -833,11 +857,6 @@
 "Median_Lysosomes_Location_Center_X",
 "Median_Lysosomes_Location_Center_Y",
 "Median_Lysosomes_Location_Center_Z",
-"OccupiedAreaFraction_Lysosomes_PerCell_Area",
-"Mean_Lysosomes_DiameterRatio_PerCell",
-"Median_Lysosomes_DiameterRatio_PerCell",
-"Mean_Lysosomes_Area_PerCell_Area",
-"Median_Lysosomes_Area_PerCell_Area",
 
 # Nucleus Features
 
@@ -1386,7 +1405,7 @@
 "RadialDistribution_RadialCV_DAPI_3of4",
 "RadialDistribution_RadialCV_DAPI_4of4",
 
-## Arearatios
+## Totals
 "Math_OccupiedAreaFraction_Nuclei_AreaShape_Area_PerCell",
 
 ## Count
@@ -1411,8 +1430,20 @@
 "Median_Mitochondria_Distance_Minimum_Nuclei",
 "Median_Nuclei_Distance_Centroid_Cell",
 "Median_Nuclei_Distance_Minimum_Cell",
+"Mean_Mitochondria_Distance_Centroid_Nuclei_Minimum_Nuclei_QuinRatio",
+"Mean_Lysosomes_Distance_Centroid_Nuclei_Minimum_Nuclei_QuinRatio",
+"Mean_Mitochondria_Distance_Centroid_Nuclei_Minimum_Cell_QuinRatio",
+"Mean_Lysosomes_Distance_Centroid_Nuclei_Minimum_Cell_QuinRatio",
+"Mean_Lysosomes_Distance_Centroid_Nuclei_PerCell_Area",
+"Mean_Mitochondria_Distance_Centroid_Nuclei_PerCell_Area",
+"Mean_Lysosomes_Distance_Minimum_Nuclei_PerCell_Area",
+"Mean_Mitochondria_Distance_Minimum_Nuclei_PerCell_Area",
 
-## Metadata
+## Per_cell_area
+
+## Coloc
+
+## Other
 "Nuclei_Location_Center_X",
 "Nuclei_Location_Center_Y",
 "Nuclei_Location_Center_Z",
@@ -1505,11 +1536,15 @@
 
 ## Radialdistribution
 
-## Arearatios
+## Totals
 
 ## Count
 
 ## Distance
 
-## Metadata
+## Per_cell_area
+
+## Coloc
+
+## Other
 

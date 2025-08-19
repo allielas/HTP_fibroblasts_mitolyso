@@ -226,7 +226,6 @@ def define_cell_features(df):
     return columns_list
 
 
-
 def calculate_corrected_features(full_df):
     """_summary_
 
@@ -382,10 +381,12 @@ def make_feature_dict(columns_list):
         "areashape": [],
         "granularity": [],
         "radialdistribution": [],
-        "arearatios": [],
+        "totals": [],
         "count": [],
         "distance": [],
-        "metadata": [],
+        "per_cell_area": [],
+        "coloc": [],
+        "other": [],
     }
     for col in columns_list:
         if "Texture" in col:
@@ -393,19 +394,23 @@ def make_feature_dict(columns_list):
         elif "Intensity" in col:
             feature_dict["intensity"].append(col)
         elif "Math_" in col or "Corr_" in col:
-            feature_dict["arearatios"].append(col)
+            feature_dict["totals"].append(col)
         elif "Count" in col:
             feature_dict["count"].append(col)
         elif "AreaShape" in col:
             feature_dict["areashape"].append(col)
         elif "Distance" in col:
             feature_dict["distance"].append(col)
+        elif "PerCell" in col:
+            feature_dict["per_cell_area"].append(col)
         elif "Granularity" in col:
             feature_dict["granularity"].append(col)
         elif "RadialDistribution" in col:
             feature_dict["radialdistribution"].append(col)
+        elif "Lysosomes_Mitochondria_Ratio" in col:
+            feature_dict["coloc"].append(col)
         else:
-            feature_dict["metadata"].append(col)
+            feature_dict["other"].append(col)
 
     return feature_dict
 
