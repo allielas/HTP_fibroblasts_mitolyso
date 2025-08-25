@@ -81,6 +81,40 @@ def take_drug_from_condition(init_df, group_variable_col, drug_metadata_col, dru
     return newcol
 
 
+def passage_groups_sort_key(group_name):
+    """
+    Key function for natural sorting of strings containing numbers.
+    Extract numeric parts and convert to int .
+    """
+    digit_pattern = r"([0-9]+)"  # Matches "RX" where X is the replicate number (placeholder for now)
+    match = re.search(digit_pattern, group_name)
+    if match:
+        first_digit = int(match.group(1))
+        return first_digit
+    else:
+        text = group_name.lower()
+        if text == "doxo":
+            return 999
+        else:
+            return ValueError
+
+
+def sort_df_by_replicate_number(df, x_value):
+    """Sort a pandas dataframe of experimental data that has been grouped by an x_value by the integer representation of the replicate number using a sort key
+    Ideally used before plotting so that your plots have the same pallete and are easily comparable
+    Args:
+        df (DataFrame): your df to be sorted
+        x_value (str): the column containing your grouping variable to be sorted by replicate number
+
+    Returns:
+        DataFrame: The dataframe sorted by replicate number
+    """
+    df_sorted = df.sort_values(
+        by=[x_value], key=lambda x: x.map(passage_groups_sort_key)
+    ).reset_index(drop=True)
+    return df_sorted
+
+
 def enforce_objects_one_to_one(
     df,
     parent_obj="Cell",
@@ -224,6 +258,21 @@ def define_cell_features(df):
     # old_columns_list = columns_list = [col for col in columns_list if 'Metadata' not in col and 'FileName' not in col and 'PathName' not in col]
     # print("Original columns:", len(old_columns_list), "Filtered columns:", len(columns_list))
     return columns_list
+
+
+def mean_intensity_per_compartment_per_cell(df, compartment, name, tag, math=None):
+    # Calculate the mean intensity of each compartment per cell
+    # mean_intesity_per_compartment = integrated / (children*mean_area)
+    colname = f"Mean_Intensity_Per_{compartment} Per_Cell"
+    integrated = "Intensity_IntegratedIntensity_" + tag
+    # children = 'Children_' + compartment + '_Count'
+    # mean_area = 'Mean_'+ compartment + '_AreaShape_Area'
+    total_organelle_area = name + "_AreaShape_Area"
+    total_organelle_area = math if math is not None else total_organelle_area
+
+    df[colname] = df.apply(lambda x: x[integrated] / x[total_organelle_area], axis=1)
+
+    return df[colname]
 
 
 def calculate_corrected_features(full_df):
