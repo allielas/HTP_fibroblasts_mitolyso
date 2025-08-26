@@ -1166,6 +1166,35 @@ def annotate_with_kruskal(
     return ax
 
 
+def get_hard_code_replicate_colours(
+    df, replicates=[1, 2, 3, 4, 5, 6, 7], replicate_col_name="Replicate_Number"
+):
+    """
+    Returns a dictionary mapping each unique replicate number to a hard-coded color.
+    This ensures color consistency for each replicate in seaborn/matplotlib plots.
+    """
+    import matplotlib
+    import seaborn as sns
+
+    # sns.color_palette("pastel").as_hex()
+    hard_palette_pastel = [
+        "#a1c9f4",
+        "#ffb482",
+        "#8de5a1",
+        "#ff9f9b",
+        "#d0bbff",
+        "#debb9b",
+        "#fab0e4",
+    ]
+    unique_reps = sorted(df[replicate_col_name].dropna().unique())
+    # If more replicates than colors, repeat palette or use seaborn color_palette
+    if len(unique_reps) > len(hard_palette_pastel):
+        hard_palette_pastel = sns.color_palette("tab20", len(unique_reps)).as_hex()
+        replicates = unique_reps
+    colour_dict = {rep: hard_palette_pastel[i] for i, rep in enumerate(replicates)}
+    return colour_dict
+
+
 def annotate_legend_with_shapiro(
     ax,
     group_avg_df,
@@ -1197,19 +1226,25 @@ def annotate_legend_with_shapiro(
         custom_labels.append(label)
 
     # Create custom legend handles (using the same colors as swarmplot)
-    palette = sns.color_palette(palette, n_colors=len(unique_replicates))
+    palette = get_hard_code_replicate_colours(
+        group_avg_df
+    )  # sns.color_palette(palette, n_colors=len(unique_replicates))
+    group_avg_df["Replicate_Number"] = pd.Categorical(
+        group_avg_df["Replicate_Number"], categories=unique_replicates
+    )
+    print(palette[1])
     handles = [
         mlines.Line2D(
             [],
             [],
-            color=palette[i],
+            color=palette[rep],
             marker="o",
             linestyle="None",
             markersize=12,
             markeredgecolor="black",
             label=custom_labels[i],
         )
-        for i in range(len(unique_replicates))
+        for i, rep in enumerate(unique_replicates)
     ]
     ax.legend_.set_title(title)
     ax.legend(handles=handles, title=title, loc="best")
@@ -1758,8 +1793,9 @@ def make_superswarmplot_with_annotation(
     ytitle=None,
     xtitle=None,
     ylim=None,
-    pallete="pastel",
-    figsize=(8, 10),
+    pallete=None,
+    figsize=(10, 9),
+    context="talk",
     dpi=300,
 ):
     # Set values to defaults if a parameter is not loaded for order or y axis parameters
@@ -1800,7 +1836,9 @@ def make_superswarmplot_with_annotation(
 
     sns.set_theme(style="ticks")
     plt.figure(figsize=figsize)  # , dpi=dpi)
-    sns.set_context("talk", font_scale=0.5)
+    sns.set_context(context, font_scale=0.8)
+    if pallete is None:
+        pallete = get_hard_code_replicate_colours(data_df)
 
     sns.swarmplot(
         data=data_df,
@@ -1809,9 +1847,9 @@ def make_superswarmplot_with_annotation(
         hue=replicate_col_name,
         order=order,
         palette=pallete,
-        dodge=True,
+        dodge=False,
     )
-
+    group_avg_df[replicate_col_name]
     ax = sns.swarmplot(
         data=group_avg_df,
         x=x_value,
@@ -1832,7 +1870,7 @@ def make_superswarmplot_with_annotation(
         order=order,
         showmeans=True,
         meanline=True,
-        meanprops={"color": "dimgray", "ls": "-", "lw": 2.5},
+        meanprops={"color": "dimgray", "ls": "-", "lw": 4},
         medianprops={"visible": False},
         whiskerprops={"visible": False},
         zorder=2,

@@ -4,6 +4,7 @@ Allie Spangaro, Toronto Metropolitan University
 """
 
 import os
+import re
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -323,6 +324,22 @@ def find_replicate_cp_output_folder(path):
     else:
         replicate = None
     return replicate
+
+
+def search_column_name(df, query=""):
+    """_summary_
+
+    Args:
+        df (DataFrame): _description_
+        query (str, optional): your search query. Defaults to "".
+    Return:
+
+    """
+    query_cols = [col for col in df.columns if query in col]
+    print(f"Query: {query}")
+    for col in query_cols:
+        print(f"    {col}")
+    return query_cols
 
 
 def pull_up_cp_segmentation_image(parent_dir="~/", img_filename="", replicate=0):
