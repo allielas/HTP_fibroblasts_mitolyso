@@ -342,7 +342,7 @@ def segment_cell(img, model, show_plot=True):
     return masks
 
 
-def segment_cell_v2(
+def old_segment_cell_v2(
     img,
     model,
     show_plot=True,
@@ -446,7 +446,7 @@ def segment_nuclei(orig_img, model, show_plot=True):
     return masks
 
 
-def segment_nuclei_v2(
+def old_segment_nuclei_v2(
     orig_img,
     model,
     show_plot=True,
@@ -505,7 +505,7 @@ def segment_nuclei_v2(
     return masks_removed_edges
 
 
-def segment_cell_v3(
+def segment_cell_v2(
     img,
     model,
     show_plot=True,
@@ -556,7 +556,7 @@ def segment_cell_v3(
     return masks
 
 
-def segment_nuclei_v3(
+def segment_nuclei_v2(
     orig_img,
     model,
     show_plot=True,
