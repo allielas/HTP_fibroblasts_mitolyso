@@ -239,12 +239,8 @@ def img_preprocessing_v2(img_set):
     for channel in img_set:
         # footprint = morphology.disk(5)
         channel = img_01_normalization(channel)
-        dog = filters.difference_of_gaussians(channel, low_sigma=2.5)
-        channel = channel - dog
-
-        channel = img_01_normalization(channel)
         channel = exposure.equalize_adapthist(channel, kernel_size=100, clip_limit=0.02)
-        channel = filters.gaussian(channel, sigma=2)
+        channel = filters.median(channel, morphology.disk(2))
         img_stack.append(channel)
 
     multi_channel_image = np.stack(img_stack, axis=-1)
@@ -484,6 +480,108 @@ def segment_nuclei_v2(
     img = filters.gaussian(img, sigma=2)
     img = img_01_normalization(img)
 
+    masks, flows, styles = model.eval(
+        img,
+        batch_size=64,
+        diameter=diameter,
+        niter=niter,
+        flow_threshold=flow_threshold,
+        cellprob_threshold=cellprob_threshold,
+        normalize={"tile_norm_blocksize": tile_norm_blocksize},
+        max_size_fraction=max_size_frac,
+    )
+    # dilate before removing the ones touching edges to catch the stragglers
+    masks = utils.dilate_masks(masks, n_iter=1)
+    masks_removed_edges = utils.remove_edge_masks(masks)
+    masks_removed_edges = utils.fill_holes_and_remove_small_masks(
+        masks_removed_edges, min_size=min_size
+    )
+
+    if show_plot:
+        fig = plt.figure(figsize=(12, 5))
+        plot.show_segmentation(fig, img, masks_removed_edges, flows[0])
+        plt.tight_layout()
+        plt.show()
+    return masks_removed_edges
+
+
+def segment_cell_v3(
+    img,
+    model,
+    show_plot=True,
+    flow_threshold=0.6,
+    cellprob_threshold=-1,
+    tile_norm_blocksize=100,
+    diameter=60,
+    min_size=500,
+    max_size_frac=0.85,  # keep masks up to 70% of image size
+    niter=1000,
+):
+    from skimage import filters, morphology, exposure
+
+    gfp = img[:, :, 0]  # combine the ch1 and ch2 images to help cellpose out a bit
+    rfp = img[:, :, 1]
+    dapi = img[:, :, 2]  # save ch3 for later
+
+    img_combo = gfp + rfp
+    img_combo = img_01_normalization(img_combo)
+    # tf.imshow(img_combo, cmap="viridis")
+    # smooth image and improve outline (sigma is the gaussian kernel)
+    img_combo = filters.gaussian(img_combo, sigma=1)
+    # Can also use unsharp mask, but it tends to chop the outlines too short img_combo = filters.unsharp_mask(img_combo, radius=0.5, amount=2)
+
+    # stack the images
+    img_selected_channels = np.stack([img_combo, dapi], axis=-1)
+
+    masks, flows, styles = model.eval(
+        img_selected_channels,
+        batch_size=64,
+        niter=niter,
+        diameter=diameter,
+        flow_threshold=flow_threshold,
+        cellprob_threshold=cellprob_threshold,
+        normalize={"tile_norm_blocksize": tile_norm_blocksize},
+        max_size_fraction=max_size_frac,
+        min_size=min_size,
+    )
+    masks = utils.fill_holes_and_remove_small_masks(masks, min_size=min_size)
+    masks = utils.dilate_masks(masks, n_iter=2)
+    print(utils.size_distribution(masks))
+    # plot if true
+    if show_plot:
+        fig = plt.figure(figsize=(12, 5))
+        plot.show_segmentation(fig, img_selected_channels, masks, flows[0])
+        plt.tight_layout()
+        plt.show()
+    return masks
+
+
+def segment_nuclei_v3(
+    orig_img,
+    model,
+    show_plot=True,
+    flow_threshold=0.5,
+    cellprob_threshold=1,
+    tile_norm_blocksize=100,
+    min_size=400,
+    max_size_frac=0.4,
+    diameter=None,
+    niter=None,
+):
+    from skimage import morphology, filters
+
+    img = orig_img[:, :, 2]  # get the DAPI channel
+
+    # remove speckle-shaped autofluor
+    bg2 = morphology.white_tophat(img, morphology.disk(3))
+    img = img - bg2
+    img = morphology.closing(img, morphology.disk(2.5))
+
+    # sharpen image and improve outline (radius is the gaussian kernel)
+    img = img_01_normalization(img)
+    img = filters.gaussian(img, sigma=2)
+    # tf.imshow(img, cmap="plasma")
+    # img = filters.unsharp_mask(img, radius=1, amount=2)
     masks, flows, styles = model.eval(
         img,
         batch_size=64,
