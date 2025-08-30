@@ -546,7 +546,6 @@ def segment_cell_v2(
     )
     masks = utils.fill_holes_and_remove_small_masks(masks, min_size=min_size)
     masks = utils.dilate_masks(masks, n_iter=2)
-    print(utils.size_distribution(masks))
     # plot if true
     if show_plot:
         fig = plt.figure(figsize=(12, 5))
