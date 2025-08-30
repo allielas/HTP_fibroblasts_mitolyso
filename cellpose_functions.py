@@ -477,11 +477,11 @@ def segment_nuclei_v2(
     img = orig_img[:, :, 2]  # get the DAPI channel
 
     # remove speckle-shaped autofluor
-    bg2 = morphology.white_tophat(img, morphology.disk(2))
+    bg2 = morphology.white_tophat(img, morphology.disk(3))
     img = img - bg2
-    img = morphology.closing(img, morphology.disk(1))
+    img = morphology.closing(img, morphology.disk(2.5))
     # sharpen image and improve outline (radius is the gaussian kernel)
-    img = filters.unsharp_mask(img, radius=1, amount=2)
+    img = filters.gaussian(img, sigma=2)
     img = img_01_normalization(img)
 
     masks, flows, styles = model.eval(
