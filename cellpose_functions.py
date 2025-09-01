@@ -225,7 +225,7 @@ def img_preprocessing(img_set):
 
 def img_preprocessing_v2(img_set):
     """
-    Preprocess a grayscale image given an list of single-channel grayscale images with background subtraction, historam equalization, and smoothing and stack the image together
+    Preprocess a grayscale image given an list of single-channel grayscale images with historam equalization, and median filter smoothing and stack the image together
     Parameters:
            img_set (list of 2D arrays): a list of 2D arrays representing grayscale images
     Returns:
@@ -263,7 +263,7 @@ def img_zscore_normalization(img):
 
 def img_01_normalization(img):
     """
-    Normalize the intensity of each channel in a grayscale image to the range [0, 1] to aid in preprocessing or segmentation by some algorithms
+    Normalize the intensity of each channel in a 16-bit grayscale image to the range [0, 1] to aid in preprocessing or segmentation by some algorithms
     Parameters:
           img (2D or 3D array): a grayscale image as a 2D array
     Returns:
@@ -517,6 +517,23 @@ def segment_cell_v2(
     max_size_frac=0.85,  # keep masks up to 70% of image size
     niter=1000,
 ):
+    """
+    Run cellpose-SAM on a grayscale multichannel cell image and return the predicted masks
+    Designed for a 2160x2160 image rescaled to 1/4 of original size
+    Parameters:
+           img (2D or 3D array): grayscale image to be segmented by cellpose
+           model (Cellpose.model): the cellpose model used for segmentation
+           show_plot (bool, optional): flag whether to show a plot of the predicted mask flow
+           flow_threshold (float, optional): the flow threshold for cellpose, 0.6 by default (from original 0.4 default). Down for more stringent, up for more lenient
+           cellprob_threshold (float, optional): the cell probability threshold for cellpose, -1 by default (from original 0 default).
+           tile_norm_blocksize (int, optional): the tile normalization blocksize for cellpose, 100 by default. Generally between 100-200; 0 to turn off
+           diameter (int or None, optional): the diameter for cellpose, 60 as experimentally determined, but None by default
+           min_size (int, optional): the minimum size of masks to keep, 500 pixels by default
+           max_size_frac (float, optional): the maximum size of masks to keep as a fraction of the image size, 0.85 by default
+           niter (int or None, optional): the number of iterations for cellpose, None by default
+    Returns:
+          masks (list of 2D or 3D arrays): the predicted masks from the cellpose model
+    """
     from skimage import filters, morphology, exposure
 
     gfp = img[:, :, 0]  # combine the ch1 and ch2 images to help cellpose out a bit
@@ -567,6 +584,23 @@ def segment_nuclei_v2(
     diameter=None,
     niter=None,
 ):
+    """
+    Run cellpose-SAM on the nucleus channel from a multichannel cell image and return the predicted masks
+    Designed for a 2160x2160 image rescaled to 1/4 of original size
+    Parameters:
+           img (2D or 3D array): grayscale image to be segmented by cellpose
+           model (Cellpose.model): the cellpose model used for segmentation
+           show_plot (bool, optional): flag whether to show a plot of the predicted mask flow
+           flow_threshold (float, optional): the flow threshold for cellpose, 0.5 by default (from original 0.4 default). Down for more stringent, up for more lenient
+           cellprob_threshold (float, optional): the cell probability threshold for cellpose, 1 by default (from original 0 default). Up to be more stringent, down for a more lenient threshold
+           tile_norm_blocksize (int, optional): the tile normalization blocksize for cellpose, 100 by default. Generally between 100-200; 0 to turn off
+           diameter (int or None, optional): the diameter for cellpose, None by default
+           min_size (int, optional): the minimum size of masks to keep, 400 pixels by default
+           max_size_frac (float, optional): the maximum size of masks to keep as a fraction of the image size, 0.4 by default
+           niter (int or None, optional): the number of iterations for cellpose, None by default
+    Returns:
+          masks (list of 2D or 3D arrays): the predicted nuclei masks from the cellpose model
+    """
     from skimage import morphology, filters
 
     img = orig_img[:, :, 2]  # get the DAPI channel
