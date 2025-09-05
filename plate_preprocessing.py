@@ -588,14 +588,15 @@ def calculate_median_object_features(
     df (DataFrame): The DataFrame containing the features.
     object_df (DataFrame): The DataFrame containing the object features.
     feature (str): The feature column to calculate the median for.
-    child_key (str): The column name that serves as the child key.
-    parent_key (str): The column name that serves as the parent key.
+    child_key (str): The column name in the PARENT table that identifies the child obj.
+    parent_key (str): The column name in the CHILD table that identifies the parent key.
 
     Returns:
     modified_df (DataFrame): The DataFrame with the new median feature column added.
 
     """
     median_values = object_df.groupby(parent_key)[feature].median()
+    # print(object_df.groupby(parent_key)[feature].mean())
     col_name = f"Cell_Median_{feature}"
 
     modified_df = parent_df.copy()
