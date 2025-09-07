@@ -578,11 +578,16 @@ def plate_df_setup_fromcsv(
     return combined_replicates_df_mitolyso
 
 
-def calculate_median_object_features(
-    parent_df, object_df, feature, parent_key, child_key="Cell_Number_Object_Number"
+def calculate_aggregated_object_features(
+    parent_df,
+    object_df,
+    feature,
+    parent_key,
+    child_key="Cell_Number_Object_Number",
+    aggregation="Median",
 ):
     """
-    Calculate the median of specified features grouped by a parent key.
+    Calculate the aggregated function (typically median) of specified features grouped by a parent key.
 
     Parameters:
     df (DataFrame): The DataFrame containing the features.
@@ -590,19 +595,58 @@ def calculate_median_object_features(
     feature (str): The feature column to calculate the median for.
     child_key (str): The column name in the PARENT table that identifies the child obj.
     parent_key (str): The column name in the CHILD table that identifies the parent key.
+    aggregation (str): the type of aggregation, can be "Mean","Median","Mode", or "Std"
 
     Returns:
     modified_df (DataFrame): The DataFrame with the new median feature column added.
 
     """
-    median_values = object_df.groupby(parent_key)[feature].median()
-    # print(object_df.groupby(parent_key)[feature].mean())
-    col_name = f"Cell_Median_{feature}"
+    agg_title = aggregation.title()  # make it title case for the column syntax
+    if agg_title == "Median":
+        agg_values = object_df.groupby([parent_key, "ImageNumber"])[feature].median()
+    elif agg_title == "Mean" or agg_title == "Avg" or agg_title == "Average":
+        agg_title = "Averaged"
+        agg_values = object_df.groupby([parent_key, "ImageNumber"])[feature].mean()
+    elif agg_title == "Sum":
+        agg_title = "Total"
+        agg_values = object_df.groupby([parent_key, "ImageNumber"])[feature].sum()
+    elif agg_title == "Max":
+        agg_values = object_df.groupby([parent_key, "ImageNumber"])[feature].max()
+    elif agg_title == "Min":
+        agg_values = object_df.groupby([parent_key, "ImageNumber"])[feature].min()
+    elif agg_title == "Std":
+        agg_values = object_df.groupby([parent_key, "ImageNumber"])[feature].std()
+    else:
+        ValueError('aggregation (str) not in "Mean","Median","Mode", or "Std"')
+        return pd.DataFrame()
 
+    # create the new column name for the aggregated feature
+    col_name = f"Cell_{agg_title}_{feature}"
+
+    # reformat the agg_values dataframe for merging
+    agg_values = agg_values.reset_index()
+    agg_values.columns = [child_key, "ImageNumber", col_name]
+    agg_values["CellNumber_ImageNumber_Index"] = (
+        agg_values[child_key].astype(str) + "_" + agg_values["ImageNumber"].astype(str)
+    )
+
+    # Merge the aggregated values back into the parent dataframe
     modified_df = parent_df.copy()
-    modified_df[col_name] = parent_df[child_key].map(median_values)
+    # add a column to parent_df to merge on
+    modified_df["CellNumber_ImageNumber_Index"] = (
+        modified_df[child_key].astype(str)
+        + "_"
+        + modified_df["ImageNumber"].astype(str)
+    )
 
-    return modified_df
+    modified_merged_df = modified_df.merge(
+        agg_values[["CellNumber_ImageNumber_Index", col_name]],
+        how="left",
+        left_on="CellNumber_ImageNumber_Index",
+        right_on="CellNumber_ImageNumber_Index",
+    )
+
+    return modified_merged_df
 
 
 # group by parent key to find median
@@ -615,54 +659,76 @@ def add_median_object_features_to_parent(
     Add median features from object_df to parent_df based on the specified feature and keys.
 
     Parameters:
-    parent_df (DataFrame): The DataFrame containing the parent features.
-    object_df (DataFrame): The DataFrame containing the object features.
-    object_name (str): The object of interest.
-    child_key (str): The column name that serves as the child key.
+    parent_df (DataFrame): The DataFrame containing the parent features (e.g cell).
+    object_df (DataFrame): The DataFrame containing the object features (e.g. mitochondria).
+    object_name (str): The object of interest to add to the parent table.
+    child_key (str): The column name in the PARENT table that identifies the child obj.
 
     Returns:
     modified_df (DataFrame): The DataFrame with the new median feature column added.
 
     """
+    # print(parent_df)
     modified_df = parent_df.copy()
     feature_types = ["AreaShape", "Distance", "Intensity", "Location"]
+    features_to_exclude = [
+        "Zernike",
+        "Maximum_X",
+        "Maximum_Y",
+        "Minimum_X",
+        "Mimimum_Y",
+        "Centroid_X",
+        "Centroid_Y",
+    ]
     other_channels = ["DAPI", "LAMP1", "MitoTracker", "Phalloidin"]
+    # use the other channels list as a check to discard irrelavent features
 
     if "Lysosomes" in object_name:
         parent_key = "Lysosomes_Parent_Cell"
         other_channels.remove("LAMP1")
-
     elif "Mitochondria" in object_name:
         parent_key = "Mitochondria_Parent_Cell"
         other_channels.remove("MitoTracker")
     elif "Nuclei" in object_name:
         parent_key = "Nuclei_Parent_Cell"
         other_channels.remove("DAPI")
+    elif "MitoEnds" in object_name:
+        parent_key = "MitoEnds_Parent_Cell"
+        other_channels.remove("MitoTracker")
     else:
         raise ValueError(
-            f"Unknown object name: {object_name}. Expected 'Lysosomes', 'Mitochondria', or 'Nuclei'."
+            f"Unknown object name: {object_name}. Expected 'Lysosomes', 'Mitochondria', 'MitoEnds', or 'Nuclei'."
         )
 
     for feature in object_df.columns:
         # print("checking feature:", feature)
         # Exclude if matches any in other_channels, unless it also matches feature_types
-        if object_name not in feature or (any(ch in feature for ch in other_channels)):
+        if object_name not in feature or (
+            any(ch in feature for ch in other_channels)
+            or any(exclusion in feature for exclusion in features_to_exclude)
+        ):
             # print("oops, skipping:", feature)
             continue  # Skip the parent key column or non-feature columns
         if any(ft in feature for ft in feature_types):
-            modified_df = calculate_median_object_features(
-                modified_df, object_df, feature, parent_key, child_key
+            modified_df = calculate_aggregated_object_features(
+                modified_df,
+                object_df,
+                feature,
+                parent_key,
+                child_key,
+                aggregation="Median",
             )
 
     return modified_df
 
 
-def load_organelle_medians(db_path, df):
+def load_organelle_medians(db_path, df, organelles=["Lysosomes", "Mitochondria"]):
     """
     Load organelle median features from the database.
 
     Parameters:
-    db_path (str): Path to the database file.
+    db_path (str): Path to the database file containing the extra features
+    df (DataFrame): the Pandas dataframe to add the medians to.
     organelle (str): Name of the organelle (e.g., 'Lysosomes', 'Mitochondria', 'Nuclei').
 
     Returns:
@@ -671,16 +737,18 @@ def load_organelle_medians(db_path, df):
     import gc
     import sqlite3
 
-    organelles = ["Lysosomes", "Mitochondria", "Nuclei"]
     if not isinstance(df, pd.DataFrame):
         raise ValueError("Input must be a pandas DataFrame.")
     cell_df = df.copy()
 
     conn = sqlite3.connect(db_path)
+    # open each one individually to not explode the ram
     for organelle in organelles:
         query = f"SELECT * FROM Per_{organelle}"
         org_df = pd.read_sql_query(query, conn)
-        cell_df = add_median_object_features_to_parent(cell_df, org_df, organelle)
+        cell_df = add_median_object_features_to_parent(
+            parent_df=cell_df, object_df=org_df, object_name=organelle
+        )
         del org_df  # Free memory
         gc.collect()
 
@@ -1012,14 +1080,14 @@ def mean_intesity_per_compartment_per_cell_fromtotal(df, compartment, name, tag)
 def cell_nuc_area_ratio(
     df,
     cell_area_col="Cell_AreaShape_Area",
-    nuc_area_col="Cell_Mean_Nuclei_AreaShape_Area",
+    nuc_area_col="Nuclei_AreaShape_Area",
     ratio_col_name="Cell_Nuclei_Area_Ratio",
 ):
     """
     Calculate the ratio of cell area to nuclear area.
 
     Args:
-        df (Series): A DataFrame containing 'Cell_AreaShape_Area' and 'Cell_Mean_Nuclei_AreaShape_Area' cols.
+        df (Series): A DataFrame containing 'Cell_AreaShape_Area' and 'Nuclei_AreaShape_Area' cols.
 
     Returns:
         Series: The column with the cell/nuc area ratio column to be added
@@ -1235,3 +1303,35 @@ def relate_objects(
     # joined_df["CellNucRatio"] = joined_df.apply(lambda x: x[f"{obj1_name}_AreaShape_Area"]/x[f"{obj2_name}_AreaShape_Area"])
 
     return relate_objects_df
+
+
+def combine_one_to_one_dfs(
+    df, db_conn, tables_to_add=["Nuclei", "Cytoplasm"], main_df_prefix="Cell"
+):
+    """Merge table outputs from cellprofiler where the tables are objects in a one-to-one relationship e.g. cells and nuclei
+    Args:
+        df (DataFrame): _description_
+        db_conn (sqlite3 Connection object): _description_
+        tables_to_add (list of str, optional): _description_. Defaults to ["Nuclei","Cytoplasm"].
+
+    Returns:
+        DataFrame: _description_
+    """
+    # add all these to a list
+    main_df = df.copy()
+    dfs_to_add = []
+    for table in tables_to_add:
+        new_df = pd.read_sql_query(f"SELECT * FROM Per_{table};", db_conn)
+        dfs_to_add.append(new_df)
+
+    # now merge to the cell df
+    for i, object_df in enumerate(dfs_to_add):
+        main_df = pd.merge(
+            main_df,
+            object_df,
+            how="left",  # left on the object index, image-by-image
+            left_on=[f"{main_df_prefix}_Number_Object_Number", "ImageNumber"],
+            right_on=[f"{tables_to_add[i]}_Number_Object_Number", "ImageNumber"],
+        )
+    merged_df_final = main_df.reset_index(drop=True)
+    return merged_df_final
