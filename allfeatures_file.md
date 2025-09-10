@@ -231,6 +231,8 @@
 "Median_Mitochondria_Location_MaxIntensity_Z_MitoTracker_MAX",
 "Mean_Intensity_Per_Mitochondria Per_Cell",
 "Mean_Intensity_Per_Mitochondria_PerCell_Area",
+"Mean_Intensity_Per_Mitochondria_Puncta Per_Cell",
+"Mean_Intensity_Per_Mitochondria_Puncta_PerCell_Area",
 
 ## Texture
 "Texture_Contrast_RescaleIntensityMitoTracker_10_00_256",
@@ -876,6 +878,7 @@
 
 ## Totals
 "Math_Total_Mitochondria_AreaShape_Area_PerCell",
+"Math_Total_Mitochondria_Puncta_AreaShape_Area_PerCell",
 "MitoEnds_Math_Total_NumberBranchEnds_MitoSkeleton",
 "MitoEnds_Math_Total_NumberNonTrunkBranches_MitoSkeleton",
 "MitoEnds_Math_Total_NumberTrunks_MitoSkeleton",
@@ -892,6 +895,7 @@
 "Image_Count_SkeletonizedMitoObjects",
 "Image_Count_UnfilteredMitochondria",
 "Density_Children_Mitochondria_Count_PerCell_Area",
+"Density_Children_Mitochondria_Puncta_Count_PerCell_Area",
 
 ## Distance
 "Mean_Mitochondria_Distance_Centroid_Cell",
@@ -908,16 +912,25 @@
 "Median_Mitochondria_Distance_Minimum_Nuclei",
 "Mean_Mitochondria_Distance_Centroid_Nuclei_Minimum_Nuclei_QuinRatio",
 "Mean_Mitochondria_Distance_Centroid_Nuclei_Minimum_Cell_QuinRatio",
+"Mean_Mitochondria_Puncta_Distance_Centroid_Nuclei_Minimum_Nuclei_QuinRatio",
+"Mean_Mitochondria_Puncta_Distance_Centroid_Nuclei_Minimum_Cell_QuinRatio",
 "Mean_Mitochondria_Distance_Centroid_Nuclei_PerCell_Area",
 "Mean_Mitochondria_Distance_Centroid_Cell_PerCell_Area",
 "Mean_Mitochondria_Distance_Minimum_Nuclei_PerCell_Area",
 "Mean_Mitochondria_Distance_Minimum_Cell_PerCell_Area",
+"Mean_Mitochondria_Puncta_Distance_Centroid_Nuclei_PerCell_Area",
+"Mean_Mitochondria_Puncta_Distance_Centroid_Cell_PerCell_Area",
+"Mean_Mitochondria_Puncta_Distance_Minimum_Nuclei_PerCell_Area",
+"Mean_Mitochondria_Puncta_Distance_Minimum_Cell_PerCell_Area",
 
 ## Per_cell_area
 "OccupiedAreaFraction_Mitochondria_PerCell_Area",
+"OccupiedAreaFraction_Mitochondria_Puncta_PerCell_Area",
 "Mean_Mitochondria_MaxMinFeret_DiameterRatio_PerCell",
 "Median_Mitochondria_DiameterRatio_PerCell",
+"Mean_Mitochondria_Puncta_MaxMinFeret_DiameterRatio_PerCell",
 "Mean_Mitochondria_Area_PerCell_Area",
+"Mean_Mitochondria_Puncta)Area_PerCell_Area",
 "Median_Mitochondria_Area_PerCell_Area",
 "MitoEnds_NumberBranchEnds_PerCell_Area",
 "MitoEnds_NumberNonTrunkBranches_PerCell_Area",
@@ -2619,12 +2632,20 @@
 "Mean_Lysosomes_Distance_Centroid_Nuclei_Minimum_Nuclei_QuinRatio",
 "Mean_Mitochondria_Distance_Centroid_Nuclei_Minimum_Cell_QuinRatio",
 "Mean_Lysosomes_Distance_Centroid_Nuclei_Minimum_Cell_QuinRatio",
+"Mean_Mitochondria_Puncta_Distance_Centroid_Nuclei_Minimum_Nuclei_QuinRatio",
+"Mean_Mitochondria_Puncta_Distance_Centroid_Nuclei_Minimum_Cell_QuinRatio",
 "Mean_Lysosomes_Distance_Centroid_Nuclei_PerCell_Area",
 "Mean_Mitochondria_Distance_Centroid_Nuclei_PerCell_Area",
 "Mean_Lysosomes_Distance_Minimum_Nuclei_PerCell_Area",
 "Mean_Mitochondria_Distance_Minimum_Nuclei_PerCell_Area",
+"Mean_Mitochondria_Puncta_Distance_Centroid_Nuclei_PerCell_Area",
+"Mean_Mitochondria_Puncta_Distance_Minimum_Nuclei_PerCell_Area",
 
 ## Per_cell_area
+"Nuclei_ObjectSkeleton_NumberBranchEnds_PerCell_Area",
+"Nuclei_ObjectSkeleton_NumberNonTrunkBranches_PerCell_Area",
+"Nuclei_ObjectSkeleton_NumberTrunks_PerCell_Area",
+"Nuclei_ObjectSkeleton_TotalObjectSkeletonLength_PerCell_Area",
 
 ## Coloc
 

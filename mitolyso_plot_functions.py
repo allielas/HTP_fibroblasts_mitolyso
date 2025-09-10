@@ -10,10 +10,12 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy import stats
 from plate_preprocessing import *
-from plate_information import getpairs
 from pathlib import Path
 import scipy
 import seaborn as sns
+import scikit_posthocs as sp
+from plate_information import *
+
 
 """
 See this awesome course note here: https://biapol.github.io/PoL-BioImage-Analysis-TS-Early-Career-Track/day3a_plotting/03_Statistic_Annotations_in_Seaborn_Bonus.html
@@ -454,9 +456,10 @@ def pvalues_anova_with_games_howell_pingouin(
     homo_df = pg.homoscedasticity(data=df.dropna(), dv=y_value, group=x_value)
     pg.print_table(homo_df)
     # 2. If the groups have equal variances, we can use a regular one-way ANOVA
-    # pg.anova(data=df, dv=y_value, between=x_value)
-    # else use a welch's anova
-    anova_res = pg.welch_anova(data=df, dv=y_value, between=x_value)
+    if homo_df["equal_var"][0]:
+        anova_res = pg.anova(data=df, dv=y_value, between=x_value)
+        # else use a welch's anova
+        anova_res = pg.welch_anova(data=df, dv=y_value, between=x_value)
     pg.print_table(anova_res)
     # do the anova
     groups = []  # Convert pivot table to list of groups
@@ -492,6 +495,137 @@ def pvalues_anova_with_games_howell_pingouin(
         return (pairs, p_values)
     else:
         print("ANOVA test is not significant, skipping Games-Howell post-hoc test.")
+        return ([], [])
+
+
+def pvalues_anova_with_tukey_pingouin(
+    data_df,
+    pivot_df,
+    x_value,
+    y_value,
+    replicate_number_col="Replicate_Number",
+    desired_pairs=None,
+    order=None,
+    display=False,
+):
+    """Perform Tukey's post-hoc test on the data. Uses Tukey-Kramer method with sample size with the Pingouin package.
+    See https://pingouin-stats.org/build/html/guidelines.html for a flowchart
+    Args:
+        data_df (pd.DataFrame): DataFrame table containing the data.
+        pivot_df (pd.DataFrame): DataFrame pivot table containing the means.
+        x_value (str): Column name for the independent variable.
+        y_value (str): Column name for the dependent variable.
+        grouping_variable (str): Column name for the replicate number.
+        order (list, optional): Order of groups for plotting. Defaults to None.
+
+    Returns:
+     (pairs,pvalues) (tuple): pairs and corresponding p values
+    """
+    import pingouin as pg
+
+    df = data_df.copy()
+
+    # do the anova
+    groups = []  # Convert pivot table to list of groups
+    # display(pivot_df)
+    for col in pivot_df:
+        if col == x_value or col == replicate_number_col:
+            # print("Skipping col:" + col)
+            continue  # Skip the first column (usually the index or grouping variable)
+        else:
+            # print("Adding col:" + col)
+            groups.append(pivot_df[col].dropna())
+    # One-Way ANOVA
+    # display(groups)
+    f_value, p_value_anova = f_oneway(
+        *list(groups)
+    )  # Pass groups as args to run ANOVA on all groups
+    print(f"ANOVA F statistic: {f_value}")
+    print(f"ANOVA p value: {p_value_anova}")
+
+    # do the tukey
+    if p_value_anova < 0.05:
+        # print(df)
+        tukey_result = pg.pairwise_tukey(
+            data=df, dv=y_value, between=x_value
+        )  # .round(3)
+        # this is a dataframe; get the pairs and the pvalue cols
+        result_pairs = tukey_result[["A", "B"]].itertuples(index=False, name=None)
+        pairs = list(result_pairs)
+        p_values = tukey_result["p-tukey"].tolist()
+        if display:
+            print(tukey_result)
+        # display(tukey_result_df)
+        return (pairs, p_values)
+    else:
+        print("ANOVA test is not significant, skipping Tukey's post-hoc test.")
+        return ([], [])
+
+
+def pvalues_anova_with_pairwise_tests_pingouin(
+    data_df,
+    x_value,
+    y_value,
+    replicate_number_col="Replicate_Number",
+    pval_correction="bonf",
+    parametric=True,
+    desired_pairs=None,
+    order=None,
+    display=False,
+):
+    """Perform Tukey's post-hoc test on the data. Uses Tukey-Kramer method with sample size with the Pingouin package.
+    See https://pingouin-stats.org/build/html/guidelines.html for a flowchart
+    Args:
+        data_df (pd.DataFrame): DataFrame table containing the data.
+        x_value (str): Column name for the independent variable.
+        y_value (str): Column name for the dependent variable.
+        grouping_variable (str): Column name for the replicate number.
+        pval_correction (str, optional): Method for p-value correction. Defaults to "bonf".
+        parametric (bool, optional): Use ttest if True, Mann-Whitney U or Wilcoxon Signed-Rank (paired) for nonparametric. Defaults to True.
+        order (list, optional): Order of groups for plotting. Defaults to None.
+
+    Returns:
+     (pairs,pvalues) (tuple): pairs and corresponding p values
+    """
+    import pingouin as pg
+
+    df = data_df.copy()
+
+    # do the anova
+    if parametric:
+        homo_df = pg.homoscedasticity(data=df.dropna(), dv=y_value, group=x_value)
+        pg.print_table(homo_df)
+        # If the groups have equal variances, we can use a regular one-way ANOVA
+        if homo_df["equal_var"][0]:
+            anova_res = pg.anova(data=df, dv=y_value, between=x_value)
+            # else use a welch's anova
+            anova_res = pg.welch_anova(data=df, dv=y_value, between=x_value)
+    else:
+        anova_res = pg.kruskal(data=df, dv=y_value, between=x_value)
+    pg.print_table(anova_res)
+    # print(anova_res["pval"])
+    anova_pvalue = anova_res["p-unc"][0]
+
+    # do the tukey
+    if anova_pvalue < 0.05:
+        # print(df)
+        test_result = pg.pairwise_tests(
+            data=df,
+            dv=y_value,
+            between=x_value,
+            parametric=parametric,
+            padjust=pval_correction,
+        )  # .round(3)
+        # this is a dataframe; get the pairs and the pvalue cols
+        result_pairs = test_result[["A", "B"]].itertuples(index=False, name=None)
+        pairs = list(result_pairs)
+        p_values = test_result["p-corr"].tolist()
+        if display:
+            print(test_result)
+        # display(tukey_result_df)
+        return (pairs, p_values)
+    else:
+        print("ANOVA test is not significant, skipping post-hoc test.")
         return ([], [])
 
 
@@ -834,13 +968,16 @@ def kruskal_with_conover_posthoc(
         remove = np.tril(np.ones(con_df.shape), k=0).astype("bool")
         con_df[remove] = np.nan
         molten_df = con_df.melt(ignore_index=False).reset_index().dropna()
-
+        molten_df_sorted = molten_df.sort_values(
+            by=["index", "variable"], key=lambda x: x.map(allgroups_sort_key)
+        ).reset_index(drop=True)
         if display_results:
-            # display(dunn_df)
-            print(molten_df)
-        con_pairs = molten_df[["index", "variable"]].itertuples(index=False, name=None)
+            print(molten_df_sorted)
+        con_pairs = molten_df_sorted[["index", "variable"]].itertuples(
+            index=False, name=None
+        )
         pairs = list(con_pairs)
-        p_values = molten_df["value"].tolist()
+        p_values = molten_df_sorted["value"].tolist()
         return (pairs, p_values)
 
     else:
@@ -961,6 +1098,20 @@ def annotate_with_anova_tukey(
     return ax
 
 
+def allgroups_sort_key(value):
+    """Custom sort key function for 'AllGroups' column."""
+    import re
+
+    match = re.match(r"P(\d+)", value)
+    if match:
+        first_number = match.group(1)
+        if first_number.isdigit():
+            return int(first_number)
+        else:
+            return 99999
+    return 99999
+
+
 def annotate_pairs_with_calculated_pvalues(
     ax,
     data,
@@ -1008,7 +1159,7 @@ def annotate_pairs_with_calculated_pvalues(
             y_value=y_value,
             order=order,
             desired_pairs=pairs,
-            p_correction="fdr_bh",
+            p_correction=p_correction,
             display_results=True,
         )
     elif test_name in ["drubin", "drubin_posthoc"]:
@@ -1018,7 +1169,7 @@ def annotate_pairs_with_calculated_pvalues(
             y_value=y_value,
             order=order,
             desired_pairs=pairs,
-            p_correction=None,
+            p_correction=p_correction,
             display_results=True,
         )
     elif test_name in ["conover", "con", "kruskal-conover"]:
@@ -1028,7 +1179,7 @@ def annotate_pairs_with_calculated_pvalues(
             y_value=y_value,
             order=order,
             desired_pairs=pairs,
-            p_correction="fdr_bh",
+            p_correction=p_correction,
             display_results=True,
         )
     elif test_name in ["nemenyi", "kruskal-nemenyi"]:
@@ -1039,6 +1190,7 @@ def annotate_pairs_with_calculated_pvalues(
             order=order,
             desired_pairs=pairs,
             display_results=True,
+            p_correction=p_correction,
         )
     # parametric tests
     elif test_name in ["anova", "tukey", "tukeyhsd"]:
@@ -1073,15 +1225,56 @@ def annotate_pairs_with_calculated_pvalues(
             replicate_number_col=replicate_col_name,
             order=order,
             desired_pairs=pairs,
+            display_results=True,
         )
-    elif test_name in ["ttest", "welch's", "tt"]:
+    elif test_name in ["tukey_v3", "tukey_pingouin"]:
+        used_pairs, p_values = pvalues_anova_with_tukey_pingouin(
+            data,
+            pivot_data,
+            x_value=x_value,
+            y_value=y_value,
+            replicate_number_col=replicate_col_name,
+            order=order,
+            desired_pairs=pairs,
+            display=True,
+        )
+    elif test_name in ["pairwise_ttest" or "multiple_ttest"]:
+        used_pairs, p_values = pvalues_anova_with_pairwise_tests_pingouin(
+            data,
+            x_value=x_value,
+            y_value=y_value,
+            order=order,
+            desired_pairs=pairs,
+            pval_correction=p_correction,
+            parametric=True,
+            display=True,
+        )
+    elif test_name in [
+        "pairwise_mwu"
+        or "multiple_mwu"
+        or "pairwise_mannwhitney"
+        or "multiple_mannwhitney"
+        or "pairwise_wilcoxon"
+        or "multiple_wilcoxon"
+    ]:
+        used_pairs, p_values = pvalues_anova_with_pairwise_tests_pingouin(
+            data,
+            x_value=x_value,
+            y_value=y_value,
+            order=order,
+            desired_pairs=pairs,
+            pval_correction=p_correction,
+            parametric=False,
+            display=True,
+        )
+    elif test_name in ["ttest_posthoc", "welch's_posthoc", "tt_posthoc"]:
         used_pairs, p_values = anova_with_corr_ttest_posthoc(
             data,
             x_value=x_value,
             y_value=y_value,
             order=order,
             desired_pairs=pairs,
-            p_corr="fdr_bh",
+            p_corr=p_correction,
             display_results=True,
         )
     else:
@@ -1547,9 +1740,13 @@ def super_splitviolinplot_helper_singleplot(
     test=None,
     shapiro=True,
     show_test_on_plot=False,
+    pallete=None,
 ):
     if pairs is None:
         pairs = getpairs(data_df, x_value, order=order)
+
+    if pallete is None:
+        pallete = get_hard_code_replicate_colours(group_avg_df)
     print(pairs)
     sns.violinplot(
         data=data_df,
@@ -1559,11 +1756,19 @@ def super_splitviolinplot_helper_singleplot(
         split=True,  # using split violin plots - only one side, basically looks like a histogram
         inner="quart",
         color="gainsboro",
+        dodge=False,
         # fill = True
-        width=0.9,
+        width=1,
         linewidth=1.5,
         order=order,
         ax=ax,
+        cut=0.5,
+        common_norm=True,
+    )
+    # add in the colour scheme
+    unique_replicates = group_avg_df[replicate_col_name].unique()
+    group_avg_df[replicate_col_name] = pd.Categorical(
+        group_avg_df[replicate_col_name], categories=unique_replicates
     )
     sns.swarmplot(
         data=group_avg_df,
@@ -1571,11 +1776,11 @@ def super_splitviolinplot_helper_singleplot(
         y=y_value,
         hue=replicate_col_name,
         order=order,
-        palette="pastel",
+        palette=pallete,
         size=10,
         edgecolor="k",
         linewidth=1,
-        dodge=True,
+        dodge=False,
         ax=ax,
     )
     # draw a boxplot to show the mean line
@@ -1585,7 +1790,7 @@ def super_splitviolinplot_helper_singleplot(
         y=y_value,
         showmeans=True,
         meanline=True,
-        meanprops={"color": "dimgray", "ls": "-", "lw": 2.5},
+        meanprops={"color": "dimgray", "ls": "-", "lw": 4},
         medianprops={"visible": False},
         whiskerprops={"visible": False},
         zorder=2,
@@ -1640,145 +1845,6 @@ def super_splitviolinplot_helper_singleplot(
             ax = annotate_legend_with_shapiro(ax, group_avg_df, replicate_col_name)
 
     return ax
-
-
-def single_feature_super_splitviolinplot(
-    data_df,
-    x_value="AllGroups",
-    y_value="Cell_AreaShape_Area",
-    replicate_col_name="Replicate_Number",
-    out_dir=Path(""),
-    xtitle=None,
-    ytitle=None,
-    order=None,
-    legend=True,
-    annotate=False,
-    test=None,
-    show_hist=False,
-    remove_outliers=False,
-    ylim=None,
-    reps_to_exclude=[],
-    shapiro=True,
-    show=True,
-    context="talk",
-    figsize=(8, 6),
-):
-    """Make a superplot to do multiple comparisons for a feature between different conditions
-    Args:
-        data_df_1 (_type_): _description_
-        group_avg_df_1 (_type_): _description_
-        data_df_2 (_type_): _description_
-        group_avg_df_2 (_type_): _description_
-        x_value (str, optional): _description_. Defaults to "AllGroups".
-        y_value (str, optional): _description_. Defaults to "Cell_AreaShape_Area".
-        replicate_col_name (str, optional): _description_. Defaults to "Replicate_Number".
-        csv_dir (str, optional): _description_. Defaults to "".
-        xtitle (_type_, optional): _description_. Defaults to None.
-        ytitle (_type_, optional): _description_. Defaults to None.
-    """
-    import matplotlib.lines as mlines
-    from statannotations.Annotator import Annotator
-    from statannotations.stats.StatTest import StatTest
-    from pathlib import Path
-
-    if order == None:
-        order = get_all_group_order()
-    pairs = getpairs(data_df, x_value, order=order)
-    print(pairs)
-
-    try:
-        bottom_fence = None  # np.percentile(data_df[y_value], 0.000001)
-        top_fence = None  # np.percentile(data_df[y_value], 99.99)
-    except ValueError as e:
-        print(e)
-        top_fence = None
-    axlim = (bottom_fence, top_fence)
-    if show_hist:
-        hist = sns.kdeplot(data_df, x=y_value, hue=replicate_col_name, palette="pastel")
-        plt.xlim(axlim)
-        plt.savefig(f"{Path(out_dir, f'{y_value}_{replicate_col_name}_histogram')}.png")
-        plt.show()
-        plt.close()
-
-        df_sorted = data_df.sort_values(
-            by=[x_value], key=lambda x: x.map(passage_groups_sort_key)
-        ).reset_index(drop=True)
-
-        import kaleido
-
-        hist2 = px.histogram(
-            df_sorted,
-            x=y_value,
-            color=x_value,
-            marginal="box",
-            # histnorm='probability density',
-            # range_x=(0, top_fence),
-        )
-        hist2.write_image(Path(out_dir, f"{y_value}_histogram.png"), scale=1.5)
-        hist2.show()
-    sns.set_context(context=context, font_scale=1.2)
-    sns.set_theme(style="ticks")
-    fig, ax = plt.subplots(figsize=figsize)
-    # plt.style.use("ggplot")
-
-    feature_df = make_single_feature_df(
-        data_df, group=x_value, feature=y_value, replicates=replicate_col_name
-    )
-    if reps_to_exclude:
-        feature_df = feature_df[~feature_df[replicate_col_name].isin(reps_to_exclude)]
-        print(f"removing replicates: {reps_to_exclude}")
-
-    if remove_outliers is True:
-        feature_df = remove_outliers_iqr(feature_df)
-        display(feature_df)
-    group_avg_df = average_groups_by_plate(
-        feature_df, x_value=x_value, y_value=y_value, replicates=replicate_col_name
-    )
-
-    ax = super_splitviolinplot_helper_singleplot(
-        feature_df,
-        group_avg_df,
-        ax,
-        x_value,
-        y_value,
-        title=" ",
-        replicate_col_name=replicate_col_name,
-        pairs=pairs,
-        order=order,
-        annotate=annotate,
-        test=test,
-        shapiro=False,
-    )
-
-    if legend:
-        if shapiro:
-            group_avg_df_shapiro = apply_shapiro_wilk_test_to_df(
-                group_avg_df,
-                feature_meas=y_value,
-                replicate_col_name="Replicate_Number",
-                alpha=0.05,
-            )
-            # display(group_avg_df_shapiro)
-            ax = annotate_legend_with_shapiro(
-                ax, group_avg_df_shapiro, replicate_col_name
-            )
-    else:
-        ax.legend_.remove()
-    if ytitle is not None:
-        ax.set_ylabel(ytitle)
-    else:
-        ax.set_ylabel(y_value.replace("_", " "))
-    if xtitle is not None:
-        ax.set_xlabel(xtitle)
-    if ylim is None:
-        ylim = axlim
-
-    ax.set_ylim(ylim)
-    plt.tight_layout()
-    sns.despine()
-    plt.savefig(os.path.join(out_dir, f"{y_value}_{test}.png"))
-    if show:
-        plt.show()
 
 
 def make_superswarmplot_with_annotation(
@@ -1919,3 +1985,348 @@ def make_superswarmplot_with_annotation(
 
     plt.savefig(xtitle + "_" + y_value + "_superswarmplot.png", dpi=dpi)
     plt.show()
+
+
+def seaborn_ridgeplot(
+    df,
+    value_col,
+    group_col,
+    palette=None,
+    bw_adjust=1,
+    xlabel=None,
+    xlim=None,
+    title=None,
+    fill_alpha=1,
+    linewidth=1.5,
+    figsize=(10, 6),
+    save=True,
+    out_dir="",
+):
+    """
+    Make a ridgeline (joyplot) using seaborn FacetGrid and kdeplot, following the official seaborn ridge plot style.
+    Args:
+        df: DataFrame
+        value_col: str, column with numeric values
+        group_col: str, column with group/category
+        palette: seaborn palette or list/dict of colors
+        bw_adjust: float, KDE bandwidth adjust
+        xlabel: str or None
+        title: str or None
+        fill_alpha: float, alpha for fill
+        linewidth: float, line width for outline
+        figsize: tuple, figure size
+    """
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+
+    sns.set_theme(style="white", rc={"axes.facecolor": (0, 0, 0, 0)})
+
+    unique_groups = df[group_col].unique()
+    if palette is None:
+        palette = sns.cubehelix_palette(len(unique_groups), rot=-0.25, light=0.7)
+    else:
+        palette = palette
+
+    # Initialize the FacetGrid object
+    g = sns.FacetGrid(
+        df,
+        row=group_col,
+        hue=group_col,
+        aspect=15,
+        height=0.5,
+        palette=palette,
+        xlim=xlim,
+    )
+
+    # Draw the densities in a few steps
+    g.map(
+        sns.kdeplot,
+        value_col,
+        bw_adjust=bw_adjust,
+        clip_on=False,
+        fill=True,
+        alpha=fill_alpha,
+        linewidth=linewidth,
+    )
+    g.map(sns.kdeplot, value_col, clip_on=False, color="w", lw=2, bw_adjust=bw_adjust)
+
+    # passing color=None to refline() uses the hue mapping
+    g.refline(y=0, linewidth=2, linestyle="-", color=None, clip_on=False)
+
+    # Define and use a simple function to label the plot in axes coordinates
+    def label(x, color, label):
+        ax = plt.gca()
+        ax.text(
+            0,
+            0.2,
+            label,
+            fontweight="bold",
+            color=color,
+            ha="left",
+            va="center",
+            transform=ax.transAxes,
+        )
+
+    g.map(label, value_col)
+
+    # Set the subplots to overlap
+    g.figure.subplots_adjust(hspace=-0.25)
+    g.figure.set_size_inches(figsize)
+
+    # Remove axes details that don't play well with overlap
+    g.set_titles("")
+    g.set(yticks=[], ylabel="")
+    g.despine(bottom=True, left=True)
+    if xlabel:
+        plt.xlabel(xlabel, fontweight="bold", fontsize=14)
+    else:
+        plt.xlabel(value_col, fontweight="bold", fontsize=14)
+    if title:
+        g.figure.suptitle(title, ha="right", fontsize=18, fontweight="bold")
+    plt.tight_layout()
+    if save:
+        plt.savefig(f"{Path(out_dir, f'{value_col}_{group_col}_joyplot')}.png")
+    plt.show()
+
+
+def single_feature_super_splitviolinplot(
+    data_df,
+    x_value="AllGroups",
+    y_value="Cell_AreaShape_Area",
+    replicate_col_name="Replicate_Number",
+    out_dir=Path(""),
+    xtitle=None,
+    ytitle=None,
+    order=None,
+    legend=True,
+    annotate=False,
+    test=None,
+    show_hist=False,
+    remove_outliers=False,
+    rm_outliers_method="mad",
+    ylim=None,
+    reps_to_exclude=[],
+    shapiro=True,
+    show=True,
+    context="talk",
+    figsize=(8, 6),
+    truncate_outliers=False,
+    norm=False,
+    pallete=None,
+):
+    """Make a superplot to do multiple comparisons for a feature between different conditions
+    Args:
+        data_df_1 (_type_): _description_
+        group_avg_df_1 (_type_): _description_
+        data_df_2 (_type_): _description_
+        group_avg_df_2 (_type_): _description_
+        x_value (str, optional): _description_. Defaults to "AllGroups".
+        y_value (str, optional): _description_. Defaults to "Cell_AreaShape_Area".
+        replicate_col_name (str, optional): _description_. Defaults to "Replicate_Number".
+        csv_dir (str, optional): _description_. Defaults to "".
+        xtitle (_type_, optional): _description_. Defaults to None.
+        ytitle (_type_, optional): _description_. Defaults to None.
+    """
+    import matplotlib.lines as mlines
+    from statannotations.Annotator import Annotator
+    from statannotations.stats.StatTest import StatTest
+    from pathlib import Path
+
+    if order == None:
+        order = get_all_group_order()
+    pairs = getpairs(data_df, x_value, order=order)
+    print(pairs)
+    try:
+        bottom_fence = None  # np.percentile(data_df[y_value], 0.000001)
+        if norm:
+            top_fence = data_df[y_value].mean() + 10 * data_df[y_value].std()
+        else:
+            top_fence = np.percentile(data_df[y_value], 99.9)
+    except ValueError as e:
+        print(e)
+        top_fence = None
+    if truncate_outliers:
+        axlim = (bottom_fence, top_fence)
+    else:
+        axlim = (None, None)
+    if show_hist:
+        hist = sns.kdeplot(
+            data_df,
+            x=y_value,
+            hue=replicate_col_name,
+            palette=pallete,
+            multiple="layer",
+        )
+        plt.xlim(axlim)
+        plt.savefig(f"{Path(out_dir, f'{y_value}_{replicate_col_name}_histogram')}.png")
+        plt.show()
+        plt.close()
+
+        df_sorted = data_df.sort_values(
+            by=[x_value], key=lambda x: x.map(passage_groups_sort_key)
+        ).reset_index(drop=True)
+
+        hist2 = seaborn_ridgeplot(
+            df_sorted,
+            value_col=y_value,
+            group_col=x_value,
+            palette="Set2",
+            save=True,
+            out_dir=out_dir,
+        )
+        plt.close()
+    fig, ax = plt.subplots(figsize=figsize)
+    sns.set_context(context=context, font_scale=1.2)
+    sns.set_theme(style="ticks")
+
+    feature_df = make_single_feature_df(
+        data_df, group=x_value, feature=y_value, replicates=replicate_col_name
+    )
+    if reps_to_exclude:
+        feature_df = feature_df[~feature_df[replicate_col_name].isin(reps_to_exclude)]
+        print(f"removing replicates: {reps_to_exclude}")
+
+    # remove outluers
+    if remove_outliers is True:
+        if rm_outliers_method == "mad":
+            feature_df = flag_outliers_by_group_mad(feature_df, x_value, y_value)
+            feature_df = feature_df[~feature_df["Outlier"]]
+        elif rm_outliers_method == "gesd":
+            feature_df = flag_outliers_by_group_gesd(
+                feature_df, x_value, y_value, noutliers=50
+            )
+            feature_df = feature_df[~feature_df["Outlier_GESD"]]
+        elif rm_outliers_method == "gesd_2":
+            print(feature_df.shape)
+            feature_df = remove_outliers_by_group_gesd(
+                feature_df, x_value, y_value, noutliers=500
+            )
+            print(feature_df.shape)
+        elif rm_outliers_method == "tietjen":
+            feature_df = remove_outliers_by_group_tietjen(
+                feature_df, x_value, y_value, noutliers=50
+            )
+        elif rm_outliers_method == "iqr":
+            feature_df = remove_outliers_iqr(feature_df)
+        else:
+            ValueError(f"{rm_outliers_method} is not a valid outlier removal method")
+        # display(feature_df)
+    group_avg_df = average_groups_by_plate(
+        feature_df, x_value=x_value, y_value=y_value, replicates=replicate_col_name
+    )
+
+    # display(group_avg_df)
+
+    ax = super_splitviolinplot_helper_singleplot(
+        feature_df,
+        group_avg_df,
+        ax,
+        x_value,
+        y_value,
+        title=" ",
+        replicate_col_name=replicate_col_name,
+        pairs=pairs,
+        order=order,
+        annotate=annotate,
+        test=test,
+        shapiro=False,
+        pallete=pallete,
+    )
+
+    if legend:
+        if shapiro:
+            group_avg_df_shapiro = apply_shapiro_wilk_test_to_df(
+                group_avg_df,
+                feature_meas=y_value,
+                replicate_col_name="Replicate_Number",
+                alpha=0.05,
+            )
+            # display(group_avg_df_shapiro)
+            ax = annotate_legend_with_shapiro(
+                ax, group_avg_df_shapiro, replicate_col_name
+            )
+    else:
+        ax.legend_.remove()
+    if ytitle is not None:
+        ax.set_ylabel(ytitle)
+    else:
+        ax.set_ylabel(y_value.replace("_", " "))
+    if xtitle is not None:
+        ax.set_xlabel(xtitle)
+    if ylim is None:
+        ylim = axlim
+
+    ax.set_ylim(ylim)
+    plt.tight_layout()
+    sns.despine()
+    plt.savefig(os.path.join(out_dir, f"{y_value}_{test}.png"))
+    if show:
+        plt.show()
+
+
+## Posthocs Outlier tests
+def flag_outliers_by_group_mad(df, group_col, feature_col):
+    """
+    Adds a boolean 'Outlier' column to df, True if the value is an outlier within its group.
+    """
+    df = df.copy()
+    df["Outlier"] = df.groupby(group_col)[feature_col].transform(
+        lambda x: pg.madmedianrule(x)
+    )
+    return df
+
+
+def flag_outliers_by_group_gesd(df, group_col, feature_col, noutliers=20, report=True):
+    """
+    Adds a boolean 'Outlier' column to df, True if the value is an outlier within its group.
+    """
+
+    df = df.copy()
+    df["Outlier_GESD"] = df.groupby(group_col)[feature_col].transform(
+        lambda x: sp.outliers_gesd(x, outliers=noutliers, hypo=True, report=report)
+    )
+    return df
+
+
+def flag_outliers_by_group_tietjen(df, group_col, feature_col, noutliers=5):
+    """
+    Adds a boolean 'Outlier_Grubbs' column to df, True if you reject the null hypothesis that the extreme value is an outlier.
+    """
+
+    df = df.copy()
+    df["Outlier_Tietjen"] = df.groupby(group_col)[feature_col].transform(
+        lambda x: sp.outliers_tietjen(x, k=noutliers, hypo=True)
+    )
+    return df
+
+
+def remove_outliers_by_group_gesd(df, group_col, feature_col, noutliers=5):
+    """
+    Filters out outliers in feature_col within each group of group_col using the GEST test.
+    Returns a DataFrame with outliers removed.
+    """
+
+    df = df.copy()
+    filtered_groups = []
+    for group_val, group_df in df.groupby(group_col):
+        mask = sp.outliers_gesd(group_df[feature_col], outliers=noutliers, hypo=False)
+        filtered_group = group_df[group_df[feature_col].isin(mask)]
+        filtered_groups.append(filtered_group)
+    final_df = pd.concat(filtered_groups, axis=0)
+    return final_df
+
+
+def remove_outliers_by_group_tietjen(df, group_col, feature_col, noutliers=5):
+    """
+    Filters out outliers in feature_col within each group of group_col using Tietjen's test.
+    Returns a DataFrame with outliers removed.
+    """
+
+    df = df.copy()
+    filtered_groups = []
+    for group_val, group_df in df.groupby(group_col):
+        mask = sp.outliers_tietjen(group_df[feature_col], k=noutliers, hypo=False)
+        filtered_group = group_df[group_df[feature_col].isin(mask)]
+        filtered_groups.append(filtered_group)
+    final_df = pd.concat(filtered_groups, axis=0)
+    return final_df
