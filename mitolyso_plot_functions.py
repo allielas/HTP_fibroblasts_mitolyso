@@ -448,7 +448,6 @@ def pvalues_anova_with_games_howell_pingouin(
      (pairs,pvalues) (tuple): pairs and corresponding p values
     """
     import pingouin as pg
-    from scipy.stats import f_oneway
 
     df = data_df.copy()
 
@@ -459,26 +458,11 @@ def pvalues_anova_with_games_howell_pingouin(
     if homo_df["equal_var"][0]:
         anova_res = pg.anova(data=df, dv=y_value, between=x_value)
         # else use a welch's anova
+    else:
         anova_res = pg.welch_anova(data=df, dv=y_value, between=x_value)
     pg.print_table(anova_res)
-    # do the anova
-    groups = []  # Convert pivot table to list of groups
-    # display(pivot_df)
-    for col in pivot_df:
-        if col == x_value or col == replicate_number_col:
-            # print("Skipping col:" + col)
-            continue  # Skip the first column (usually the index or grouping variable)
-        else:
-            # print("Adding col:" + col)
-            groups.append(pivot_df[col].dropna())
-    # One-Way ANOVA
-    # display(groups)
-    f_value, p_value_anova = f_oneway(
-        *list(groups)
-    )  # Pass groups as args to run ANOVA on all groups
-    print(f"ANOVA F statistic: {f_value}")
-    print(f"ANOVA p value: {p_value_anova}")
 
+    p_value_anova = anova_res["p-unc"][0]
     # do games-howell
     if p_value_anova < 0.05:
         # print(df)
@@ -490,7 +474,7 @@ def pvalues_anova_with_games_howell_pingouin(
         pairs = list(games_result_pairs)
         p_values = games_result["pval"].tolist()
         if display:
-            print(games_result)
+            pg.print_table(games_result)
         # display(tukey_result_df)
         return (pairs, p_values)
     else:
@@ -526,23 +510,9 @@ def pvalues_anova_with_tukey_pingouin(
     df = data_df.copy()
 
     # do the anova
-    groups = []  # Convert pivot table to list of groups
-    # display(pivot_df)
-    for col in pivot_df:
-        if col == x_value or col == replicate_number_col:
-            # print("Skipping col:" + col)
-            continue  # Skip the first column (usually the index or grouping variable)
-        else:
-            # print("Adding col:" + col)
-            groups.append(pivot_df[col].dropna())
-    # One-Way ANOVA
-    # display(groups)
-    f_value, p_value_anova = f_oneway(
-        *list(groups)
-    )  # Pass groups as args to run ANOVA on all groups
-    print(f"ANOVA F statistic: {f_value}")
-    print(f"ANOVA p value: {p_value_anova}")
-
+    anova_res = pg.anova(data=df, dv=y_value, between=x_value)
+    pg.print_table(anova_res)
+    p_value_anova = anova_res["p-unc"][0]
     # do the tukey
     if p_value_anova < 0.05:
         # print(df)
@@ -554,7 +524,7 @@ def pvalues_anova_with_tukey_pingouin(
         pairs = list(result_pairs)
         p_values = tukey_result["p-tukey"].tolist()
         if display:
-            print(tukey_result)
+            pg.print_table(tukey_result)
         # display(tukey_result_df)
         return (pairs, p_values)
     else:
@@ -599,6 +569,7 @@ def pvalues_anova_with_pairwise_tests_pingouin(
         if homo_df["equal_var"][0]:
             anova_res = pg.anova(data=df, dv=y_value, between=x_value)
             # else use a welch's anova
+        else:
             anova_res = pg.welch_anova(data=df, dv=y_value, between=x_value)
     else:
         anova_res = pg.kruskal(data=df, dv=y_value, between=x_value)
@@ -621,7 +592,7 @@ def pvalues_anova_with_pairwise_tests_pingouin(
         pairs = list(result_pairs)
         p_values = test_result["p-corr"].tolist()
         if display:
-            print(test_result)
+            pg.print_table(test_result)
         # display(tukey_result_df)
         return (pairs, p_values)
     else:
@@ -1137,7 +1108,7 @@ def annotate_pairs_with_calculated_pvalues(
         x_value (str): independent variable on x axis
         y_value (str): dependent variable on y axis
         replicate_col_name (str, optional): the col containing the experimental replicate. Defaults to "Replicate_Name".
-        test_name (str, optional): the statistical test to perform. Accepts values of "tukey", "anova", or "tukey_v2" for ANOVA with Tukey's HSD, "games-howell" or "games" for ANOVA with Games-Howell posthoc, "rmanova" for repeated-measures ANOVA using Welch's ttest with the specified p-value correction, "kruskal" or "dunn" for classic nonparametric multiple comparisons with Dunn's postc, "conover" for kruskal with Conover's posthoc, "nemenyi" for kruskal (or friedman) with Nemenyi's posthoc for repeated measures Defaults to "tukey".
+        test_name (str, optional): the statistical test to perform. Accepts values of "tukey", "anova", or "tukey_v2", for ANOVA with Tukey's HSD, "tukey_v3" for ANOVA with Tukey HSD with Tukey-Kramer correction, "games-howell" or "games" for ANOVA with Games-Howell posthoc, "rmanova" for repeated-measures ANOVA using Welch's ttest with the specified p-value correction, "kruskal" or "dunn" for classic nonparametric multiple comparisons with Dunn's postc, "conover" for kruskal with Conover's posthoc, "nemenyi" for kruskal (or friedman) with Nemenyi's posthoc for repeated measures, "pairwise_ttest" for corrected ttests, "pairwise_mwu" for nonparametic multiple comparisons. Defaults to "tukey".
         pairs (list of str, optional): The pairs of x_value for the comparisons. Defaults to None, is automatically calculated otherwise based on the getpairs() function.
         order (listlike, optional): _description_. Defaults to None.
         plot (str, optional): the type of plot to annotate. Defaults to "violinplot".
