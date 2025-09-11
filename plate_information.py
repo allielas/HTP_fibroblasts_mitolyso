@@ -10,6 +10,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy import stats
+import operator
 
 
 def passage_group(passage_num):
@@ -326,23 +327,18 @@ def find_replicate_cp_output_folder(path):
     return replicate
 
 
-def search_column_name(df, query=""):
-    """_summary_
+def pull_up_cp_segmentation_image(
+    img_filename, parent_dir="~/", replicate=0, group="", object_key=None, df=None
+):
+    """Function to pull up an image with cellprofiler segmentation outlines that has a matching image in the dataframe
+    Can also highlight the sepecific object with a bounding box
 
     Args:
-        df (DataFrame): _description_
-        query (str, optional): your search query. Defaults to "".
-    Return:
-
+        parent_dir (str, optional): _description_. Defaults to "~/".
+        img_filename (str): _description_.
+        replicate (int, optional): _description_. Defaults to 0.
+        group (str, optional): _description_. Defaults to "".
     """
-    query_cols = [col for col in df.columns if query in col]
-    print(f"Query: {query}")
-    for col in query_cols:
-        print(f"    {col}")
-    return query_cols
-
-
-def pull_up_cp_segmentation_image(parent_dir="~/", img_filename="", replicate=0):
     # Loop over the plates
     # make sure the filename in the format of: "Image_FileName_MitoTracker_MAX"
     from matplotlib import image as mpimg
@@ -362,10 +358,20 @@ def pull_up_cp_segmentation_image(parent_dir="~/", img_filename="", replicate=0)
                 )  # make the path
                 try:
                     img = Image.open(img_path)
-                    fig = plt.figure(figsize=(8, 8))
+                    fig, ax = plt.subplots(figsize=(8, 8))
                     plt.imshow(img)
                     plt.axis("off")  # Turn off axis labels for a cleaner image display
-                    plt.title(f"R{replicate}, {filename}, ")
+                    plt.title(f"R{replicate}, {filename}, {group}")
+
+                    if object_key is not None and df is not None:
+                        row = df[df["Cell_Unique_ID"] == object_key]
+                        if not row.empty:
+                            rect, filename_2 = get_image_and_object_coordinates(
+                                df, object_key
+                            )
+                            ax.add_patch(rect)
+                        else:
+                            print(f"Object number {object_key} not found in dataframe.")
                     plt.show()
                     print(f"Segmented image url: {img_path}")
                     # img.show()
@@ -374,3 +380,124 @@ def pull_up_cp_segmentation_image(parent_dir="~/", img_filename="", replicate=0)
                     print(
                         f"Image file {img_path} not found. Please ensure 'your_image.png' exists."
                     )
+            # else:
+            #     print(filename, img_filename_noext)
+
+
+def pull_up_cp_segmentation_image_fromID(
+    df,
+    object_key,
+    parent_dir="",
+    replicate_col_name="Replicate_Number",
+    image_channel="LAMP1",
+    save=False,
+    savepath="",
+):
+    """Function to pull up an image with cellprofiler segmentation outlines that has a matching image in the dataframe
+    and also highlight the sepecific object with a bounding box
+
+    Args:
+        object_key (int): the uniqueobject key in the dataframe
+        parent_dir (str, optional): _description_. Defaults to "~/".
+        img_filename (str): _description_.
+        replicate (int, optional): _description_. Defaults to 0.
+        group (str, optional): _description_. Defaults to "".
+    """
+    from matplotlib import image as mpimg
+    from PIL import Image
+
+    # get the filename, replicate and coords from the unique ID if the ID exists
+    if object_key is not None and df is not None:
+        rect = get_object_bbox_coordinates_as_rectangle(df, object_key)
+
+        unique_row = df[df["Cell_Unique_ID"] == object_key]
+        img_filename = unique_row[f"Image_FileName_{image_channel}_MAX"].values[0]
+        replicate = unique_row[replicate_col_name].values[0]
+        passage = unique_row["PassageNumber"].values[0]
+        group = unique_row["AllGroups"].values[0]
+    else:
+        print(f"Object number {object_key} not found in dataframe.")
+        return False
+    # loop over to find the file in the directory
+    img_filename_noext = img_filename.split(".")[0]
+    for root, dirs, files in os.walk(parent_dir):
+        for filename in files:
+            if (
+                img_filename_noext.split("_")[1] in filename
+                and filename.endswith(".png")
+                and "active" in root  # active cp output folder
+                and replicate == find_replicate_cp_output_folder(root)
+            ):
+                print(filename)
+                img_path = os.path.join(
+                    root,
+                    filename,  # img_filename_noext + ".png"
+                )  # make the path
+                # Now we see if the image exists and try to open it
+                try:
+                    img = Image.open(img_path)
+                    fig, ax = plt.subplots(figsize=(12, 12))
+                    plt.imshow(img)
+                    plt.axis("off")  # Turn off axis labels for a cleaner image display
+                    plt.title(
+                        f"ID:{object_key}, R{replicate} P{passage}, {filename}, {group}"
+                    )
+                    # Lets add a rectangle if the oject key is in the dataframe
+                    ax.add_patch(rect)
+                    if save:
+                        plt.savefig(f"{savepath}/R{replicate}_P{passage}_{filename}")
+                    plt.show()
+                    print(f"Segmented image url: {img_path}")
+                    # img.show()
+                    return True
+                except FileNotFoundError:
+                    print(
+                        f"Image file {img_path} not found. Please ensure 'your_image.png' exists."
+                    )
+    return False
+
+
+def get_object_bbox_coordinates_as_rectangle(
+    df,
+    unique_ID,
+    coord_cols=[
+        "AreaShape_BoundingBoxMaximum_X",
+        "AreaShape_BoundingBoxMaximum_Y",
+        "AreaShape_BoundingBoxMinimum_X",
+        "AreaShape_BoundingBoxMinimum_Y",
+    ],
+):
+    from matplotlib import patches
+
+    row = df[df["Cell_Unique_ID"] == unique_ID]
+    if not row.empty:
+        x_min = row["AreaShape_BoundingBoxMinimum_X"].values[0]
+        y_min = row["AreaShape_BoundingBoxMinimum_Y"].values[0]
+        x_max = row["AreaShape_BoundingBoxMaximum_X"].values[0]
+        y_max = row["AreaShape_BoundingBoxMaximum_Y"].values[0]
+        width = x_max - x_min
+        height = y_max - y_min
+        rect = patches.Rectangle(
+            (x_min, y_min),
+            width,
+            height,
+            linewidth=2,
+            edgecolor="red",
+            facecolor="none",
+        )
+    return rect
+
+
+def query_group_replicate_condition(
+    df, group, replicate_number=0, condition_col="", op=operator.eq, value=None
+):
+    """
+    Filter df by group, replicate_number, and a condition using a passed operator.
+    Example: op=operator.lt for '<', op=operator.gt for '>', op=operator.eq for '=='
+    """
+    mask = (
+        (df["AllGroups"] == group)
+        & (df["Replicate_Number"] == replicate_number)
+        & (op(df[condition_col], value))
+    )
+    return df[mask]
