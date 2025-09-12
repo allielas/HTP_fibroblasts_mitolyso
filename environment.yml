@@ -15,4 +15,7 @@ dependencies:
   - statannotations
   - scikit-posthocs
   - papermill
+  - umap-learn
+  - pingouin
 prefix: /home/mattiazzilab/.conda/envs/jupyter
+#conda env export --from-history > environment.yml
