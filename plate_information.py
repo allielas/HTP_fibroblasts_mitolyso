@@ -315,6 +315,69 @@ def make_summary_stats_for_df_and_feature(
         return False
 
 
+def get_mini_filtered_df(
+    final_filtered_df,
+    condition_col="",
+    valueslist=[
+        "Cell_Unique_ID",
+        "ImageNumber",
+        "TimepointName",
+        "Metadata_WellRow",
+        "Metadata_WellColumn",
+        "Metadata_Field",
+        "AllGroups",
+        "Replicate_Number",
+        "SerialPassage_BatchNumber",
+        "AgeGroup",
+        "PassageNumber",
+        "Number_Object_Number",
+        "AreaShape_Area",
+        "Nuclei_AreaShape_Area",
+        "Cell_Nuclei_Area_Ratio",
+        "Children_Mitochondria_Count",
+        "Children_Lysosomes_Count",
+        "Image_Width_DAPI",
+        "Image_URL_MitoTracker_MAX",
+        "Image_FileName_MitoTracker_MAX",
+        "Image_FileName_LAMP1_MAX",
+    ],
+    op=operator.le,
+    condition_value=10,
+):
+    mini_df = final_filtered_df[valueslist]
+
+    mini_df["Metadata_Rep_RowColField"] = (
+        "R"
+        + mini_df["Replicate_Number"].astype(str)
+        + "_r"
+        + mini_df["Metadata_WellRow"].astype(str)
+        + "c"
+        + mini_df["Metadata_WellColumn"].astype(str)
+        + "f"
+        + mini_df["Metadata_Field"].astype(str)
+        + ""
+    )
+
+    # Now add the filter
+    filter_mini_df = mini_df[op(mini_df[condition_col], condition_value)]
+    filter_mini_df_sorted = filter_mini_df.sort_values(
+        by=["AllGroups"], key=lambda x: x.map(passage_groups_sort_key)
+    ).reset_index(drop=True)
+
+    # reduce cols for readability
+    filter_mini_df_display = filter_mini_df_sorted[
+        [
+            "AllGroups",
+            "Replicate_Number",
+            "Cell_Unique_ID",
+            "Image_FileName_MitoTracker_MAX",
+            condition_col,
+        ]
+    ]
+    print(filter_mini_df_display)
+    return filter_mini_df_sorted
+
+
 def find_replicate_cp_output_folder(path):
     import re
 
@@ -327,68 +390,12 @@ def find_replicate_cp_output_folder(path):
     return replicate
 
 
-def pull_up_cp_segmentation_image(
-    img_filename, parent_dir="~/", replicate=0, group="", object_key=None, df=None
-):
-    """Function to pull up an image with cellprofiler segmentation outlines that has a matching image in the dataframe
-    Can also highlight the sepecific object with a bounding box
-
-    Args:
-        parent_dir (str, optional): _description_. Defaults to "~/".
-        img_filename (str): _description_.
-        replicate (int, optional): _description_. Defaults to 0.
-        group (str, optional): _description_. Defaults to "".
-    """
-    # Loop over the plates
-    # make sure the filename in the format of: "Image_FileName_MitoTracker_MAX"
-    from matplotlib import image as mpimg
-    from PIL import Image
-
-    img_filename_noext = img_filename.split(".")[0]
-    for root, dirs, files in os.walk(parent_dir):
-        for filename in files:
-            if (
-                img_filename_noext in filename
-                and filename.endswith(".png")
-                and "active" in root
-                and replicate == find_replicate_cp_output_folder(root)
-            ):
-                img_path = os.path.join(
-                    root, img_filename_noext + ".png"
-                )  # make the path
-                try:
-                    img = Image.open(img_path)
-                    fig, ax = plt.subplots(figsize=(8, 8))
-                    plt.imshow(img)
-                    plt.axis("off")  # Turn off axis labels for a cleaner image display
-                    plt.title(f"R{replicate}, {filename}, {group}")
-
-                    if object_key is not None and df is not None:
-                        row = df[df["Cell_Unique_ID"] == object_key]
-                        if not row.empty:
-                            rect, filename_2 = get_image_and_object_coordinates(
-                                df, object_key
-                            )
-                            ax.add_patch(rect)
-                        else:
-                            print(f"Object number {object_key} not found in dataframe.")
-                    plt.show()
-                    print(f"Segmented image url: {img_path}")
-                    # img.show()
-
-                except FileNotFoundError:
-                    print(
-                        f"Image file {img_path} not found. Please ensure 'your_image.png' exists."
-                    )
-            # else:
-            #     print(filename, img_filename_noext)
-
-
 def pull_up_cp_segmentation_image_fromID(
     df,
     object_key,
     parent_dir="",
     replicate_col_name="Replicate_Number",
+    feature="",
     image_channel="LAMP1",
     save=False,
     savepath="",
@@ -444,8 +451,23 @@ def pull_up_cp_segmentation_image_fromID(
                     )
                     # Lets add a rectangle if the oject key is in the dataframe
                     ax.add_patch(rect)
+                    # add a label with the feature value if it exists
+                    if feature in df.columns:
+                        feature_value = unique_row[feature].values[0]
+                        plt.text(
+                            rect.get_x(),
+                            rect.get_y() - 10,
+                            f"{feature}: {feature_value:.2f}",
+                            color="lime",
+                            fontsize=12,
+                            weight="bold",
+                            bbox=dict(facecolor="black", alpha=0.5, pad=2),
+                        )
                     if save:
-                        plt.savefig(f"{savepath}/R{replicate}_P{passage}_{filename}")
+                        plt.savefig(
+                            f"{savepath}/R{replicate}_P{passage}_{filename}_{object_key}.png",
+                            bbox_inches="tight",
+                        )
                     plt.show()
                     print(f"Segmented image url: {img_path}")
                     # img.show()
