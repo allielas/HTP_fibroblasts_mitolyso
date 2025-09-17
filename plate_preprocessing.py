@@ -1326,12 +1326,24 @@ def combine_one_to_one_dfs(
 
     # now merge to the cell df
     for i, object_df in enumerate(dfs_to_add):
-        main_df = pd.merge(
-            main_df,
-            object_df,
-            how="left",  # left on the object index, image-by-image
-            left_on=[f"{main_df_prefix}_Number_Object_Number", "ImageNumber"],
-            right_on=[f"{tables_to_add[i]}_Number_Object_Number", "ImageNumber"],
-        )
+        compartment = tables_to_add[i]
+        # special case for nuclei; where we want cell to be the primary table but nuclei are the parent of a cell
+        if compartment == "Nuclei":
+            main_df = pd.merge(
+                main_df,
+                object_df,
+                how="left",  # left on the object index, image-by-imageCell_Parent_Nuclei
+                left_on=[f"{main_df_prefix}_Parent_{compartment}", "ImageNumber"],
+                right_on=[f"{compartment}_Number_Object_Number", "ImageNumber"],
+            )
+        else:
+            main_df = pd.merge(
+                main_df,
+                object_df,
+                how="left",  # left on the object index, image-by-imageCell_Parent_Nuclei
+                left_on=[f"{main_df_prefix}_Number_Object_Number", "ImageNumber"],
+                right_on=[f"{compartment}_Parent_{main_df_prefix}", "ImageNumber"],
+            )
+
     merged_df_final = main_df.reset_index(drop=True)
     return merged_df_final
