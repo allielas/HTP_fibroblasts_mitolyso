@@ -1,14 +1,14 @@
 ,filter_type,rows,columns,rows_removed
-OG_df,Original,75435,3445,0
-Filtered_df,Initial Column Filter,75435,3445,0
-Empty_Mitochondria_Removed,Remove Empty Mitochondria,75400,3447,35
-Empty_Lysosomes_Removed,Remove Empty Organelles,75394,3447,41
-Nuclei_Min_Intensity_Filtered,Nuclei Minimum Intensity,75394,3447,0
-Nuclei_Max_Intensity_Filtered,Nuclei Maxiumum Intensity,75394,3447,0
-More_Than_One_Cell,More Than One Cell,74538,3447,856
-Nuc_Size_Thresholded,Nuclei Size Threshold,74420,3447,118
-Cell_Size_Thresholded,Cell Size Threshold,74420,3447,0
-Cell_Nuclei_Ratio_MinFilter,Cell:Nuclei Ratio Threshold,74420,3447,0
-Cell_Nuclei_Ratio_MaxFilter,Cell:Nuclei Ratio Threshold,74420,3447,0
-Neighbors_Filtered,Neighbors Percent Touching < 99,74352,3447,68
-Final_Filtered_df,Final Filtered DataFrame,74352,3447,0
+OG_df,Original,52341,3445,0
+Filtered_df,Initial Column Filter,52341,3445,0
+Empty_Mitochondria_Removed,Remove Empty Mitochondria,52310,3447,31
+Empty_Lysosomes_Removed,Remove Empty Organelles,52305,3447,36
+Nuclei_Min_Intensity_Filtered,Nuclei Minimum Intensity,52305,3447,0
+Nuclei_Max_Intensity_Filtered,Nuclei Maxiumum Intensity,52305,3447,0
+More_Than_One_Cell,More Than One Cell,51864,3447,441
+Nuc_Size_Thresholded,Nuclei Size Threshold,51798,3447,66
+Cell_Size_Thresholded,Cell Size Threshold,51798,3447,0
+Cell_Nuclei_Ratio_MinFilter,Cell:Nuclei Ratio Threshold,51798,3447,0
+Cell_Nuclei_Ratio_MaxFilter,Cell:Nuclei Ratio Threshold,51798,3447,0
+Neighbors_Filtered,Neighbors Percent Touching < 99,51730,3447,68
+Final_Filtered_df,Final Filtered DataFrame,51730,3447,0
