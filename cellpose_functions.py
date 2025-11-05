@@ -179,7 +179,7 @@ def get_image_set_name(grouped_files_by_channel, index=1):
     return set_name
 
 
-def get_multichannel_img_normalized(img_set):
+def get_multichannel_img_normalized(img_set, selected_channels=[1, 2, 3, 4]):
     """
     Create a multichannel grayscale image given an list of single-channel grayscale images and stack the image together
     Parameters:
@@ -190,8 +190,9 @@ def get_multichannel_img_normalized(img_set):
     # ch1,ch2,ch3 = io.imread(files[0]), io.imread(files[1]), io.imread(files[3])
     # channels = [ch1, ch2, ch3]
     img_stack = []
-    for channel in img_set:
+    for chnum in selected_channels:
         # footprint = morphology.disk(5)
+        channel = img_set[chnum - 1]
         channel = img_01_normalization(channel)
         img_stack.append(channel)
 
