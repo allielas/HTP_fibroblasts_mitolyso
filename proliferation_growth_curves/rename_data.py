@@ -159,18 +159,22 @@ def main(argv=None):
     print(f"Wrote replaced data to: {out_path}")
 
 
-plate = 7
 
-args = [
-    "-i",
-    f"/Volumes/AllieS/Incucyte_Data_new/full_data/excel sheets/r{plate}.xlsx",
-    "-m",
-    f"/Volumes/AllieS/Incucyte_Data_new/full_data/excel sheets/replacements/plate{plate}_replacements.csv",
-    "-o",
-    f"/Volumes/AllieS/Incucyte_Data_new/full_data/excel sheets/replaced/r{plate}_replaced.xlsx",
-    "-s",
-    "1",
-]
+ex1 = "0_2024-01-25"
+ex2 = "0_2024-03-01"
 
-if __name__ == "__main__":
-    main(args)
+
+for i in range(5,8):
+    plate = i
+    args = [
+        "-i",
+        f"/Users/allielas/HTP_fibroblasts_mitolyso/proliferation_growth_curves/Incucyte_sheets/r{plate}.xlsx",
+        "-m",
+        f"/Volumes/AllieS/Incucyte_Data_new/full_data/excel sheets/replacements/plate{plate}_replacements.csv",
+        "-o",
+        f"/Users/allielas/HTP_fibroblasts_mitolyso/proliferation_growth_curves/Incucyte_sheets/renamed/r{plate}_replaced.xlsx",
+        "-s",
+        "2",
+    ]
+    if __name__ == "__main__":
+        main(args)
