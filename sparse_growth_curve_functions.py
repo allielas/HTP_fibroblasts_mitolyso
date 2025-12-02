@@ -16,7 +16,7 @@ from scipy import stats
 from scipy.interpolate import interp1d
 
 
-def myLinearRegression_CB(x, y, x_fit, one_order=10):
+def myLinearRegression_CB(x, y, x_fit, one_order=10, min_interval_points=5):
     """
     :Authors:
       Chuankai Cheng <chuankai@usc.edu> and J. Cameron Thrash <thrash@usc.edu>
@@ -36,8 +36,8 @@ def myLinearRegression_CB(x, y, x_fit, one_order=10):
     print("|corr|=", np.abs(corr))
 
     if (
-        ((np.abs(corr) < 0.80) or (len(y) < 4))
-        and ((np.abs(corr) < 0.90) or (len(y) < 3))
+        ((np.abs(corr) < 0.80) or (len(y) < min_interval_points))
+        and ((np.abs(corr) < 0.90) or (len(y) < (min_interval_points - 1)))
         and ((np.max(y) - np.min(y)) < np.log2(one_order))
     ):
         comp_y = np.median(y) * np.ones(len(y))
@@ -47,7 +47,7 @@ def myLinearRegression_CB(x, y, x_fit, one_order=10):
     else:
         # Robust linear model estimation using RANSAC
         X = x.reshape(-1, 1)
-        if len(y) > 4:
+        if len(y) > min_interval_points:
             try:
                 reg = RANSACRegressor()
                 reg.fit(X, y)
@@ -211,7 +211,7 @@ def phase_seperations(t, X, max_depth=1):
     return all_starting_time
 
 
-def phases_exponential_fit(phases_points, t, X, one_order):
+def phases_exponential_fit(phases_points, t, X, one_order, min_interval_points=5):
     """
     :Authors:
       Chuankai Cheng <chuankai@usc.edu> and J. Cameron Thrash <thrash@usc.edu>
@@ -240,6 +240,7 @@ def phases_exponential_fit(phases_points, t, X, one_order):
         # print('Time period: ', start_t, 'hours  ---', end_t, 'hours')
         # Chooseing the time period:
         sel_bool = (t >= start_t - 1) & (t <= end_t + 1)
+
         # if np.sum(sel_bool)<3:
         #  if np.where(sel_bool)[0][0]!=0 and np.where(sel_bool)[0][-1]!=len(sel_bool)-1:
         #    sel_bool[np.where(sel_bool)[0][0]-1]=True
@@ -249,7 +250,7 @@ def phases_exponential_fit(phases_points, t, X, one_order):
         #  elif np.where(sel_bool)[0][-1]!=len(sel_bool)-1:
         #    sel_bool[np.where(sel_bool)[0][-1]+1]=True
 
-        if np.sum(sel_bool) >= 2:
+        if np.sum(sel_bool) >= min_interval_points:
             sel_t = t[sel_bool]
             sel_X = X[sel_bool]
 
@@ -258,7 +259,9 @@ def phases_exponential_fit(phases_points, t, X, one_order):
             fit_bool = (t_1 >= start_t - 1) & (t_1 <= end_t + 1)
             sel_t_1 = t_1[fit_bool]
 
-            (dr, pre_X_1, ci) = myLinearRegression_CB(sel_t, np.log2(sel_X), sel_t_1)
+            (dr, pre_X_1, ci) = myLinearRegression_CB(
+                sel_t, np.log2(sel_X), sel_t_1, min_interval_points=min_interval_points
+            )
 
             all_doubling_rates.append(dr)
             all_fit_time.append(sel_t_1)
@@ -333,7 +336,9 @@ def growth_death_rate_decision(all_fit_cell_density, all_fit_time, all_doubling_
     )
 
 
-def fit_growth_curve(time, cell_density, one_order=10, decision_tree_depth=1):
+def fit_growth_curve(
+    time, cell_density, one_order=10, decision_tree_depth=1, min_interval_points=5
+):
     """
     :Authors:
       Chuankai Cheng <chuankai@usc.edu> and J. Cameron Thrash <thrash@usc.edu>
@@ -351,7 +356,9 @@ def fit_growth_curve(time, cell_density, one_order=10, decision_tree_depth=1):
     print(phases_points)
 
     (all_doubling_rates, all_fit_time, all_fit_cell_density, all_fit_conf_band) = (
-        phases_exponential_fit(phases_points, t1, X1, one_order)
+        phases_exponential_fit(
+            phases_points, t1, X1, one_order, min_interval_points=min_interval_points
+        )
     )
 
     (
@@ -364,7 +371,12 @@ def fit_growth_curve(time, cell_density, one_order=10, decision_tree_depth=1):
     ) = growth_death_rate_decision(
         all_fit_cell_density, all_fit_time, all_doubling_rates
     )
-
+    print(
+        f"Selected exponential phase: {selected_fit_time} doubling rate: {selected_doubling_rate} doublings/hr; "
+    )
+    print(
+        f"Selected death phase: {selected_fit_time_d} doubling rate: {selected_doubling_rate_d} doublings/hr; "
+    )
     return (
         all_fit_time,
         all_fit_cell_density,
@@ -470,6 +482,7 @@ def plot_confluence_curve_estimations(
     tree_depth=1,
     curve_name="",
     savepath="",
+    min_interval_points=5,
 ):
     """_summary_
 
@@ -492,7 +505,11 @@ def plot_confluence_curve_estimations(
         selected_fit_time_d,
         selected_fit_cell_density_d,
     ) = fit_growth_curve(
-        time, cell_density, one_order=one_order, decision_tree_depth=tree_depth
+        time,
+        cell_density,
+        one_order=one_order,
+        decision_tree_depth=tree_depth,
+        min_interval_points=min_interval_points,
     )
 
     (
@@ -508,8 +525,9 @@ def plot_confluence_curve_estimations(
         ransac_selected_periods_cd_d,
     ) = fit_growth_curve_ransac_method(time, cell_density)
 
-    plt.figure(figsize=(12, 4))
+    plt.figure(figsize=(12, 9))
     plt.subplot(121)
+    plt.title(curve_name)
     for i in range(len(all_fit_time)):
         # plt.plot(all_fit_time[i], all_fit_cell_density[i], 'k--')
         plt.fill_between(
@@ -520,29 +538,29 @@ def plot_confluence_curve_estimations(
             alpha=0.1,
         )
 
-    plt.plot(selected_fit_time, selected_fit_cell_density, "k-", linewidth=2)
+    plt.plot(selected_fit_time, selected_fit_cell_density, "g-", linewidth=2)
 
     try:
         selected_doubling_time = selected_doubling_rate**-1
         plt.text(
             np.median(selected_fit_time),
             2 ** np.median(np.log2(selected_fit_cell_density)),
-            str(np.round(selected_doubling_time, 2)) + "hours/doubling",
+            f"log: {np.round(selected_doubling_time, 2)}hours/doubling",
         )
     except ZeroDivisionError as e:
         print(f"{e}, Growth rate is zero, using a placeholder")
         plt.text(
             np.median(selected_fit_time),
             2 ** np.median(np.log2(selected_fit_cell_density)),
-            str(np.round(selected_doubling_rate, 2)) + "doublings/hr",
+            "No growth",  # str(np.round(selected_doubling_rate, 2)) + "doublings/hr",
         )
 
-    plt.plot(selected_fit_time_d, selected_fit_cell_density_d, "k--", linewidth=2)
+    plt.plot(selected_fit_time_d, selected_fit_cell_density_d, "g--", linewidth=2)
 
     plt.text(
         np.median(selected_fit_time_d),
         2 ** np.median(np.log2(selected_fit_cell_density_d)),
-        str(np.round(selected_doubling_rate_d, 2)) + "doubling/hr",
+        f"death: {np.round(selected_doubling_rate_d, 2)} doubling/hr",
     )
 
     plt.plot(time, cell_density, "ro", mfc="none")
@@ -555,21 +573,29 @@ def plot_confluence_curve_estimations(
 
     plt.subplot(122)
     for i in range(len(all_ransac_periods)):
-        plt.plot(all_ransac_periods[i], all_ransac_periods_cd[i], "r-")
+        print("all ransac periods at ", i, all_ransac_periods[i])
+        print("ransac_selected periods", ransac_selected_periods)
+        if np.array_equiv(all_ransac_periods[i], (ransac_selected_periods)):
+            line_colour = "g-"
+            phase = "log"
+        else:
+            line_colour = "r-"
+            phase = "death"
+        plt.plot(all_ransac_periods[i], all_ransac_periods_cd[i], line_colour)
         try:
             plt.text(
                 np.median(all_ransac_periods[i]),
                 2 ** np.median(np.log2(all_ransac_periods_cd[i])),
-                str(np.round(1 / all_ransac_periods_doubling_rate[i], 2))
-                + "hours/doubling",
+                f"{phase}: {np.round(1 / all_ransac_periods_doubling_rate[i], 2)} hours/doubling",
             )
         except ZeroDivisionError as e:
             print(f"{e}, Growth rate is zero, using a placeholder")
             plt.text(
                 np.median(all_ransac_periods[i]),
                 2 ** np.median(np.log2(all_ransac_periods_cd[i])),
-                str(np.round(all_ransac_periods_doubling_rate[i], 2))
-                + "doublings/hour",
+                "No growth",
+                # str(np.round(all_ransac_periods_doubling_rate[i], 2))
+                # + "doublings/hour",
             )
 
     plt.plot(time, cell_density, "ro", mfc="none")
@@ -587,7 +613,7 @@ def plot_confluence_curve_estimations(
 
 
 def get_doubling_time_from_decision_trees(
-    df, time_col, cell_density_col, one_order=10, tree_depth=1
+    df, time_col, cell_density_col, one_order=10, tree_depth=1, min_interval_points=5
 ):
     """_summary_
 
@@ -613,13 +639,17 @@ def get_doubling_time_from_decision_trees(
         selected_fit_time_d,
         selected_fit_cell_density_d,
     ) = fit_growth_curve(
-        time, cell_density, one_order=one_order, decision_tree_depth=tree_depth
+        time,
+        cell_density,
+        one_order=one_order,
+        decision_tree_depth=tree_depth,
+        min_interval_points=min_interval_points,
     )
     try:
         selected_doubling_time = selected_doubling_rate**-1
     except ZeroDivisionError as e:
         print(f"{e}, Growth rate is zero, returning a placeholder")
-        return 200.0
+        return 0
     return selected_doubling_time
 
 
@@ -652,7 +682,7 @@ def get_doubling_time_from_ransac_method(df, time_col, cell_density_col):
         selected_doubling_time = ransac_selected_doubling_rate**-1
     except ZeroDivisionError as e:
         print(f"{e}, Growth rate is zero, returning a placeholder")
-        return 200.0
+        return 0
     return selected_doubling_time
 
 
@@ -664,6 +694,7 @@ def get_doubling_rates_times_both_methods(
     tree_depth=1,
     curve_name="",
     savepath="",
+    min_interval_points=5,
 ):
     """_summary_
 
@@ -686,14 +717,18 @@ def get_doubling_rates_times_both_methods(
         selected_fit_time_d,
         selected_fit_cell_density_d,
     ) = fit_growth_curve(
-        time, cell_density, one_order=one_order, decision_tree_depth=tree_depth
+        time,
+        cell_density,
+        one_order=one_order,
+        decision_tree_depth=tree_depth,
+        min_interval_points=min_interval_points,
     )
 
     try:
         selected_doubling_time = selected_doubling_rate**-1
-    except ZeroDivisionError as e:
+    except (ZeroDivisionError, ValueError) as e:
         print(f"{e}, Growth rate is zero, using a placeholder")
-        selected_doubling_time = 200.0
+        selected_doubling_time = 0
 
     (
         all_ransac_periods,
@@ -709,9 +744,9 @@ def get_doubling_rates_times_both_methods(
     ) = fit_growth_curve_ransac_method(time, cell_density)
     try:
         ransac_selected_doubling_time = ransac_selected_doubling_rate**-1
-    except ZeroDivisionError as e:
+    except (ZeroDivisionError, ValueError) as e:
         print(f"{e}, Growth rate is zero, returning a placeholder")
-        ransac_selected_doubling_time = 200.0
+        ransac_selected_doubling_time = 0
 
     return {
         "Doubling_Time_Trees": selected_doubling_time,
