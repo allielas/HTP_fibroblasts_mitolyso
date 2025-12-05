@@ -164,7 +164,7 @@ ex1 = "0_2024-01-25"
 ex2 = "0_2024-03-01"
 
 
-for i in range(5,8):
+for i in range(2,3):
     plate = i
     args = [
         "-i",
@@ -174,7 +174,7 @@ for i in range(5,8):
         "-o",
         f"/Users/allielas/HTP_fibroblasts_mitolyso/proliferation_growth_curves/Incucyte_sheets/renamed/r{plate}_replaced.xlsx",
         "-s",
-        "2",
+        "1",
     ]
     if __name__ == "__main__":
         main(args)

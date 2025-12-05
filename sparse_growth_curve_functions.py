@@ -6,6 +6,7 @@ import numpy as np
 # package for plotting: plt
 from matplotlib import pyplot as plt
 import pandas as pd
+from matplotlib.backends.backend_pdf import PdfPages
 
 # statistical analysis
 from sklearn.tree import DecisionTreeRegressor
@@ -482,6 +483,7 @@ def plot_confluence_curve_estimations(
     tree_depth=1,
     curve_name="",
     savepath="",
+    pdf=None,
     min_interval_points=5,
 ):
     """_summary_
@@ -525,9 +527,9 @@ def plot_confluence_curve_estimations(
         ransac_selected_periods_cd_d,
     ) = fit_growth_curve_ransac_method(time, cell_density)
 
-    plt.figure(figsize=(12, 9))
+    plt.figure(figsize=(12, 5))
     plt.subplot(121)
-    plt.title(curve_name)
+
     for i in range(len(all_fit_time)):
         # plt.plot(all_fit_time[i], all_fit_cell_density[i], 'k--')
         plt.fill_between(
@@ -606,10 +608,16 @@ def plot_confluence_curve_estimations(
     plt.yscale("log")
     plt.title("Iterative RANSAC method")
 
+    plt.suptitle(f"Curve: {curve_name}", y=0.02, fontsize=20, color="red")
     plt.tight_layout()
-    fig_path = f"{savepath}/{curve_name}_methods_comparison.png"
-    plt.savefig(fig_path)
-    plt.show()
+    plt.subplots_adjust(bottom=0.08)
+    if savepath:
+        fig_path = f"{savepath}/{curve_name}_methods_comparison.png"
+        plt.savefig(fig_path, bbox_inches="tight")
+        if pdf is not None:
+            pdf.savefigbbox_inches="tight")
+    # plt.show()
+    plt.close()
 
 
 def get_doubling_time_from_decision_trees(
