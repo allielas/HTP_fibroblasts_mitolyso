@@ -615,7 +615,7 @@ def plot_confluence_curve_estimations(
         fig_path = f"{savepath}/{curve_name}_methods_comparison.png"
         plt.savefig(fig_path, bbox_inches="tight")
         if pdf is not None:
-            pdf.savefigbbox_inches="tight")
+            pdf.savefig(bbox_inches="tight")
     # plt.show()
     plt.close()
 
