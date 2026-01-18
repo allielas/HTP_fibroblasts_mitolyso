@@ -22,6 +22,73 @@ replacements = {
 }
 
 
+def load_replacements_from_csv(csv_path, old_col="old", new_col="new"):
+    """
+    Load string replacements from a CSV file into a dictionary.
+
+    Args:
+        csv_path (str or Path): Path to CSV file with replacement mappings.
+        old_col (str): Column name containing strings to find (default "old").
+        new_col (str): Column name containing replacement strings (default "new").
+
+    Returns:
+        dict: Dictionary mapping old strings to new strings.
+
+    Example CSV format:
+        old,new
+        _Ctrl_,_
+        T,AG
+        R,SPB
+    """
+    df = pd.read_csv(csv_path)
+
+    if old_col not in df.columns or new_col not in df.columns:
+        raise ValueError(f"CSV must contain '{old_col}' and '{new_col}' columns")
+
+    # Convert to dictionary, handling NaN values
+    replacements = df.set_index(old_col)[new_col].dropna().to_dict()
+
+    # Convert all keys and values to strings
+    replacements = {str(k): str(v) for k, v in replacements.items()}
+
+    return replacements
+
+
+def apply_replacements(df, mapping_dict):
+    if not mapping_dict:
+        return df.copy()
+    # For performance: compile mapping items once
+    items = list(mapping_dict.items())
+
+    def replace_value(x):
+        """
+        Docstring for replace_value. Just a simple string replace
+
+        :str x: the string to replace based on the dict
+        """
+        if isinstance(x, str):
+            for old, new in items:
+                if old:
+                    x = x.replace(old, new)
+            return x
+        return x
+
+    return df.applymap(replace_value)
+
+
+def save_modified_csv(df, out_path):
+    """_summary_
+
+    Args:
+        df (_type_): _description_
+        out_path (_type_): _description_
+    """
+    out_df = df.copy()
+
+    out_df.to_csv(out_path, index=False)
+    print(f"Wrote replaced data to: {out_path}")
+
+
 def rename_csv(folder, replacements):
     for root, dirs, files in os.walk(folder):
         for filename in files:
@@ -37,6 +104,13 @@ def rename_csv(folder, replacements):
                 with open(path, "w") as f:
                     f.write(content)
                 print(f"Modified contents of: {path}")
+
+
+def replace_strings_and_save_new_csv(in_file, replacements_path, out_path):
+    df = pd.read_csv(in_file)
+    replacements = load_replacements_from_csv(replacements_path)
+    new_df = apply_replacements(df, replacements)
+    save_modified_csv(new_df, out_path)
 
 
 def rename_path_in_list(path, replacements):
@@ -166,19 +240,25 @@ def rename_files_based_on_metadata(
 
 coords = "Metadata_RowColFieldCode"
 prefixes = ["TreatmentGroup", "ShortStaining"]
-rename_files_based_on_metadata(
-    root_folder=folder,
-    replacements_file=replacements_pilot_sheet,
-    ext=".tiff",
-    match_col=coords,
-    prefix_cols=prefixes,
-    match_mode="contains",
-    recursive=True,
-    backup=False,
-    dry_run=False,
-)
+# rename_files_based_on_metadata(
+#     root_folder=folder,
+#     replacements_file=replacements_pilot_sheet,
+#     ext=".tiff",
+#     match_col=coords,
+#     prefix_cols=prefixes,
+#     match_mode="contains",
+#     recursive=True,
+#     backup=False,
+#     dry_run=False,
+# )
 
 # rename_image_folders(
 #     folder=folder, replacements=replacements, ext=".vsi", identifier="20250710"
 # )
 # rm_baks(folder=folder)
+
+old_plate = "plate_metadata/20250501_rep07_metadata/may01plate.csv"
+new_plate = "plate_metadata/20250501_rep07_metadata/new_may01plate.csv"
+replace_strings_and_save_new_csv(
+    old_plate, "plate_metadata/replacements.csv", new_plate
+)

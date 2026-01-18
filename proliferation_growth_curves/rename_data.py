@@ -164,7 +164,7 @@ ex1 = "0_2024-01-25"
 ex2 = "0_2024-03-01"
 
 
-for i in range(2,3):
+for i in range(6):
     plate = i
     args = [
         "-i",

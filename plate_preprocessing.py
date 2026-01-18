@@ -8,10 +8,9 @@ import sqlite3
 from scipy import stats
 
 
-# Debugging functions
-def passage_group(passage_num):
+def old_passage_group(passage_num):
     """
-    Group passages into bins for plotting
+    Group passages into bins for plotting (old numbers)
     returns string of the group that the passage number belongs to
     """
     # use this function to group passages into groups for plotting
@@ -39,6 +38,41 @@ def passage_group(passage_num):
         # print(f"value is not a number, caught {e}; returning NaN")
         return None
 
+def get_all_group_order_placeholder():
+    '''
+    Get the order of the passage groups for plotting
+    Returns a list of the passage groups in order
+    Returns:
+        list: A list of strings representing the group order    
+    '''
+    order = ['P6-12', 'P13-15', 'P16-18', 'P19-21', 'P22-24', 'P25-27', 'P28-31', 'P32-35','Doxo']
+    return order
+
+def passage_group(passage_num):
+    """
+    Group passages into bins for plotting (based on new groupings after quality control)
+    returns string of the group that the passage number belongs to
+    """
+    # use this function to group passages into groups for plotting
+    passage = int(passage_num)
+    if 6 <= passage <= 12:
+        return "P6-12"
+    elif 13 <= passage <= 15:
+        return "P13-15"
+    elif 16 <= passage <= 18:
+        return "P16-18"
+    elif 19 <= passage <= 21:
+        return "P19-21"
+    elif 22 <= passage <= 24:
+        return "P22-24"
+    elif 25 <= passage <= 27:
+        return "P25-27"
+    elif 28 <= passage <= 31:
+        return "P28-31"
+    elif passage >= 32:
+        return "P32-35"
+    else:
+        return "Unknown"
 
 def add_drug_to_group(init_df, group, drug):
     """
