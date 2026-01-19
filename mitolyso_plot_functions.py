@@ -29,15 +29,15 @@ NOTE for custom annotations in statannotations:
 """
 
 
-def create_superplot_fortwo(data, x_value, y_value, replicates, save_name):
+def create_superplot_fortwo(data, x_value, y_value, plates, save_name):
     sns.set_style("whitegrid")
 
     # Calculate the mean for each group
-    group_averages = data.groupby([x_value, replicates], as_index=False).agg(
+    group_averages = data.groupby([x_value, plates], as_index=False).agg(
         {y_value: "mean"}
     )
     group_ave_pivot = group_averages.pivot_table(
-        columns=x_value, values=y_value, index=replicates
+        columns=x_value, values=y_value, index=plates
     )
 
     # Perform paired t-test
@@ -49,16 +49,16 @@ def create_superplot_fortwo(data, x_value, y_value, replicates, save_name):
         pvalue_str = pvalue_str + "*"
 
     # Create the superplot
-    sns.swarmplot(x=x_value, y=y_value, hue=replicates, data=data)  # plot the data
+    sns.swarmplot(x=x_value, y=y_value, hue=plates, data=data)  # plot the data
     ax = sns.swarmplot(
         x=x_value,
         y=y_value,
-        hue=replicates,
+        hue=plates,
         size=15,
         edgecolor="k",
         linewidth=2,
         data=group_averages,
-    )  # plot the averages from each replicate
+    )  # plot the averages from each plate
     ax.legend_.remove()  # remove the legend
 
     x1, x2 = 0, 1
@@ -82,8 +82,8 @@ def create_superplot_fortwo(data, x_value, y_value, replicates, save_name):
 
 def create_superplot(df, ax):
     """Derived from Marco Dalla Vecchia, December 6, 2024
-    Actually consider the replicates
-    Consider mean value of each replicate per treatment
+    Actually consider the plates
+    Consider mean value of each plate per treatment
     directly taken from S5 of original publication
 
     Args:
@@ -96,16 +96,14 @@ def create_superplot(df, ax):
     from scipy.stats import ttest_rel, ttest_ind
     import matplotlib.ticker
 
-    ReplicateAverages = df.groupby(["Treatment", "Replicate"], as_index=False).agg(
+    PlateAverages = df.groupby(["Treatment", "Plate"], as_index=False).agg(
         {"Speed": "mean"}
     )
-    ReplicateAvePivot = ReplicateAverages.pivot_table(
-        columns="Treatment", values="Speed", index="Replicate"
+    PlateAvePivot = PlateAverages.pivot_table(
+        columns="Treatment", values="Speed", index="Plate"
     )
     # Calculate 'appropriate' p-value considering n=3
-    good_pvalue = ttest_rel(
-        ReplicateAvePivot["Control"], ReplicateAvePivot["Drug"]
-    ).pvalue
+    good_pvalue = ttest_rel(PlateAvePivot["Control"], PlateAvePivot["Drug"]).pvalue
 
     # Just to copy the colors in the paper (https://doi.org/10.1083/jcb.202001064) I extract the RGB values from the original figure
     paper_palette = [
@@ -119,11 +117,11 @@ def create_superplot(df, ax):
     # this is the largest difference with the original figure
     alpha_palette = [(r, g, b, 0.5) for (r, g, b) in paper_palette]
 
-    sns.swarmplot(  # plot all data points by replicate as swarmplot
+    sns.swarmplot(  # plot all data points by plate as swarmplot
         data=df,
         x="Treatment",
         y="Speed",
-        hue="Replicate",
+        hue="Plate",
         size=4,
         zorder=0,
         palette=alpha_palette,
@@ -132,11 +130,11 @@ def create_superplot(df, ax):
         ax=ax,
     )
 
-    sns.pointplot(  # one dot representing mean of each replicate separated by color and marker type
+    sns.pointplot(  # one dot representing mean of each plate separated by color and marker type
         data=df,
         x="Treatment",
         y="Speed",
-        hue="Replicate",
+        hue="Plate",
         palette=paper_palette,
         linestyle="none",
         errorbar=None,
@@ -148,8 +146,8 @@ def create_superplot(df, ax):
         ax=ax,
     )
 
-    sns.pointplot(  # standard error bars of mean values of each replicate
-        data=ReplicateAverages,
+    sns.pointplot(  # standard error bars of mean values of each plate
+        data=PlateAverages,
         x="Treatment",
         y="Speed",
         linestyle="none",
@@ -216,26 +214,26 @@ def remove_outliers_iqr(df, col=None):
 
 def shapiro_pvalue(
     group_avg_df,
-    replicate,
+    plate,
     feature_meas,
-    replicate_col_name="Replicate_Number",
+    plate_col_name="Plate_Number",
     debug=False,
 ):
-    """Function to apply the shapiro wilk test to a dataframe aggregated by replicate for a single feature
+    """Function to apply the shapiro wilk test to a dataframe aggregated by plate for a single feature
 
     Args:
         group_avg_df (DataFrame): the aggregated dataframe
-        replicate (string, int): string or int representation of replicate number
+        plate (string, int): string or int representation of plate number
         feature_meas (string): _description_
-        replicate_col_name (str, optional): the name of the replicate column. Defaults to "Replicate_Number".
+        plate_col_name (str, optional): the name of the plate column. Defaults to "Plate_Number".
         debug (bool, optional): print out p values. Defaults to False.
 
     Returns:
-        float: p_value from test on that replicate
+        float: p_value from test on that plate
     """
     from scipy.stats import shapiro
 
-    rep_df = group_avg_df[group_avg_df[replicate_col_name] == replicate]
+    rep_df = group_avg_df[group_avg_df[plate_col_name] == plate]
     # Assume 'df' is your DataFrame and 'feature_meas' is the column to test
     stat, p_value = shapiro(rep_df[feature_meas].dropna())
 
@@ -249,14 +247,14 @@ def shapiro_pvalue(
 
 
 def apply_shapiro_wilk_test_to_df(
-    group_avg_df, feature_meas, replicate_col_name="Replicate_Number", alpha=0.05
+    group_avg_df, feature_meas, plate_col_name="Plate_Number", alpha=0.05
 ):
-    """Function to applies the shapiro wilk test row-by-row onto an aggregated dataframe by replicate
+    """Function to applies the shapiro wilk test row-by-row onto an aggregated dataframe by plate
 
     Args:
         group_avg_df (DataFrame): the aggregated dataframe
         feature_meas (string): _description_
-        replicate_col_name (str, optional): the name of the replicate column. Defaults to "Replicate_Number".
+        plate_col_name (str, optional): the name of the plate column. Defaults to "Plate_Number".
         alpha (float): the p value threshold. Defaults to p=0.05
 
     Returns:
@@ -266,7 +264,7 @@ def apply_shapiro_wilk_test_to_df(
     group_avg_df = group_avg_df.dropna()
     group_avg_df["Shapiro_pvalue"] = group_avg_df.apply(
         lambda row: shapiro_pvalue(
-            group_avg_df, replicate=row[replicate_col_name], feature_meas=feature_meas
+            group_avg_df, plate=row[plate_col_name], feature_meas=feature_meas
         ),
         axis=1,
     )
@@ -277,20 +275,20 @@ def apply_shapiro_wilk_test_to_df(
     return group_avg_df
 
 
-def average_groups_pivot(group_avg_df, x_value, y_value, replicate_col_name):
+def average_groups_pivot(group_avg_df, x_value, y_value, plate_col_name):
     """Make a pivot table from the averaged dataframe
 
     Args:
         group_avg_df (DataFrame): your dataframe output from average_groups_by_plate()
         x_value (string): the grouping variable (x value)
         y_value (string): the quantitavie feature to measure (y value)
-        replicate_col_name (string): the variable representing experimental replicates for grouping
+        plate_col_name (string): the variable representing experimental plates for grouping
 
     Returns:
         DataFrame: a pivot table
     """
     group_avg_df_pivot = group_avg_df.pivot_table(
-        columns=x_value, values=y_value, index=replicate_col_name
+        columns=x_value, values=y_value, index=plate_col_name
     )
     return group_avg_df_pivot
 
@@ -300,7 +298,7 @@ def pvalues_anova_and_tukeyhsd_posthoc(
     pivot_df,
     x_value,
     y_value,
-    replicate_number_col="Replicate_Number",
+    plate_number_col="Plate_Number",
     desired_pairs=None,
     order=None,
 ):
@@ -312,7 +310,7 @@ def pvalues_anova_and_tukeyhsd_posthoc(
         pivot_df (pd.DataFrame): DataFrame pivot table containing the means.
         x_value (str): Column name for the independent variable.
         y_value (str): Column name for the dependent variable.
-        grouping_variable (str): Column name for the replicate number.
+        grouping_variable (str): Column name for the plate number.
         order (list, optional): Order of groups for plotting. Defaults to None.
 
     Returns:
@@ -324,7 +322,7 @@ def pvalues_anova_and_tukeyhsd_posthoc(
     groups = []  # Convert pivot table to list of groups
     # display(pivot_df)
     for col in pivot_df:
-        if col == x_value or col == replicate_number_col:
+        if col == x_value or col == plate_number_col:
             # print("Skipping col:" + col)
             continue  # Skip the first column (usually the index or grouping variable)
         else:
@@ -364,7 +362,7 @@ def pvalues_anova_with_games_howell(
     pivot_df,
     x_value,
     y_value,
-    replicate_number_col="Replicate_Number",
+    plate_number_col="Plate_Number",
     desired_pairs=None,
     order=None,
 ):
@@ -374,7 +372,7 @@ def pvalues_anova_with_games_howell(
         pivot_df (pd.DataFrame): DataFrame pivot table containing the means.
         x_value (str): Column name for the independent variable.
         y_value (str): Column name for the dependent variable.
-        grouping_variable (str): Column name for the replicate number.
+        grouping_variable (str): Column name for the plate number.
         order (list, optional): Order of groups for plotting. Defaults to None.
 
     Returns:
@@ -386,7 +384,7 @@ def pvalues_anova_with_games_howell(
     groups = []  # Convert pivot table to list of groups
     # display(pivot_df)
     for col in pivot_df:
-        if col == x_value or col == replicate_number_col:
+        if col == x_value or col == plate_number_col:
             # print("Skipping col:" + col)
             continue  # Skip the first column (usually the index or grouping variable)
         else:
@@ -429,7 +427,7 @@ def pvalues_anova_with_games_howell_pingouin(
     pivot_df,
     x_value,
     y_value,
-    replicate_number_col="Replicate_Number",
+    plate_number_col="Plate_Number",
     desired_pairs=None,
     order=None,
     display=False,
@@ -441,7 +439,7 @@ def pvalues_anova_with_games_howell_pingouin(
         pivot_df (pd.DataFrame): DataFrame pivot table containing the means.
         x_value (str): Column name for the independent variable.
         y_value (str): Column name for the dependent variable.
-        grouping_variable (str): Column name for the replicate number.
+        grouping_variable (str): Column name for the plate number.
         order (list, optional): Order of groups for plotting. Defaults to None.
 
     Returns:
@@ -487,7 +485,7 @@ def pvalues_anova_with_tukey_pingouin(
     pivot_df,
     x_value,
     y_value,
-    replicate_number_col="Replicate_Number",
+    plate_number_col="Plate_Number",
     desired_pairs=None,
     order=None,
     display=False,
@@ -499,7 +497,7 @@ def pvalues_anova_with_tukey_pingouin(
         pivot_df (pd.DataFrame): DataFrame pivot table containing the means.
         x_value (str): Column name for the independent variable.
         y_value (str): Column name for the dependent variable.
-        grouping_variable (str): Column name for the replicate number.
+        grouping_variable (str): Column name for the plate number.
         order (list, optional): Order of groups for plotting. Defaults to None.
 
     Returns:
@@ -536,7 +534,7 @@ def pvalues_anova_with_pairwise_tests_pingouin(
     data_df,
     x_value,
     y_value,
-    replicate_number_col="Replicate_Number",
+    plate_number_col="Plate_Number",
     pval_correction="bonf",
     parametric=True,
     desired_pairs=None,
@@ -549,7 +547,7 @@ def pvalues_anova_with_pairwise_tests_pingouin(
         data_df (pd.DataFrame): DataFrame table containing the data.
         x_value (str): Column name for the independent variable.
         y_value (str): Column name for the dependent variable.
-        grouping_variable (str): Column name for the replicate number.
+        grouping_variable (str): Column name for the plate number.
         pval_correction (str, optional): Method for p-value correction. Defaults to "bonf".
         parametric (bool, optional): Use ttest if True, Mann-Whitney U or Wilcoxon Signed-Rank (paired) for nonparametric. Defaults to True.
         order (list, optional): Order of groups for plotting. Defaults to None.
@@ -604,7 +602,7 @@ def anova_with_tukey_posthoc(
     data_df,
     x_value,
     y_value,
-    replicate_number_col="Replicate_Number",
+    plate_number_col="Plate_Number",
     desired_pairs=None,
     order=None,
     display_results=False,
@@ -615,7 +613,7 @@ def anova_with_tukey_posthoc(
         data_df (_type_): _description_
         x_value (_type_): _description_
         y_value (_type_): _description_
-        replicate_number_col (str, optional): _description_. Defaults to "Replicate_Number".
+        plate_number_col (str, optional): _description_. Defaults to "Plate_Number".
         desired_pairs (_type_, optional): _description_. Defaults to None.
         order (_type_, optional): _description_. Defaults to None.
         display_results (bool, optional): _description_. Defaults to False.
@@ -663,7 +661,7 @@ def anova_with_corr_ttest_posthoc(
     data_df,
     x_value,
     y_value,
-    replicate_number_col="Replicate_Number",
+    plate_number_col="Plate_Number",
     desired_pairs=None,
     order=None,
     display_results=False,
@@ -675,7 +673,7 @@ def anova_with_corr_ttest_posthoc(
         data_df (_type_): _description_
         x_value (_type_): _description_
         y_value (_type_): _description_
-        replicate_number_col (str, optional): _description_. Defaults to "Replicate_Number".
+        plate_number_col (str, optional): _description_. Defaults to "Plate_Number".
         desired_pairs (_type_, optional): _description_. Defaults to None.
         order (_type_, optional): _description_. Defaults to None.
         display_results (bool, optional): _description_. Defaults to False.
@@ -727,7 +725,7 @@ def anova_with_tahmane_posthoc(
     data_df,
     x_value,
     y_value,
-    replicate_number_col="Replicate_Number",
+    plate_number_col="Plate_Number",
     desired_pairs=None,
     order=None,
     display_results=False,
@@ -738,7 +736,7 @@ def anova_with_tahmane_posthoc(
         data_df (pd.DataFrame): DataFrame table containing the data.
         x_value (str): Column name for the independent variable.
         y_value (str): Column name for the dependent variable.
-        replicate_number_col (str): Column name for the replicate number.
+        plate_number_col (str): Column name for the plate number.
         order (list, optional): Order of groups for plotting. Defaults to None.
         display_results (bool, optional): Defaults to false
 
@@ -781,7 +779,7 @@ def kruskal_with_dunn_posthoc(
     data_df,
     x_value,
     y_value,
-    replicate_number_col="Replicate_Number",
+    plate_number_col="Plate_Number",
     desired_pairs=None,
     order=None,
     p_correction="fdr_by",
@@ -827,7 +825,7 @@ def kruskal_with_drubin_posthoc(
     data_df,
     x_value,
     y_value,
-    replicate_number_col="Replicate_Number",
+    plate_number_col="Plate_Number",
     desired_pairs=None,
     order=None,
     display_results=False,
@@ -839,7 +837,7 @@ def kruskal_with_drubin_posthoc(
         data_df (_type_): _description_
         x_value (_type_): _description_
         y_value (_type_): _description_
-        replicate_number_col (str, optional): _description_. Defaults to "Replicate_Number".
+        plate_number_col (str, optional): _description_. Defaults to "Plate_Number".
         desired_pairs (_type_, optional): _description_. Defaults to None.
         order (_type_, optional): _description_. Defaults to None.
         display_results (bool, optional): _description_. Defaults to False.
@@ -866,8 +864,8 @@ def kruskal_with_drubin_posthoc(
             data_df,
             y_col=y_value,
             group_col=x_value,
-            block_col=replicate_number_col,
-            block_id_col=replicate_number_col,
+            block_col=plate_number_col,
+            block_id_col=plate_number_col,
             melted=True,
         )
         # melt the dunn_df to long format
@@ -896,7 +894,7 @@ def kruskal_with_conover_posthoc(
     data_df,
     x_value,
     y_value,
-    replicate_number_col="Replicate_Number",
+    plate_number_col="Plate_Number",
     desired_pairs=None,
     order=None,
     display_results=False,
@@ -908,7 +906,7 @@ def kruskal_with_conover_posthoc(
         data_df (_type_): _description_
         x_value (_type_): _description_
         y_value (_type_): _description_
-        replicate_number_col (str, optional): _description_. Defaults to "Replicate_Number".
+        plate_number_col (str, optional): _description_. Defaults to "Plate_Number".
         desired_pairs (_type_, optional): _description_. Defaults to None.
         order (_type_, optional): _description_. Defaults to None.
         display_results (bool, optional): _description_. Defaults to False.
@@ -962,7 +960,7 @@ def kruskal_with_nemenyi_posthoc(
     data_df,
     x_value,
     y_value,
-    replicate_number_col="Replicate_Number",
+    plate_number_col="Plate_Number",
     desired_pairs=None,
     order=None,
     display_results=False,
@@ -974,7 +972,7 @@ def kruskal_with_nemenyi_posthoc(
         data_df (_type_): _description_
         x_value (_type_): _description_
         y_value (_type_): _description_
-        replicate_number_col (str, optional): _description_. Defaults to "Replicate_Number".
+        plate_number_col (str, optional): _description_. Defaults to "Plate_Number".
         desired_pairs (_type_, optional): _description_. Defaults to None.
         order (_type_, optional): _description_. Defaults to None.
         display_results (bool, optional): _description_. Defaults to False.
@@ -1024,7 +1022,7 @@ def annotate_with_anova_tukey(
     data,
     x_value,
     y_value,
-    replicate_col_name="Replicate_Name",
+    plate_col_name="Plate_Name",
     order=None,
     plot="violinplot",
 ):
@@ -1055,7 +1053,7 @@ def annotate_with_anova_tukey(
     # load the custom test
     annotator = Annotator(
         ax, pairs, data=data, order=order, plot=plot
-    )  # x=x_value, y=y_value, hue=replicate_col_name,
+    )  # x=x_value, y=y_value, hue=plate_col_name,
     annotator.reset_configuration()
     annotator.configure(
         test=tukey,
@@ -1089,7 +1087,7 @@ def annotate_pairs_with_calculated_pvalues(
     pivot_data,
     x_value,
     y_value,
-    replicate_col_name="Replicate_Name",
+    plate_col_name="Plate_Name",
     test_name="tukey",
     pairs=None,
     order=None,
@@ -1103,11 +1101,11 @@ def annotate_pairs_with_calculated_pvalues(
 
     Args:
         ax (Matplotlib Axes Object): the axis of the graph to annoate
-        data (DataFrame): dataframe from a grouped feature df containing the groups aggregated by replicate to analyze in "tidy" format
+        data (DataFrame): dataframe from a grouped feature df containing the groups aggregated by plate to analyze in "tidy" format
         pivot_data (DataFrame): the grouped feature df in matrix format
         x_value (str): independent variable on x axis
         y_value (str): dependent variable on y axis
-        replicate_col_name (str, optional): the col containing the experimental replicate. Defaults to "Replicate_Name".
+        plate_col_name (str, optional): the col containing the experimental plate. Defaults to "Plate_Name".
         test_name (str, optional): the statistical test to perform. Accepts values of "tukey", "anova", or "tukey_v2", for ANOVA with Tukey's HSD, "tukey_v3" for ANOVA with Tukey HSD with Tukey-Kramer correction, "games-howell" or "games" for ANOVA with Games-Howell posthoc, "rmanova" for repeated-measures ANOVA using Welch's ttest with the specified p-value correction, "kruskal" or "dunn" for classic nonparametric multiple comparisons with Dunn's postc, "conover" for kruskal with Conover's posthoc, "nemenyi" for kruskal (or friedman) with Nemenyi's posthoc for repeated measures, "pairwise_ttest" for corrected ttests, "pairwise_mwu" for nonparametic multiple comparisons. Defaults to "tukey".
         pairs (list of str, optional): The pairs of x_value for the comparisons. Defaults to None, is automatically calculated otherwise based on the getpairs() function.
         order (listlike, optional): _description_. Defaults to None.
@@ -1193,7 +1191,7 @@ def annotate_pairs_with_calculated_pvalues(
             data,
             x_value=x_value,
             y_value=y_value,
-            replicate_number_col=replicate_col_name,
+            plate_number_col=plate_col_name,
             order=order,
             desired_pairs=pairs,
             display_results=True,
@@ -1204,7 +1202,7 @@ def annotate_pairs_with_calculated_pvalues(
             pivot_data,
             x_value=x_value,
             y_value=y_value,
-            replicate_number_col=replicate_col_name,
+            plate_number_col=plate_col_name,
             order=order,
             desired_pairs=pairs,
             display=True,
@@ -1288,7 +1286,7 @@ def annotate_with_kruskal(
     data,
     x_value,
     y_value,
-    replicate_col_name="Replicate_Name",
+    plate_col_name="Plate_Name",
     order=None,
     plot="violinplot",
 ):
@@ -1330,12 +1328,12 @@ def annotate_with_kruskal(
     return ax
 
 
-def get_hard_code_replicate_colours(
-    df, replicates=[1, 2, 3, 4, 5, 6, 7], replicate_col_name="Replicate_Number"
+def get_hard_code_plate_colours(
+    df, plates=[1, 2, 3, 4, 5, 6, 7], plate_col_name="Plate_Number"
 ):
     """
-    Returns a dictionary mapping each unique replicate number to a hard-coded color.
-    This ensures color consistency for each replicate in seaborn/matplotlib plots.
+    Returns a dictionary mapping each unique plate number to a hard-coded color.
+    This ensures color consistency for each plate in seaborn/matplotlib plots.
     """
     import matplotlib
     import seaborn as sns
@@ -1350,12 +1348,12 @@ def get_hard_code_replicate_colours(
         "#debb9b",
         "#fab0e4",
     ]
-    unique_reps = sorted(df[replicate_col_name].dropna().unique())
-    # If more replicates than colors, repeat palette or use seaborn color_palette
+    unique_reps = sorted(df[plate_col_name].dropna().unique())
+    # If more plates than colors, repeat palette or use seaborn color_palette
     if len(unique_reps) > len(hard_palette_pastel):
         hard_palette_pastel = sns.color_palette("tab20", len(unique_reps)).as_hex()
-        replicates = unique_reps
-    colour_dict = {rep: hard_palette_pastel[i] for i, rep in enumerate(replicates)}
+        plates = unique_reps
+    colour_dict = {rep: hard_palette_pastel[i] for i, rep in enumerate(plates)}
     return colour_dict
 
 
@@ -1365,22 +1363,22 @@ def annotate_legend_with_shapiro(
     group_col_name,
     shapiro_col_name="Shapiro_normality",
     palette="pastel",
-    title="Replicate",
+    title="Plate",
 ):
     """add an annotation to the legend of an axis if there is normality via shapiro test
 
     Args:
         ax (_type_): _description_
         group_avg_df (_type_): _description_
-        replicate_col_name (_type_): _description_
+        plate_col_name (_type_): _description_
     """
     import matplotlib.lines as mlines
 
-    unique_replicates = group_avg_df[group_col_name].unique()
-    unique_replicates = sorted(unique_replicates)
+    unique_plates = group_avg_df[group_col_name].unique()
+    unique_plates = sorted(unique_plates)
     L = plt.legend()
     custom_labels = []
-    for rep in unique_replicates:
+    for rep in unique_plates:
         label = str(rep)
         shapiro_val = group_avg_df[group_avg_df[group_col_name] == rep][
             shapiro_col_name
@@ -1390,11 +1388,11 @@ def annotate_legend_with_shapiro(
         custom_labels.append(label)
 
     # Create custom legend handles (using the same colors as swarmplot)
-    palette = get_hard_code_replicate_colours(
+    palette = get_hard_code_plate_colours(
         group_avg_df
-    )  # sns.color_palette(palette, n_colors=len(unique_replicates))
-    group_avg_df["Replicate_Number"] = pd.Categorical(
-        group_avg_df["Replicate_Number"], categories=unique_replicates
+    )  # sns.color_palette(palette, n_colors=len(unique_plates))
+    group_avg_df["Plate_Number"] = pd.Categorical(
+        group_avg_df["Plate_Number"], categories=unique_plates
     )
     print(palette[1])
     handles = [
@@ -1408,39 +1406,39 @@ def annotate_legend_with_shapiro(
             markeredgecolor="black",
             label=custom_labels[i],
         )
-        for i, rep in enumerate(unique_replicates)
+        for i, rep in enumerate(unique_plates)
     ]
     ax.legend_.set_title(title)
     ax.legend(handles=handles, title=title, loc="best")
     return ax
 
 
-def annotate_legend_replicatesonly(
+def annotate_legend_platesonly(
     ax,
     group_avg_df,
     group_col_name,
     palette="pastel",
-    title="Replicate",
+    title="Plate",
 ):
-    """add an annotation to the legend of an axis to show color coded replicates
+    """add an annotation to the legend of an axis to show color coded plates
 
     Args:
         ax (_type_): _description_
         group_avg_df (_type_): _description_
-        replicate_col_name (_type_): _description_
+        plate_col_name (_type_): _description_
     """
     import matplotlib.lines as mlines
 
-    unique_replicates = group_avg_df[group_col_name].unique()
-    unique_replicates = sorted(unique_replicates)
+    unique_plates = group_avg_df[group_col_name].unique()
+    unique_plates = sorted(unique_plates)
     L = plt.legend()
     custom_labels = []
-    for rep in unique_replicates:
+    for rep in unique_plates:
         label = str(rep)
         custom_labels.append(label)
 
     # Create custom legend handles (using the same colors as swarmplot)
-    palette = sns.color_palette(palette, n_colors=len(unique_replicates))
+    palette = sns.color_palette(palette, n_colors=len(unique_plates))
     handles = [
         mlines.Line2D(
             [],
@@ -1452,7 +1450,7 @@ def annotate_legend_replicatesonly(
             markeredgecolor="black",
             label=custom_labels[i],
         )
-        for i in range(len(unique_replicates))
+        for i in range(len(unique_plates))
     ]
     ax.legend_.set_title(title)
     ax.legend(handles=handles, title=title, loc="best")
@@ -1466,7 +1464,7 @@ def super_splitviolinplot_helper(
     x_value,
     y_value,
     title,
-    replicate_col_name,
+    plate_col_name,
     pairs=None,
     order=None,
     annotate=False,
@@ -1494,7 +1492,7 @@ def super_splitviolinplot_helper(
         data=group_avg_df,
         x=x_value,
         y=y_value,
-        hue=replicate_col_name,
+        hue=plate_col_name,
         order=order,
         palette="pastel",
         size=12,
@@ -1532,7 +1530,7 @@ def super_splitviolinplot_helper(
     # use pivot table to get the average values for each group
     if annotate and test is not None:
         group_avg_pivot_table = average_groups_pivot(
-            group_avg_df, x_value, y_value, replicate_col_name
+            group_avg_df, x_value, y_value, plate_col_name
         )
         try:
             ax = annotate_pairs_with_calculated_pvalues(
@@ -1541,7 +1539,7 @@ def super_splitviolinplot_helper(
                 group_avg_pivot_table,
                 x_value,
                 y_value,
-                replicate_col_name=replicate_col_name,
+                plate_col_name=plate_col_name,
                 test_name=test,
                 order=order,
                 plot="violinplot",
@@ -1549,7 +1547,7 @@ def super_splitviolinplot_helper(
             )
         except Exception as e:
             print(f"Error annotating with statistical test: {e}")
-            # ax = annotate_with_anova_tukey(ax, pairs, group_avg_df_pivot, x_value, y_value, replicate_col_name=replicate_col_name, order=order, plot="violinplot")
+            # ax = annotate_with_anova_tukey(ax, pairs, group_avg_df_pivot, x_value, y_value, plate_col_name=plate_col_name, order=order, plot="violinplot")
         # elif test == "kruskal":
         #     ax = annotate_with_kruskal(
         #         ax,
@@ -1558,11 +1556,11 @@ def super_splitviolinplot_helper(
         #         x_value,
         #         y_value,
         #         order=order,
-        #         replicate_col_name=replicate_col_name,
+        #         plate_col_name=plate_col_name,
         #         plot="violinplot",
         #     )
         if shapiro:
-            ax = annotate_legend_with_shapiro(ax, group_avg_df, replicate_col_name)
+            ax = annotate_legend_with_shapiro(ax, group_avg_df, plate_col_name)
 
     return ax
 
@@ -1574,7 +1572,7 @@ def superplot_for_area_threshold_comparisons(
     group_avg_df_2,
     x_value="AllGroups",
     y_value="Cell_AreaShape_Area",
-    replicate_col_name="Replicate_Number",
+    plate_col_name="Plate_Number",
     out_dir="",
     xtitle=None,
     ytitle=None,
@@ -1595,7 +1593,7 @@ def superplot_for_area_threshold_comparisons(
         group_avg_df_2 (_type_): _description_
         x_value (str, optional): _description_. Defaults to "AllGroups".
         y_value (str, optional): _description_. Defaults to "Cell_AreaShape_Area".
-        replicate_col_name (str, optional): _description_. Defaults to "Replicate_Number".
+        plate_col_name (str, optional): _description_. Defaults to "Plate_Number".
         csv_dir (str, optional): _description_. Defaults to "".
         xtitle (_type_, optional): _description_. Defaults to None.
         ytitle (_type_, optional): _description_. Defaults to None.
@@ -1611,9 +1609,7 @@ def superplot_for_area_threshold_comparisons(
     print(pairs)
 
     if show_hist:
-        hist = sns.kdeplot(
-            data_df_1, x=y_value, hue=replicate_col_name, palette="pastel"
-        )
+        hist = sns.kdeplot(data_df_1, x=y_value, hue=plate_col_name, palette="pastel")
         plt.show()
         plt.close(hist.figure)
 
@@ -1640,7 +1636,7 @@ def superplot_for_area_threshold_comparisons(
         x_value,
         y_value,
         title1,
-        replicate_col_name,
+        plate_col_name,
         order=order,
         annotate=annotate,
         test=test,
@@ -1652,7 +1648,7 @@ def superplot_for_area_threshold_comparisons(
         x_value,
         y_value,
         title2,
-        replicate_col_name,
+        plate_col_name,
         order=order,
         annotate=annotate,
         test=test,
@@ -1662,12 +1658,8 @@ def superplot_for_area_threshold_comparisons(
     axes[1].set_title(title2)
 
     if legend:
-        axes[0] = annotate_legend_with_shapiro(
-            axes[0], group_avg_df_1, replicate_col_name
-        )
-        axes[1] = annotate_legend_with_shapiro(
-            axes[1], group_avg_df_2, replicate_col_name
-        )
+        axes[0] = annotate_legend_with_shapiro(axes[0], group_avg_df_1, plate_col_name)
+        axes[1] = annotate_legend_with_shapiro(axes[1], group_avg_df_2, plate_col_name)
     else:
         axes[0].legend_.remove()
     if ytitle is not None:
@@ -1686,10 +1678,10 @@ def superplot_for_area_threshold_comparisons(
         pivot_dir = Path(pivot_dir)
         Path.mkdir(pivot_dir, exist_ok=True)
         group_avg_df_1_pivot = average_groups_pivot(
-            group_avg_df_1, x_value, y_value, replicate_col_name
+            group_avg_df_1, x_value, y_value, plate_col_name
         )
         group_avg_df_2_pivot = average_groups_pivot(
-            group_avg_df_2, x_value, y_value, replicate_col_name
+            group_avg_df_2, x_value, y_value, plate_col_name
         )
         group_avg_df_1_pivot.to_csv(
             os.path.join(pivot_dir, f"area_pivot_{title1}.csv")
@@ -1704,7 +1696,7 @@ def super_splitviolinplot_helper_singleplot(
     x_value,
     y_value,
     title,
-    replicate_col_name,
+    plate_col_name,
     pairs=None,
     order=None,
     annotate=False,
@@ -1717,7 +1709,7 @@ def super_splitviolinplot_helper_singleplot(
         pairs = getpairs(data_df, x_value, order=order)
 
     if pallete is None:
-        pallete = get_hard_code_replicate_colours(group_avg_df)
+        pallete = get_hard_code_plate_colours(group_avg_df)
     print(pairs)
     sns.violinplot(
         data=data_df,
@@ -1737,15 +1729,15 @@ def super_splitviolinplot_helper_singleplot(
         common_norm=True,
     )
     # add in the colour scheme
-    unique_replicates = group_avg_df[replicate_col_name].unique()
-    group_avg_df[replicate_col_name] = pd.Categorical(
-        group_avg_df[replicate_col_name], categories=unique_replicates
+    unique_plates = group_avg_df[plate_col_name].unique()
+    group_avg_df[plate_col_name] = pd.Categorical(
+        group_avg_df[plate_col_name], categories=unique_plates
     )
     sns.swarmplot(
         data=group_avg_df,
         x=x_value,
         y=y_value,
-        hue=replicate_col_name,
+        hue=plate_col_name,
         order=order,
         palette=pallete,
         size=10,
@@ -1783,7 +1775,7 @@ def super_splitviolinplot_helper_singleplot(
     # use pivot table to get the average values for each group
     if annotate and test is not None:
         group_avg_pivot_table = average_groups_pivot(
-            group_avg_df, x_value, y_value, replicate_col_name
+            group_avg_df, x_value, y_value, plate_col_name
         )
         try:
             ax = annotate_pairs_with_calculated_pvalues(
@@ -1792,7 +1784,7 @@ def super_splitviolinplot_helper_singleplot(
                 group_avg_pivot_table,
                 x_value,
                 y_value,
-                replicate_col_name=replicate_col_name,
+                plate_col_name=plate_col_name,
                 test_name=test,
                 order=order,
                 plot="violinplot",
@@ -1800,7 +1792,7 @@ def super_splitviolinplot_helper_singleplot(
             )
         except Exception as e:
             print(f"Error annotating with statistical test: {e}")
-            # ax = annotate_with_anova_tukey(ax, pairs, group_avg_df_pivot, x_value, y_value, replicate_col_name=replicate_col_name, order=order, plot="violinplot")
+            # ax = annotate_with_anova_tukey(ax, pairs, group_avg_df_pivot, x_value, y_value, plate_col_name=plate_col_name, order=order, plot="violinplot")
         # elif test == "kruskal":
         #     ax = annotate_with_kruskal(
         #         ax,
@@ -1809,11 +1801,11 @@ def super_splitviolinplot_helper_singleplot(
         #         x_value,
         #         y_value,
         #         order=order,
-        #         replicate_col_name=replicate_col_name,
+        #         plate_col_name=plate_col_name,
         #         plot="violinplot",
         #     )
         if shapiro:
-            ax = annotate_legend_with_shapiro(ax, group_avg_df, replicate_col_name)
+            ax = annotate_legend_with_shapiro(ax, group_avg_df, plate_col_name)
 
     return ax
 
@@ -1822,7 +1814,7 @@ def make_superswarmplot_with_annotation(
     data_df,
     x_value,
     y_value,
-    replicate_col_name="Replicate_Number",
+    plate_col_name="Plate_Number",
     pairs=None,
     order=None,
     annotate=False,
@@ -1846,18 +1838,18 @@ def make_superswarmplot_with_annotation(
         xtitle = x_value
 
     # feature_df = make_single_feature_df(
-    #     data_df, group=x_value, feature=y_value, replicates=replicate_col_name
+    #     data_df, group=x_value, feature=y_value, plates=plate_col_name
     # )
     pairs = getpairs(data_df, x_value, order)
     print(pairs)
 
-    # Remove the n=1 replicate in the passage group code
+    # Remove the n=1 plate in the passage group code
     if x_value == "AllGroups":
         order = get_all_group_order()
         # feature_df = feature_df[feature_df[group] != "P22-24"]
 
     group_avg_df = average_groups_by_plate(
-        data_df, x_value=x_value, y_value=y_value, replicates=replicate_col_name
+        data_df, x_value=x_value, y_value=y_value, plates=plate_col_name
     )
 
     group_avg_df_shapiro = apply_shapiro_wilk_test_to_df(
@@ -1868,30 +1860,30 @@ def make_superswarmplot_with_annotation(
         group_avg_df=group_avg_df_shapiro,
         x_value=x_value,
         y_value=y_value,
-        replicate_col_name=replicate_col_name,
+        plate_col_name=plate_col_name,
     )
 
     sns.set_theme(style="ticks")
     plt.figure(figsize=figsize)  # , dpi=dpi)
     sns.set_context(context, font_scale=0.8)
     if pallete is None:
-        pallete = get_hard_code_replicate_colours(data_df)
+        pallete = get_hard_code_plate_colours(data_df)
 
     sns.swarmplot(
         data=data_df,
         x=x_value,
         y=y_value,
-        hue=replicate_col_name,
+        hue=plate_col_name,
         order=order,
         palette=pallete,
         dodge=False,
     )
-    group_avg_df[replicate_col_name]
+    group_avg_df[plate_col_name]
     ax = sns.swarmplot(
         data=group_avg_df,
         x=x_value,
         y=y_value,
-        hue=replicate_col_name,
+        hue=plate_col_name,
         order=order,
         palette=pallete,
         size=10,
@@ -1918,7 +1910,7 @@ def make_superswarmplot_with_annotation(
     )
 
     if ax.legend_ is not None:
-        ax = annotate_legend_with_shapiro(ax, group_avg_df_shapiro, replicate_col_name)
+        ax = annotate_legend_with_shapiro(ax, group_avg_df_shapiro, plate_col_name)
         # ax.legend_.remove()
 
     sns.despine()
@@ -1935,7 +1927,7 @@ def make_superswarmplot_with_annotation(
                 group_avg_df_pivot,
                 x_value,
                 y_value,
-                replicate_col_name=replicate_col_name,
+                plate_col_name=plate_col_name,
                 test_name=test,
                 order=order,
                 plot="swarmplot",
@@ -2064,7 +2056,7 @@ def single_feature_super_splitviolinplot(
     data_df,
     x_value="AllGroups",
     y_value="Cell_AreaShape_Area",
-    replicate_col_name="Replicate_Number",
+    plate_col_name="Plate_Number",
     out_dir=Path(""),
     xtitle=None,
     ytitle=None,
@@ -2093,7 +2085,7 @@ def single_feature_super_splitviolinplot(
         group_avg_df_2 (_type_): _description_
         x_value (str, optional): _description_. Defaults to "AllGroups".
         y_value (str, optional): _description_. Defaults to "Cell_AreaShape_Area".
-        replicate_col_name (str, optional): _description_. Defaults to "Replicate_Number".
+        plate_col_name (str, optional): _description_. Defaults to "Plate_Number".
         csv_dir (str, optional): _description_. Defaults to "".
         xtitle (_type_, optional): _description_. Defaults to None.
         ytitle (_type_, optional): _description_. Defaults to None.
@@ -2124,12 +2116,12 @@ def single_feature_super_splitviolinplot(
         hist = sns.kdeplot(
             data_df,
             x=y_value,
-            hue=replicate_col_name,
+            hue=plate_col_name,
             palette=pallete,
             multiple="layer",
         )
         plt.xlim(axlim)
-        plt.savefig(f"{Path(out_dir, f'{y_value}_{replicate_col_name}_histogram')}.png")
+        plt.savefig(f"{Path(out_dir, f'{y_value}_{plate_col_name}_histogram')}.png")
         plt.show()
         plt.close()
 
@@ -2151,11 +2143,11 @@ def single_feature_super_splitviolinplot(
     sns.set_theme(style="ticks")
 
     feature_df = make_single_feature_df(
-        data_df, group=x_value, feature=y_value, replicates=replicate_col_name
+        data_df, group=x_value, feature=y_value, plates=plate_col_name
     )
     if reps_to_exclude:
-        feature_df = feature_df[~feature_df[replicate_col_name].isin(reps_to_exclude)]
-        print(f"removing replicates: {reps_to_exclude}")
+        feature_df = feature_df[~feature_df[plate_col_name].isin(reps_to_exclude)]
+        print(f"removing plates: {reps_to_exclude}")
 
     # remove outluers
     if remove_outliers is True:
@@ -2183,7 +2175,7 @@ def single_feature_super_splitviolinplot(
             ValueError(f"{rm_outliers_method} is not a valid outlier removal method")
         # display(feature_df)
     group_avg_df = average_groups_by_plate(
-        feature_df, x_value=x_value, y_value=y_value, replicates=replicate_col_name
+        feature_df, x_value=x_value, y_value=y_value, plates=plate_col_name
     )
 
     # display(group_avg_df)
@@ -2195,7 +2187,7 @@ def single_feature_super_splitviolinplot(
         x_value,
         y_value,
         title=" ",
-        replicate_col_name=replicate_col_name,
+        plate_col_name=plate_col_name,
         pairs=pairs,
         order=order,
         annotate=annotate,
@@ -2209,13 +2201,11 @@ def single_feature_super_splitviolinplot(
             group_avg_df_shapiro = apply_shapiro_wilk_test_to_df(
                 group_avg_df,
                 feature_meas=y_value,
-                replicate_col_name="Replicate_Number",
+                plate_col_name="Plate_Number",
                 alpha=0.05,
             )
             # display(group_avg_df_shapiro)
-            ax = annotate_legend_with_shapiro(
-                ax, group_avg_df_shapiro, replicate_col_name
-            )
+            ax = annotate_legend_with_shapiro(ax, group_avg_df_shapiro, plate_col_name)
     else:
         ax.legend_.remove()
     if ytitle is not None:

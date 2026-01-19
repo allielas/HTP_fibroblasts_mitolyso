@@ -13,34 +13,7 @@ from scipy import stats
 import operator
 
 
-def passage_group(passage_num):
-    """
-    Group passages into bins for plotting
-    returns string of the group that the passage number belongs to
-    """
-    # use this function to group passages into groups for plotting
-    passage = int(passage_num)
-    if 6 <= passage <= 10:
-        return "P6-10"
-    elif 11 <= passage <= 13:
-        return "P11-13"
-    elif 14 <= passage <= 16:
-        return "P14-16"
-    elif 17 <= passage <= 19:
-        return "P17-19"
-    elif 20 <= passage <= 22:
-        return "P20-22"
-    elif 23 <= passage <= 25:
-        return "P23-25"
-    elif 26 <= passage <= 28:
-        return "P26-28"
-    elif passage >= 29:
-        return "P29+"
-    else:
-        return "Unknown"
-
-
-def get_all_group_order():
+def old_get_all_group_order():
     """
     Get the order of the passage groups for plotting
     Returns a list of the passage groups in order
@@ -78,16 +51,18 @@ def well_namer(row, col):
     return well_name
 
 
-def find_replicate(path):
+def find_plate(path):
     import re
 
-    replicate_pattern = r"R(\d{1})"  # Matches "RX" where X is the replicate number (placeholder for now)
-    match = re.search(replicate_pattern, path)
+    plate_pattern = (
+        r"R(\d{1})"  # Matches "RX" where X is the plate number (placeholder for now)
+    )
+    match = re.search(plate_pattern, path)
     if match:
-        replicate = int(match.group(1))
+        plate = int(match.group(1))
     else:
-        replicate = None
-    return replicate
+        plate = None
+    return plate
 
 
 def search_column_name(df, query=""):
@@ -109,7 +84,7 @@ def search_column_name(df, query=""):
 def find_row_col(well_code):
     import re
 
-    rowcol_pattern = r"r(\d{1,2})c(\d{1,2})"  # Matches "RX" where X is the replicate number (placeholder for now)
+    rowcol_pattern = r"r(\d{1,2})c(\d{1,2})"  # Matches "RX" where X is the plate number (placeholder for now)
     match = re.search(rowcol_pattern, well_code)
     if match:
         row_metadata = int(match.group(1))
@@ -215,20 +190,20 @@ def group_by_condition(df, feature_list, groupby_column="AgeGroup"):
     return df_groupby
 
 
-def average_groups_pivot(group_avg_df, x_value, y_value, replicate_col_name):
+def average_groups_pivot(group_avg_df, x_value, y_value, plate_col_name):
     """Make a pivot table from the averaged dataframe
 
     Args:
         df (DataFrame): your dataframe output from average_groups_by_plate()
         x_value (string): the grouping variable (x value)
         y_value (string): the quantitavie feature to measure (y value)
-        replicates (string): the variable representing experimental replicates for grouping
+        plates (string): the variable representing experimental plates for grouping
 
     Returns:
         DataFrame: a pivot table
     """
     group_avg_pivot = group_avg_df.pivot_table(
-        columns=x_value, values=y_value, index=replicate_col_name
+        columns=x_value, values=y_value, index=plate_col_name
     )
     return group_avg_pivot
 
@@ -240,7 +215,9 @@ def passage_groups_sort_key(group_name):
     Key function for natural sorting of strings containing numbers.
     Extract numeric parts and convert to int .
     """
-    digit_pattern = r"([0-9]+)"  # Matches "RX" where X is the replicate number (placeholder for now)
+    digit_pattern = (
+        r"([0-9]+)"  # Matches "RX" where X is the plate number (placeholder for now)
+    )
     match = re.search(digit_pattern, group_name)
     if match:
         first_digit = int(match.group(1))
@@ -259,7 +236,7 @@ def make_summary_stats_for_df_and_feature(
     feature,
     summary_outpath,
     df_tag="original",
-    replicate_col_name="Replicate_Number",
+    plate_col_name="Plate_Number",
     feature_name="area",
     group_name="passage_group",
     include_cols=[],
@@ -283,7 +260,7 @@ def make_summary_stats_for_df_and_feature(
             os.path.join(summary_outpath, subfolder_name, table_csvname)
         )
         group_averages = df.groupby(
-            [x_value, replicate_col_name], as_index=False, observed=True
+            [x_value, plate_col_name], as_index=False, observed=True
         )[feature]
         # Reset the index to get a clean DataFrame
         # average_df = group_averages.reset_index()
@@ -326,7 +303,7 @@ def get_mini_filtered_df(
         "Metadata_WellColumn",
         "Metadata_Field",
         "AllGroups",
-        "Replicate_Number",
+        "Plate_Number",
         "SerialPassage_BatchNumber",
         "AgeGroup",
         "PassageNumber",
@@ -348,7 +325,7 @@ def get_mini_filtered_df(
 
     mini_df["Metadata_Rep_RowColField"] = (
         "R"
-        + mini_df["Replicate_Number"].astype(str)
+        + mini_df["Plate_Number"].astype(str)
         + "_r"
         + mini_df["Metadata_WellRow"].astype(str)
         + "c"
@@ -368,7 +345,7 @@ def get_mini_filtered_df(
     filter_mini_df_display = filter_mini_df_sorted[
         [
             "AllGroups",
-            "Replicate_Number",
+            "Plate_Number",
             "Cell_Unique_ID",
             "Image_FileName_MitoTracker_MAX",
             condition_col,
@@ -378,23 +355,23 @@ def get_mini_filtered_df(
     return filter_mini_df_sorted
 
 
-def find_replicate_cp_output_folder(path):
+def find_plate_cp_output_folder(path):
     import re
 
-    replicate_pattern = r"_rep0(\d{1})_"  # Matches "RX" where X is the replicate number (placeholder for now)
-    match = re.search(replicate_pattern, path)
+    plate_pattern = r"_rep0(\d{1})_"  # Matches "RX" where X is the plate number (placeholder for now)
+    match = re.search(plate_pattern, path)
     if match:
-        replicate = int(match.group(1))
+        plate = int(match.group(1))
     else:
-        replicate = None
-    return replicate
+        plate = None
+    return plate
 
 
 def pull_up_cp_segmentation_image_fromID(
     df,
     object_key,
     parent_dir="",
-    replicate_col_name="Replicate_Number",
+    plate_col_name="Plate_Number",
     feature="",
     image_channel="LAMP1",
     save=False,
@@ -407,19 +384,19 @@ def pull_up_cp_segmentation_image_fromID(
         object_key (int): the uniqueobject key in the dataframe
         parent_dir (str, optional): _description_. Defaults to "~/".
         img_filename (str): _description_.
-        replicate (int, optional): _description_. Defaults to 0.
+        plate (int, optional): _description_. Defaults to 0.
         group (str, optional): _description_. Defaults to "".
     """
     from matplotlib import image as mpimg
     from PIL import Image
 
-    # get the filename, replicate and coords from the unique ID if the ID exists
+    # get the filename, plate and coords from the unique ID if the ID exists
     if object_key is not None and df is not None:
         rect = get_object_bbox_coordinates_as_rectangle(df, object_key)
 
         unique_row = df[df["Cell_Unique_ID"] == object_key]
         img_filename = unique_row[f"Image_FileName_{image_channel}_MAX"].values[0]
-        replicate = unique_row[replicate_col_name].values[0]
+        plate = unique_row[plate_col_name].values[0]
         passage = unique_row["PassageNumber"].values[0]
         group = unique_row["AllGroups"].values[0]
     else:
@@ -433,7 +410,7 @@ def pull_up_cp_segmentation_image_fromID(
                 img_filename_noext.split("_")[1] in filename
                 and filename.endswith(".png")
                 and "active" in root  # active cp output folder
-                and replicate == find_replicate_cp_output_folder(root)
+                and plate == find_plate_cp_output_folder(root)
             ):
                 print(filename)
                 img_path = os.path.join(
@@ -447,7 +424,7 @@ def pull_up_cp_segmentation_image_fromID(
                     plt.imshow(img)
                     plt.axis("off")  # Turn off axis labels for a cleaner image display
                     plt.title(
-                        f"ID:{object_key}, R{replicate} P{passage}, {filename}, {group}"
+                        f"ID:{object_key}, R{plate} P{passage}, {filename}, {group}"
                     )
                     # Lets add a rectangle if the oject key is in the dataframe
                     ax.add_patch(rect)
@@ -465,7 +442,7 @@ def pull_up_cp_segmentation_image_fromID(
                         )
                     if save:
                         plt.savefig(
-                            f"{savepath}/R{replicate}_P{passage}_{filename}_{object_key}.png",
+                            f"{savepath}/R{plate}_P{passage}_{filename}_{object_key}.png",
                             bbox_inches="tight",
                         )
                     plt.show()
@@ -510,16 +487,16 @@ def get_object_bbox_coordinates_as_rectangle(
     return rect
 
 
-def query_group_replicate_condition(
-    df, group, replicate_number=0, condition_col="", op=operator.eq, value=None
+def query_group_plate_condition(
+    df, group, plate_number=0, condition_col="", op=operator.eq, value=None
 ):
     """
-    Filter df by group, replicate_number, and a condition using a passed operator.
+    Filter df by group, plate_number, and a condition using a passed operator.
     Example: op=operator.lt for '<', op=operator.gt for '>', op=operator.eq for '=='
     """
     mask = (
         (df["AllGroups"] == group)
-        & (df["Replicate_Number"] == replicate_number)
+        & (df["Plate_Number"] == plate_number)
         & (op(df[condition_col], value))
     )
     return df[mask]

@@ -38,15 +38,27 @@ def old_passage_group(passage_num):
         # print(f"value is not a number, caught {e}; returning NaN")
         return None
 
-def get_all_group_order_placeholder():
-    '''
+
+def get_all_group_order():
+    """
     Get the order of the passage groups for plotting
     Returns a list of the passage groups in order
     Returns:
-        list: A list of strings representing the group order    
-    '''
-    order = ['P6-12', 'P13-15', 'P16-18', 'P19-21', 'P22-24', 'P25-27', 'P28-31', 'P32-35','Doxo']
+        list: A list of strings representing the group order
+    """
+    order = [
+        "P6-12",
+        "P13-15",
+        "P16-18",
+        "P19-21",
+        "P22-24",
+        "P25-27",
+        "P28-31",
+        "P32-35",
+        "Doxo",
+    ]
     return order
+
 
 def passage_group(passage_num):
     """
@@ -73,6 +85,7 @@ def passage_group(passage_num):
         return "P32-35"
     else:
         return "Unknown"
+
 
 def add_drug_to_group(init_df, group, drug):
     """
@@ -121,7 +134,9 @@ def passage_groups_sort_key(group_name):
     Key function for natural sorting of strings containing numbers.
     Extract numeric parts and convert to int .
     """
-    digit_pattern = r"([0-9]+)"  # Matches "RX" where X is the replicate number (placeholder for now)
+    digit_pattern = (
+        r"([0-9]+)"  # Matches "RX" where X is the plate number (placeholder for now)
+    )
     match = re.search(digit_pattern, group_name)
     if match:
         first_digit = int(match.group(1))
@@ -134,15 +149,15 @@ def passage_groups_sort_key(group_name):
             return ValueError
 
 
-def sort_df_by_replicate_number(df, x_value):
-    """Sort a pandas dataframe of experimental data that has been grouped by an x_value by the integer representation of the replicate number using a sort key
+def sort_df_by_plate_number(df, x_value):
+    """Sort a pandas dataframe of experimental data that has been grouped by an x_value by the integer representation of the plate number using a sort key
     Ideally used before plotting so that your plots have the same pallete and are easily comparable
     Args:
         df (DataFrame): your df to be sorted
-        x_value (str): the column containing your grouping variable to be sorted by replicate number
+        x_value (str): the column containing your grouping variable to be sorted by plate number
 
     Returns:
-        DataFrame: The dataframe sorted by replicate number
+        DataFrame: The dataframe sorted by plate number
     """
     df_sorted = df.sort_values(
         by=[x_value], key=lambda x: x.map(passage_groups_sort_key)
@@ -595,21 +610,21 @@ def plate_df_setup_fromcsv(
                 how="left",
             )
 
-            # Add a column to the cell_df to group passages and identify the plate replicate
+            # Add a column to the cell_df to group passages and identify the plate plate
             cell_df["Passage Group"] = cell_df["PassageNumber"].apply(passage_group)
             cell_df["Metadata_Plate"] = plate
-            cell_df["Replicate_Number"] = i + 1
+            cell_df["Plate_Number"] = i + 1
             # Append the merged DataFrame to the list
             plate_dfs[plate] = cell_df
 
-    # Combine all the different replicate DataFrames into a single DataFrame
-    combined_replicates_df = pd.concat(plate_dfs.values(), ignore_index=True)
+    # Combine all the different plate DataFrames into a single DataFrame
+    combined_plates_df = pd.concat(plate_dfs.values(), ignore_index=True)
 
     # Filter DataFrames to only include cells that were stained with LAMP1-488 and MitoRed
-    combined_replicates_df_mitolyso = combined_replicates_df[
-        combined_replicates_df["Staining"].str.startswith("LAMP1-488 + MitoRed")
+    combined_plates_df_mitolyso = combined_plates_df[
+        combined_plates_df["Staining"].str.startswith("LAMP1-488 + MitoRed")
     ]
-    return combined_replicates_df_mitolyso
+    return combined_plates_df_mitolyso
 
 
 def calculate_aggregated_object_features(
@@ -923,7 +938,7 @@ def group_by_condition(df, feature_list, groupby_column="AgeGroup"):
     return df_groupby
 
 
-def average_groups_by_plate(df, x_value, y_value, replicates):
+def average_groups_by_plate(df, x_value, y_value, plates):
     """
     Group the DataFrame by the specified columns and calculate the mean of the y_value column.
     Returns the averaged dataframe for plotting
@@ -932,19 +947,19 @@ def average_groups_by_plate(df, x_value, y_value, replicates):
         df (DataFrame): your dataframe
         x_value (string): the grouping variable (x value)
         y_value (string): the quantitavie feature to measure (y value)
-        replicates (string): the variable representing experimental replicates for grouping
+        plates (string): the variable representing experimental plates for grouping
 
     Returns:
-        DataFrame: your data grouped by replicate
+        DataFrame: your data grouped by plate
     """
-    df = df.dropna(subset=[x_value, y_value, replicates])
+    df = df.dropna(subset=[x_value, y_value, plates])
     df = df[df[y_value] != 0]
 
     df.reset_index(drop=True, inplace=True)
 
-    group_averages = df.groupby(
-        [x_value, replicates], as_index=False, observed=True
-    ).agg({y_value: "mean"})
+    group_averages = df.groupby([x_value, plates], as_index=False, observed=True).agg(
+        {y_value: "mean"}
+    )
 
     # Reset the index to get a clean DataFrame
     average_df = group_averages.reset_index()
@@ -1132,21 +1147,21 @@ def cell_nuc_area_ratio(
     return final_df[ratio_col_name]
 
 
-def make_single_feature_df(data, group, feature, replicates):
+def make_single_feature_df(data, group, feature, plates):
     """Make a dataframe for a single feature from a larger dataframe in "tidy" format
 
     Args:
         data (DataFrame): your dataframe
         group (string): the grouping variable (x value)
         feature (string): the quantitavie feature to measure (y value)
-        replicates (string): the variable representing experimental replicates for grouping
+        plates (string): the variable representing experimental plates for grouping
 
     Returns:
         _type_: _description_
     """
     pd.options.mode.copy_on_write = True
 
-    subset = [group, feature, replicates]
+    subset = [group, feature, plates]
 
     df = data.dropna(subset=subset).reset_index(drop=True)
     df = df[df[feature] != 0]
@@ -1167,7 +1182,7 @@ def relate_objects(
     ratio_colname="Cell_Nuclei_Area_Ratio",
     metadata_cols=[
         "ImageNumber",
-        "Replicate_Number",
+        "Plate_Number",
         "Metadata_WellRow",
         "Metadata_WellColumn",
         "Metadata_Field",
