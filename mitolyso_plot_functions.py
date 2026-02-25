@@ -1264,13 +1264,14 @@ def annotate_pairs_with_calculated_pvalues(
             order=order,
         )
         annotator.reset_configuration()
+        # see https://raw.githubusercontent.com/trevismd/statannotations/3f020ae631ca88a091b6ee3e9a9fd32158920879/usage/example_tuning_y_offsets_w_arguments.png
         annotator.configure(
             text_format="full",
             test_short_name=test_name,
             pvalue_format_string="{:.3f}",
             fontsize="small",
             # pvalue_format = [[1e-5, "1e-5"], [1e-4, "1e-4"], [1e-3, "0.001"], [1e-2, "0.01"], [5e-2, "0.05"]],
-            loc="inside",
+            loc="outside",
             hide_non_significant=True,
             color="black",
             verbose=2,
@@ -1704,7 +1705,9 @@ def super_splitviolinplot_helper_singleplot(
     shapiro=True,
     show_test_on_plot=False,
     pallete=None,
+    p_correction="bonferroni",
 ):
+    group_avg_df = group_avg_df.copy()
     if pairs is None:
         pairs = getpairs(data_df, x_value, order=order)
 
@@ -1764,14 +1767,6 @@ def super_splitviolinplot_helper_singleplot(
     )
     ax.set_title(title)
 
-    # axes[0].text(
-    #     x=row[x_value],
-    #     y=row[y_value],
-    #     s=str(row["Shapiro_normality"]),
-    #     color="black",
-    #     fontsize=10,
-    #     ha="center"
-    # )
     # use pivot table to get the average values for each group
     if annotate and test is not None:
         group_avg_pivot_table = average_groups_pivot(
@@ -1789,6 +1784,7 @@ def super_splitviolinplot_helper_singleplot(
                 order=order,
                 plot="violinplot",
                 show_test_name=show_test_on_plot,
+                p_correction=p_correction,
             )
         except Exception as e:
             print(f"Error annotating with statistical test: {e}")
@@ -1950,6 +1946,20 @@ def make_superswarmplot_with_annotation(
     plt.show()
 
 
+def ridge_label(x, color, label):
+    ax = plt.gca()
+    ax.text(
+        -0.1,
+        -0.2,
+        label,
+        fontweight="bold",
+        color=color,
+        ha="left",
+        va="center",
+        transform=ax.transAxes,
+    )
+
+
 def seaborn_ridgeplot(
     df,
     value_col,
@@ -1957,16 +1967,19 @@ def seaborn_ridgeplot(
     palette=None,
     bw_adjust=1,
     xlabel=None,
-    xlim=None,
+    xlim=(None, None),
     title=None,
     fill_alpha=1,
     linewidth=1.5,
-    figsize=(10, 6),
+    figsize=(20, 30),
     save=True,
     out_dir="",
+    show_percentiles=True,
+    truncate_outliers=True,
+    norm=False,
 ):
     """
-    Make a ridgeline (joyplot) using seaborn FacetGrid and kdeplot, following the official seaborn ridge plot style.
+    Make a ridgeline (joyplot) using seaborn FacetGrid and kdeplot
     Args:
         df: DataFrame
         value_col: str, column with numeric values
@@ -1990,9 +2003,41 @@ def seaborn_ridgeplot(
     else:
         palette = palette
 
+    if truncate_outliers and xlim == (None, None):
+        try:
+            if norm:
+                top_fence = df[value_col].mean() + 10 * df[value_col].std()
+                bottom_fence = None  # np.percentile(data_df[y_value], 0.000001)
+            else:
+                top_fence = np.percentile(df[value_col], 99.9)
+                bottom_fence = np.percentile(df[value_col], 0.01)
+                # handle errors where the data is very skewed and the percentile is inf or nan
+                if top_fence == 0 or np.isnan(top_fence) or np.isinf(top_fence):
+                    top_fence = None
+                if (
+                    bottom_fence == 0
+                    or np.isnan(bottom_fence)
+                    or np.isinf(bottom_fence)
+                ):
+                    bottom_fence = None
+            xlim = (bottom_fence, top_fence)
+        except ValueError as e:
+            print(e)
+            top_fence = None
+            bottom_fence = None
+            xlim = (None, None)
+        print(f"Truncating outliers at: {xlim}")
+        xmin, xmax = xlim
+        plot_df = df.copy()
+        if xmin is not None:
+            plot_df = plot_df[plot_df[value_col] >= xmin]
+        if xmax is not None:
+            plot_df = plot_df[plot_df[value_col] <= xmax]
+    else:
+        plot_df = df.copy()
     # Initialize the FacetGrid object
     g = sns.FacetGrid(
-        df,
+        plot_df,
         row=group_col,
         hue=group_col,
         aspect=15,
@@ -2000,7 +2045,6 @@ def seaborn_ridgeplot(
         palette=palette,
         xlim=xlim,
     )
-
     # Draw the densities in a few steps
     g.map(
         sns.kdeplot,
@@ -2013,32 +2057,53 @@ def seaborn_ridgeplot(
     )
     g.map(sns.kdeplot, value_col, clip_on=False, color="w", lw=2, bw_adjust=bw_adjust)
 
+    if show_percentiles:
+        percentiles = [5, 12.5, 25, 50, 75, 87.5, 95]
+        for ax in g.axes.flatten():
+            # group label text (FacetGrid puts "group_col = <value>" in the title)
+            title_text = ax.get_title()
+            if " = " in title_text:
+                group_val = title_text.split(" = ", 1)[1]
+            else:
+                group_val = title_text
+
+            group_data = df[df[group_col] == group_val][value_col].dropna()
+            if group_data.empty:
+                continue
+
+            # pick the most representative line on the axis (the KDE line)
+            lines = ax.get_lines()
+            if not lines:
+                continue
+            # choose the line with the largest x-range (robust against multiple lines)
+            kde_line = max(lines, key=lambda l: np.ptp(l.get_xdata()))
+            xs = kde_line.get_xdata()
+            ys = kde_line.get_ydata()
+            # line_colour = kde_line.get
+            # compute median and interpolate its KDE height
+            median = np.median(group_data)
+            height = np.interp(median, xs, ys, left=0.0, right=0.0)
+
+            # draw a solid thicker median line from y=0 up to the KDE height
+            ax.vlines(
+                median, 0, height, color="black", linewidth=3, linestyle=":", zorder=4
+            )
+            ax.set_xlim(xlim)
+            # draw lighter dashed lines for the percentiles (optional)
+            group_percentiles = np.percentile(group_data, percentiles)
+            for p in group_percentiles:
+                ax.vlines(p, 0, height, color="dimgray", ls=":", alpha=0.6, linewidth=2)
     # passing color=None to refline() uses the hue mapping
     g.refline(y=0, linewidth=2, linestyle="-", color=None, clip_on=False)
 
-    # Define and use a simple function to label the plot in axes coordinates
-    def label(x, color, label):
-        ax = plt.gca()
-        ax.text(
-            0,
-            0.2,
-            label,
-            fontweight="bold",
-            color=color,
-            ha="left",
-            va="center",
-            transform=ax.transAxes,
-        )
-
-    g.map(label, value_col)
+    g.map(ridge_label, value_col)
 
     # Set the subplots to overlap
     g.figure.subplots_adjust(hspace=-0.25)
     g.figure.set_size_inches(figsize)
-
     # Remove axes details that don't play well with overlap
     g.set_titles("")
-    g.set(yticks=[], ylabel="")
+    g.set(yticks=[], ylabel="", xlim=xlim)
     g.despine(bottom=True, left=True)
     if xlabel:
         plt.xlabel(xlabel, fontweight="bold", fontsize=14)
@@ -2046,6 +2111,7 @@ def seaborn_ridgeplot(
         plt.xlabel(value_col, fontweight="bold", fontsize=14)
     if title:
         g.figure.suptitle(title, ha="right", fontsize=18, fontweight="bold")
+    plt.xlim(xlim)
     plt.tight_layout()
     if save:
         plt.savefig(f"{Path(out_dir, f'{value_col}_{group_col}_joyplot')}.png")
@@ -2076,6 +2142,7 @@ def single_feature_super_splitviolinplot(
     truncate_outliers=False,
     norm=False,
     pallete=None,
+    p_correction="bonferroni",
 ):
     """Make a superplot to do multiple comparisons for a feature between different conditions
     Args:
@@ -2099,36 +2166,36 @@ def single_feature_super_splitviolinplot(
         order = get_all_group_order()
     pairs = getpairs(data_df, x_value, order=order)
     print(pairs)
-    try:
-        bottom_fence = None  # np.percentile(data_df[y_value], 0.000001)
-        if norm:
-            top_fence = data_df[y_value].mean() + 10 * data_df[y_value].std()
-        else:
-            top_fence = np.percentile(data_df[y_value], 99.9)
-    except ValueError as e:
-        print(e)
-        top_fence = None
     if truncate_outliers:
-        axlim = (bottom_fence, top_fence)
+        try:
+            bottom_fence = None  # np.percentile(data_df[y_value], 0.000001)
+            if norm:
+                top_fence = data_df[y_value].mean() + 10 * data_df[y_value].std()
+            else:
+                top_fence = np.percentile(data_df[y_value], 99.9)
+                # handle errors where the data is very skewed and the percentile is inf or nan
+                if top_fence == 0 or np.isnan(top_fence) or np.isinf(top_fence):
+                    top_fence = None
+            axlim = (bottom_fence, top_fence)
+        except ValueError as e:
+            print(e)
+            top_fence = None
+            bottom_fence = None
+            axlim = (None, None)
     else:
         axlim = (None, None)
+
+    df_sorted = data_df.sort_values(
+        by=[x_value], key=lambda x: x.map(passage_groups_sort_key)
+    ).reset_index(drop=True)
     if show_hist:
         hist = sns.kdeplot(
-            data_df,
-            x=y_value,
-            hue=plate_col_name,
-            palette=pallete,
-            multiple="layer",
+            df_sorted, x=y_value, hue=plate_col_name, palette=pallete, multiple="layer"
         )
         plt.xlim(axlim)
         plt.savefig(f"{Path(out_dir, f'{y_value}_{plate_col_name}_histogram')}.png")
         plt.show()
         plt.close()
-
-        df_sorted = data_df.sort_values(
-            by=[x_value], key=lambda x: x.map(passage_groups_sort_key)
-        ).reset_index(drop=True)
-
         hist2 = seaborn_ridgeplot(
             df_sorted,
             value_col=y_value,
@@ -2136,15 +2203,14 @@ def single_feature_super_splitviolinplot(
             palette="Set2",
             save=True,
             out_dir=out_dir,
+            show_percentiles=True,
         )
         plt.close()
     fig, ax = plt.subplots(figsize=figsize)
     sns.set_context(context=context, font_scale=1.2)
     sns.set_theme(style="ticks")
 
-    feature_df = make_single_feature_df(
-        data_df, group=x_value, feature=y_value, plates=plate_col_name
-    )
+    feature_df = df_sorted[[x_value, y_value, plate_col_name]].copy()
     if reps_to_exclude:
         feature_df = feature_df[~feature_df[plate_col_name].isin(reps_to_exclude)]
         print(f"removing plates: {reps_to_exclude}")
@@ -2174,15 +2240,18 @@ def single_feature_super_splitviolinplot(
         else:
             ValueError(f"{rm_outliers_method} is not a valid outlier removal method")
         # display(feature_df)
-    group_avg_df = average_groups_by_plate(
-        feature_df, x_value=x_value, y_value=y_value, plates=plate_col_name
-    )
 
-    # display(group_avg_df)
+    # group by plate and condition
+    group_avg_df = feature_df.groupby([x_value, plate_col_name], as_index=False).mean()
+
+    # sort the group avg df by the "AllGroups" order
+    group_avg_df_sorted = group_avg_df.sort_values(
+        by=[x_value], key=lambda x: x.map(allgroups_sort_key)
+    ).reset_index(drop=True)
 
     ax = super_splitviolinplot_helper_singleplot(
         feature_df,
-        group_avg_df,
+        group_avg_df_sorted,
         ax,
         x_value,
         y_value,
@@ -2194,12 +2263,19 @@ def single_feature_super_splitviolinplot(
         test=test,
         shapiro=False,
         pallete=pallete,
+        p_correction=p_correction,
     )
 
     if legend:
+        ax.legend(
+            bbox_to_anchor=(1.02, 1),
+            loc="upper left",
+            frameon=True,
+            title=plate_col_name,
+        )
         if shapiro:
             group_avg_df_shapiro = apply_shapiro_wilk_test_to_df(
-                group_avg_df,
+                group_avg_df_sorted,
                 feature_meas=y_value,
                 plate_col_name="Plate_Number",
                 alpha=0.05,
@@ -2214,10 +2290,18 @@ def single_feature_super_splitviolinplot(
         ax.set_ylabel(y_value.replace("_", " "))
     if xtitle is not None:
         ax.set_xlabel(xtitle)
+
+    # Set the ylim and don't throw an inf
     if ylim is None:
         ylim = axlim
-
-    ax.set_ylim(ylim)
+    if ylim[0] is not None and ylim[1] is not None:
+        if not (
+            np.isnan(ylim[0])
+            or np.isnan(ylim[1])
+            or np.isinf(ylim[0])
+            or np.isinf(ylim[1])
+        ):
+            ax.set_ylim(ylim)
     plt.tight_layout()
     sns.despine()
     plt.savefig(os.path.join(out_dir, f"{y_value}_{test}.png"))

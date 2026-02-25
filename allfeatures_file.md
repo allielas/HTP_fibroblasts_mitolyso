@@ -1990,8 +1990,10 @@
 "Cytoplasm_Location_MaxIntensity_Z_DAPI_MAX",
 "Nuclei_Intensity_MaxIntensity_DAPI_MAX_WellAvg",
 "Nuclei_Intensity_MeanIntensity_DAPI_MAX_WellAvg",
+"Nuclei_Intensity_MinIntensity_DAPI_MAX_WellAvg",
 "Nuclei_Intensity_MaxIntensity_DAPI_MAX_WellNormalized",
 "Nuclei_Intensity_MeanIntensity_DAPI_MAX_WellNormalized",
+"Nuclei_Intensity_MinIntensity_DAPI_MAX_WellNormalized",
 
 ## Texture
 "Texture_AngularSecondMoment_RescaleIntensityDAPI_10_00_256",

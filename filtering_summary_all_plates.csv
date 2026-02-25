@@ -1,99 +1,99 @@
 ,filter_type,rows,columns,rows_removed,threshold,Plate_Number
-0,Original,11745,3450,0,"None,None",Plate 6
-1,Initial Column Filter,11745,3450,0,"None,None",Plate 6
-2,Remove Empty Mitochondria,11741,3451,4,"0,None",Plate 6
-3,Remove Empty Organelles,11741,3451,4,"0,None",Plate 6
-4,Cell Size Threshold,11485,3451,256,"22768.0,1254046.5",Plate 6
-5,Nuclei Size Threshold,11328,3451,157,"9340.0,98385.75",Plate 6
-6,Cell:Nuclei Ratio Threshold,10951,3451,534,"1.9243336199484091,0",Plate 6
-7,Cell:Nuclei Ratio Threshold,10932,3451,19,"0,20.530685742771166",Plate 6
-8,Nuclei Minimum Intensity,10932,3451,0,"None,None",Plate 6
-9,Nuclei Maxiumum Intensity,10932,3451,0,"None,None",Plate 6
-10,More Than One Cell,10932,3451,0,"0,None",Plate 6
-11,Neighbors Percent Touching < 97.5th Percentile,10439,3451,493,"None,65.82167832167832 and None,4.0",Plate 6
-12,Number of Nucleus Neighbors < 97.5th Percentile,10411,3451,28,"None,1.0",Plate 6
-13,Final Filtered DataFrame,10411,3451,0,None See above filters,Plate 6
-14,Original,9367,3450,0,"None,None",Plate 2
-15,Initial Column Filter,9367,3450,0,"None,None",Plate 2
-16,Remove Empty Mitochondria,9367,3451,0,"0,None",Plate 2
-17,Remove Empty Organelles,9366,3451,1,"0,None",Plate 2
-18,Cell Size Threshold,9343,3451,23,"22768.0,1254046.5",Plate 2
-19,Nuclei Size Threshold,9286,3451,57,"9340.0,98385.75",Plate 2
-20,Cell:Nuclei Ratio Threshold,9187,3451,156,"1.9243336199484091,0",Plate 2
-21,Cell:Nuclei Ratio Threshold,9181,3451,6,"0,20.530685742771166",Plate 2
-22,Nuclei Minimum Intensity,9181,3451,0,"None,None",Plate 2
-23,Nuclei Maxiumum Intensity,9181,3451,0,"None,None",Plate 2
-24,More Than One Cell,9181,3451,0,"0,None",Plate 2
-25,Neighbors Percent Touching < 97.5th Percentile,8720,3451,461,"None,65.82167832167832 and None,4.0",Plate 2
-26,Number of Nucleus Neighbors < 97.5th Percentile,8713,3451,7,"None,1.0",Plate 2
-27,Final Filtered DataFrame,8713,3451,0,None See above filters,Plate 2
-28,Original,8313,3450,0,"None,None",Plate 7
-29,Initial Column Filter,8313,3450,0,"None,None",Plate 7
-30,Remove Empty Mitochondria,8312,3451,1,"0,None",Plate 7
-31,Remove Empty Organelles,8312,3451,1,"0,None",Plate 7
-32,Cell Size Threshold,8248,3451,64,"22768.0,1254046.5",Plate 7
-33,Nuclei Size Threshold,8122,3451,126,"9340.0,98385.75",Plate 7
-34,Cell:Nuclei Ratio Threshold,8072,3451,176,"1.9243336199484091,0",Plate 7
-35,Cell:Nuclei Ratio Threshold,8046,3451,26,"0,20.530685742771166",Plate 7
-36,Nuclei Minimum Intensity,8046,3451,0,"None,None",Plate 7
-37,Nuclei Maxiumum Intensity,8046,3451,0,"None,None",Plate 7
-38,More Than One Cell,8046,3451,0,"0,None",Plate 7
-39,Neighbors Percent Touching < 97.5th Percentile,7689,3451,357,"None,65.82167832167832 and None,4.0",Plate 7
-40,Number of Nucleus Neighbors < 97.5th Percentile,7682,3451,7,"None,1.0",Plate 7
-41,Final Filtered DataFrame,7682,3451,0,None See above filters,Plate 7
-42,Original,12659,3450,0,"None,None",Plate 4
-43,Initial Column Filter,12659,3450,0,"None,None",Plate 4
-44,Remove Empty Mitochondria,12652,3451,7,"0,None",Plate 4
-45,Remove Empty Organelles,12649,3451,10,"0,None",Plate 4
-46,Cell Size Threshold,12233,3451,416,"22768.0,1254046.5",Plate 4
-47,Nuclei Size Threshold,11950,3451,283,"9340.0,98385.75",Plate 4
-48,Cell:Nuclei Ratio Threshold,11669,3451,564,"1.9243336199484091,0",Plate 4
-49,Cell:Nuclei Ratio Threshold,11662,3451,7,"0,20.530685742771166",Plate 4
-50,Nuclei Minimum Intensity,11662,3451,0,"None,None",Plate 4
-51,Nuclei Maxiumum Intensity,11662,3451,0,"None,None",Plate 4
-52,More Than One Cell,11662,3451,0,"0,None",Plate 4
-53,Neighbors Percent Touching < 97.5th Percentile,11338,3451,324,"None,65.82167832167832 and None,4.0",Plate 4
-54,Number of Nucleus Neighbors < 97.5th Percentile,11309,3451,29,"None,1.0",Plate 4
-55,Final Filtered DataFrame,11309,3451,0,None See above filters,Plate 4
-56,Original,12551,3450,0,"None,None",Plate 5
-57,Initial Column Filter,12551,3450,0,"None,None",Plate 5
-58,Remove Empty Mitochondria,12545,3451,6,"0,None",Plate 5
-59,Remove Empty Organelles,12543,3451,8,"0,None",Plate 5
-60,Cell Size Threshold,12226,3451,317,"22768.0,1254046.5",Plate 5
-61,Nuclei Size Threshold,12013,3451,213,"9340.0,98385.75",Plate 5
-62,Cell:Nuclei Ratio Threshold,11532,3451,694,"1.9243336199484091,0",Plate 5
-63,Cell:Nuclei Ratio Threshold,11524,3451,8,"0,20.530685742771166",Plate 5
-64,Nuclei Minimum Intensity,11524,3451,0,"None,None",Plate 5
-65,Nuclei Maxiumum Intensity,11524,3451,0,"None,None",Plate 5
-66,More Than One Cell,11524,3451,0,"0,None",Plate 5
-67,Neighbors Percent Touching < 97.5th Percentile,10334,3451,1190,"None,65.82167832167832 and None,4.0",Plate 5
-68,Number of Nucleus Neighbors < 97.5th Percentile,10306,3451,28,"None,1.0",Plate 5
-69,Final Filtered DataFrame,10306,3451,0,None See above filters,Plate 5
-70,Original,14353,3450,0,"None,None",Plate 3
-71,Initial Column Filter,14353,3450,0,"None,None",Plate 3
-72,Remove Empty Mitochondria,14353,3451,0,"0,None",Plate 3
-73,Remove Empty Organelles,14353,3451,0,"0,None",Plate 3
-74,Cell Size Threshold,14194,3451,159,"22768.0,1254046.5",Plate 3
-75,Nuclei Size Threshold,14007,3451,187,"9340.0,98385.75",Plate 3
-76,Cell:Nuclei Ratio Threshold,13844,3451,350,"1.9243336199484091,0",Plate 3
-77,Cell:Nuclei Ratio Threshold,13818,3451,26,"0,20.530685742771166",Plate 3
-78,Nuclei Minimum Intensity,13818,3451,0,"None,None",Plate 3
-79,Nuclei Maxiumum Intensity,13818,3451,0,"None,None",Plate 3
-80,More Than One Cell,13818,3451,0,"0,None",Plate 3
-81,Neighbors Percent Touching < 97.5th Percentile,12318,3451,1500,"None,65.82167832167832 and None,4.0",Plate 3
-82,Number of Nucleus Neighbors < 97.5th Percentile,12294,3451,24,"None,1.0",Plate 3
-83,Final Filtered DataFrame,12294,3451,0,None See above filters,Plate 3
-84,Original,7019,3450,0,"None,None",Plate 1
-85,Initial Column Filter,7019,3450,0,"None,None",Plate 1
-86,Remove Empty Mitochondria,7018,3451,1,"0,None",Plate 1
-87,Remove Empty Organelles,7017,3451,2,"0,None",Plate 1
-88,Cell Size Threshold,6955,3451,62,"22768.0,1254046.5",Plate 1
-89,Nuclei Size Threshold,6890,3451,65,"9340.0,98385.75",Plate 1
-90,Cell:Nuclei Ratio Threshold,6771,3451,184,"1.9243336199484091,0",Plate 1
-91,Cell:Nuclei Ratio Threshold,6769,3451,2,"0,20.530685742771166",Plate 1
-92,Nuclei Minimum Intensity,6769,3451,0,"None,None",Plate 1
-93,Nuclei Maxiumum Intensity,6769,3451,0,"None,None",Plate 1
-94,More Than One Cell,6769,3451,0,"0,None",Plate 1
-95,Neighbors Percent Touching < 97.5th Percentile,6297,3451,472,"None,65.82167832167832 and None,4.0",Plate 1
-96,Number of Nucleus Neighbors < 97.5th Percentile,6286,3451,11,"None,1.0",Plate 1
-97,Final Filtered DataFrame,6286,3451,0,None See above filters,Plate 1
+0,Original,11745,3452,0,"None,None",Plate 6
+1,Initial Column Filter,11745,3452,0,"None,None",Plate 6
+2,Remove Empty Mitochondria,11741,3453,4,"0,None",Plate 6
+3,Remove Empty Organelles,11741,3453,4,"0,None",Plate 6
+4,Cell Size Threshold,11485,3453,256,"22768.0,1254046.5",Plate 6
+5,Nuclei Size Threshold,11328,3453,157,"9340.0,98385.75",Plate 6
+6,Cell:Nuclei Ratio Threshold,10951,3453,534,"1.9243336199484091,0",Plate 6
+7,Cell:Nuclei Ratio Threshold,10932,3453,19,"0,20.530685742771166",Plate 6
+8,Nuclei Minimum Intensity,10932,3453,0,"None,None",Plate 6
+9,Nuclei Maxiumum Intensity,10932,3453,0,"None,None",Plate 6
+10,More Than One Cell,10932,3453,0,"0,None",Plate 6
+11,Neighbors Percent Touching < 97.5th Percentile,10439,3453,493,"None,65.82167832167832 and None,4.0",Plate 6
+12,Number of Nucleus Neighbors < 97.5th Percentile,10411,3453,28,"None,1.0",Plate 6
+13,Final Filtered DataFrame,10411,3453,0,None See above filters,Plate 6
+14,Original,9367,3452,0,"None,None",Plate 2
+15,Initial Column Filter,9367,3452,0,"None,None",Plate 2
+16,Remove Empty Mitochondria,9367,3453,0,"0,None",Plate 2
+17,Remove Empty Organelles,9366,3453,1,"0,None",Plate 2
+18,Cell Size Threshold,9343,3453,23,"22768.0,1254046.5",Plate 2
+19,Nuclei Size Threshold,9286,3453,57,"9340.0,98385.75",Plate 2
+20,Cell:Nuclei Ratio Threshold,9187,3453,156,"1.9243336199484091,0",Plate 2
+21,Cell:Nuclei Ratio Threshold,9181,3453,6,"0,20.530685742771166",Plate 2
+22,Nuclei Minimum Intensity,9181,3453,0,"None,None",Plate 2
+23,Nuclei Maxiumum Intensity,9181,3453,0,"None,None",Plate 2
+24,More Than One Cell,9181,3453,0,"0,None",Plate 2
+25,Neighbors Percent Touching < 97.5th Percentile,8720,3453,461,"None,65.82167832167832 and None,4.0",Plate 2
+26,Number of Nucleus Neighbors < 97.5th Percentile,8713,3453,7,"None,1.0",Plate 2
+27,Final Filtered DataFrame,8713,3453,0,None See above filters,Plate 2
+28,Original,8313,3452,0,"None,None",Plate 7
+29,Initial Column Filter,8313,3452,0,"None,None",Plate 7
+30,Remove Empty Mitochondria,8312,3453,1,"0,None",Plate 7
+31,Remove Empty Organelles,8312,3453,1,"0,None",Plate 7
+32,Cell Size Threshold,8248,3453,64,"22768.0,1254046.5",Plate 7
+33,Nuclei Size Threshold,8122,3453,126,"9340.0,98385.75",Plate 7
+34,Cell:Nuclei Ratio Threshold,8072,3453,176,"1.9243336199484091,0",Plate 7
+35,Cell:Nuclei Ratio Threshold,8046,3453,26,"0,20.530685742771166",Plate 7
+36,Nuclei Minimum Intensity,8046,3453,0,"None,None",Plate 7
+37,Nuclei Maxiumum Intensity,8046,3453,0,"None,None",Plate 7
+38,More Than One Cell,8046,3453,0,"0,None",Plate 7
+39,Neighbors Percent Touching < 97.5th Percentile,7689,3453,357,"None,65.82167832167832 and None,4.0",Plate 7
+40,Number of Nucleus Neighbors < 97.5th Percentile,7682,3453,7,"None,1.0",Plate 7
+41,Final Filtered DataFrame,7682,3453,0,None See above filters,Plate 7
+42,Original,12659,3452,0,"None,None",Plate 4
+43,Initial Column Filter,12659,3452,0,"None,None",Plate 4
+44,Remove Empty Mitochondria,12652,3453,7,"0,None",Plate 4
+45,Remove Empty Organelles,12649,3453,10,"0,None",Plate 4
+46,Cell Size Threshold,12233,3453,416,"22768.0,1254046.5",Plate 4
+47,Nuclei Size Threshold,11950,3453,283,"9340.0,98385.75",Plate 4
+48,Cell:Nuclei Ratio Threshold,11669,3453,564,"1.9243336199484091,0",Plate 4
+49,Cell:Nuclei Ratio Threshold,11662,3453,7,"0,20.530685742771166",Plate 4
+50,Nuclei Minimum Intensity,11662,3453,0,"None,None",Plate 4
+51,Nuclei Maxiumum Intensity,11662,3453,0,"None,None",Plate 4
+52,More Than One Cell,11662,3453,0,"0,None",Plate 4
+53,Neighbors Percent Touching < 97.5th Percentile,11338,3453,324,"None,65.82167832167832 and None,4.0",Plate 4
+54,Number of Nucleus Neighbors < 97.5th Percentile,11309,3453,29,"None,1.0",Plate 4
+55,Final Filtered DataFrame,11309,3453,0,None See above filters,Plate 4
+56,Original,12551,3452,0,"None,None",Plate 5
+57,Initial Column Filter,12551,3452,0,"None,None",Plate 5
+58,Remove Empty Mitochondria,12545,3453,6,"0,None",Plate 5
+59,Remove Empty Organelles,12543,3453,8,"0,None",Plate 5
+60,Cell Size Threshold,12226,3453,317,"22768.0,1254046.5",Plate 5
+61,Nuclei Size Threshold,12013,3453,213,"9340.0,98385.75",Plate 5
+62,Cell:Nuclei Ratio Threshold,11532,3453,694,"1.9243336199484091,0",Plate 5
+63,Cell:Nuclei Ratio Threshold,11524,3453,8,"0,20.530685742771166",Plate 5
+64,Nuclei Minimum Intensity,11524,3453,0,"None,None",Plate 5
+65,Nuclei Maxiumum Intensity,11524,3453,0,"None,None",Plate 5
+66,More Than One Cell,11524,3453,0,"0,None",Plate 5
+67,Neighbors Percent Touching < 97.5th Percentile,10334,3453,1190,"None,65.82167832167832 and None,4.0",Plate 5
+68,Number of Nucleus Neighbors < 97.5th Percentile,10306,3453,28,"None,1.0",Plate 5
+69,Final Filtered DataFrame,10306,3453,0,None See above filters,Plate 5
+70,Original,14353,3452,0,"None,None",Plate 3
+71,Initial Column Filter,14353,3452,0,"None,None",Plate 3
+72,Remove Empty Mitochondria,14353,3453,0,"0,None",Plate 3
+73,Remove Empty Organelles,14353,3453,0,"0,None",Plate 3
+74,Cell Size Threshold,14194,3453,159,"22768.0,1254046.5",Plate 3
+75,Nuclei Size Threshold,14007,3453,187,"9340.0,98385.75",Plate 3
+76,Cell:Nuclei Ratio Threshold,13844,3453,350,"1.9243336199484091,0",Plate 3
+77,Cell:Nuclei Ratio Threshold,13818,3453,26,"0,20.530685742771166",Plate 3
+78,Nuclei Minimum Intensity,13818,3453,0,"None,None",Plate 3
+79,Nuclei Maxiumum Intensity,13818,3453,0,"None,None",Plate 3
+80,More Than One Cell,13818,3453,0,"0,None",Plate 3
+81,Neighbors Percent Touching < 97.5th Percentile,12318,3453,1500,"None,65.82167832167832 and None,4.0",Plate 3
+82,Number of Nucleus Neighbors < 97.5th Percentile,12294,3453,24,"None,1.0",Plate 3
+83,Final Filtered DataFrame,12294,3453,0,None See above filters,Plate 3
+84,Original,7019,3452,0,"None,None",Plate 1
+85,Initial Column Filter,7019,3452,0,"None,None",Plate 1
+86,Remove Empty Mitochondria,7018,3453,1,"0,None",Plate 1
+87,Remove Empty Organelles,7017,3453,2,"0,None",Plate 1
+88,Cell Size Threshold,6955,3453,62,"22768.0,1254046.5",Plate 1
+89,Nuclei Size Threshold,6890,3453,65,"9340.0,98385.75",Plate 1
+90,Cell:Nuclei Ratio Threshold,6771,3453,184,"1.9243336199484091,0",Plate 1
+91,Cell:Nuclei Ratio Threshold,6769,3453,2,"0,20.530685742771166",Plate 1
+92,Nuclei Minimum Intensity,6769,3453,0,"None,None",Plate 1
+93,Nuclei Maxiumum Intensity,6769,3453,0,"None,None",Plate 1
+94,More Than One Cell,6769,3453,0,"0,None",Plate 1
+95,Neighbors Percent Touching < 97.5th Percentile,6297,3453,472,"None,65.82167832167832 and None,4.0",Plate 1
+96,Number of Nucleus Neighbors < 97.5th Percentile,6286,3453,11,"None,1.0",Plate 1
+97,Final Filtered DataFrame,6286,3453,0,None See above filters,Plate 1
