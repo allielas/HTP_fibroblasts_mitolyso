@@ -1,14 +1,15 @@
-,filter_type,rows,columns,rows_removed
-OG_df,Original,76007,3445,0
-Filtered_df,Initial Column Filter,76007,3445,0
-Empty_Mitochondria_Removed,Remove Empty Mitochondria,75988,3447,19
-Empty_Lysosomes_Removed,Remove Empty Organelles,75981,3447,26
-Nuclei_Min_Intensity_Filtered,Nuclei Minimum Intensity,75981,3447,0
-Nuclei_Max_Intensity_Filtered,Nuclei Maxiumum Intensity,75981,3447,0
-More_Than_One_Cell,More Than One Cell,75981,3447,0
-Nuc_Size_Thresholded,Nuclei Size Threshold,75981,3447,0
-Cell_Size_Thresholded,Cell Size Threshold,75981,3447,0
-Cell_Nuclei_Ratio_MinFilter,Cell:Nuclei Ratio Threshold,75981,3447,0
-Cell_Nuclei_Ratio_MaxFilter,Cell:Nuclei Ratio Threshold,75981,3447,0
-Neighbors_Filtered,Neighbors Percent Touching < 99,75981,3447,0
-Final_Filtered_df,Final Filtered DataFrame,75981,3447,0
+,filter_type,rows,columns,rows_removed,threshold
+OG_df,Original,76007,3450,0,"None,None"
+Filtered_df,Initial Column Filter,76007,3450,0,"None,None"
+Empty_Mitochondria_Removed,Remove Empty Mitochondria,75988,3451,19,"0,None"
+Empty_Lysosomes_Removed,Remove Empty Organelles,75981,3451,26,"0,None"
+Cell_Size_Thresholded,Cell Size Threshold,74684,3451,1297,"22768.0,1254046.5"
+Nuc_Size_Thresholded,Nuclei Size Threshold,73596,3451,1088,"9340.0,98385.75"
+Cell_Nuclei_Ratio_MinFilter,Cell:Nuclei Ratio Threshold,72026,3451,2658,"1.9243336199484091,0"
+Cell_Nuclei_Ratio_MaxFilter,Cell:Nuclei Ratio Threshold,71932,3451,94,"0,20.530685742771166"
+Nuclei_Min_Intensity_Filtered,Nuclei Minimum Intensity,66589,3451,5343,"0.5297984112157615,None"
+Nuclei_Max_Intensity_Filtered,Nuclei Maxiumum Intensity,65272,3451,1317,"None,1.5675556222707692"
+More_Than_One_Cell,More Than One Cell,65272,3451,0,"0,None"
+Neighbors_PercentTouching AND_NumberOf_Filtered,Neighbors Percent Touching < 97.5th Percentile,60875,3451,4397,"None,65.82167832167832 and None,4.0"
+Nuc_Neighbors_Filtered NumberOf,Number of Nucleus Neighbors < 97.5th Percentile,60755,3451,120,"None,1.0"
+Final_Filtered_df,Final Filtered DataFrame,60755,3451,0,None See above filters
