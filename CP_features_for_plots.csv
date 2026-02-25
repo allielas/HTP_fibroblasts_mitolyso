@@ -1,0 +1,60 @@
+feature,label
+AreaShape_Area,Cell size (px²)
+Nuclei_AreaShape_Area,Nucleus size (px²)
+Cell_Nuclei_Area_Ratio,Cell-to-nucleus area ratio
+Mean_Mitochondria_AreaShape_Area,Mean mitochondrial size per cell (px²)
+Mean_Mitochondria_AreaShape_Perimeter,Mean mitochondrial perimeter per cell
+Mean_Mitochondria_AreaShape_Solidity,Mean mitochondria roundness (solidity)
+Mean_Mitochondria_AreaShape_Extent,Mean Mitochondria extent
+Mean_Mitochondria_Puncta_AreaShape_Area,Mean mitochondrial puncta size per cell (px²)
+Mean_Mitochondria_Puncta_AreaShape_Perimeter,Mean mitochondrial puncta perimeter per cell
+Mean_Mitochondria_Puncta_AreaShape_Solidity,Mean mitochondrial puncta roundness (solidity)
+Mean_Mitochondria_Puncta_AreaShape_Extent,Mean Mitochondria Puncta extent
+Mean_Lysosomes_AreaShape_Area,Mean lysosomal size per cell (px²)
+Mean_Lysosomes_AreaShape_Perimeter,Mean lysosomal perimeter per cell
+Mean_Lysosomes_AreaShape_Solidity,Mean lysosomal roundness (solidity)
+Mean_Lysosomes_AreaShape_Extent,Mean lysosomal extent
+Density_Children_Lysosomes_Count_PerCell_Area,Lysosomal density per cell (lysosomes/px²)
+Density_Children_Mitochondria_Count_PerCell_Area,Mitochondrial density per cell (mitochondria/px²)
+Density_Children_Mitochondria_Puncta_Count_PerCell_Area,Mitochondrial puncta density per cell (puncta/px²)
+OccupiedAreaFraction_Mitochondria_PerCell_Area,Occupied area fraction of mitochondria per cell
+OccupiedAreaFraction_Lysosomes_PerCell_Area,Occupied area fraction of lysosomes per cell
+Mean_Mitochondria_MaxMinFeret_DiameterRatio_PerCell,Mean mitochondria diameter ratio per cell
+Mean_Lysosomes_MaxMinFeret_DiameterRatio_PerCell,Mean lysosome diameter ratio per cell
+Mean_Lysosomes_Distance_Centroid_Nuclei_PerCell_Area,Mean lysosome distance to nucleus per cell
+Mean_MitoEnds_ObjectSkeleton_NumberBranchEnds_MitoSkeleton,Mean number of mitochondria branch ends per cell
+Mean_MitoEnds_ObjectSkeleton_NumberNonTrunkBranches_MtSkltn,Mean number of mitochondria non-trunk branches per cell
+Mean_MitoEnds_ObjectSkeleton_NumberTrunks_MitoSkeleton,Mean number of mitochondria trunks per cell
+Mean_MitoEnds_ObjectSkeleton_TotalObjectSkeltnLngth_MtSkltn,Mean mitochondria skeleton length per cell
+MitoEnds_NumberBranchEnds_PerCell_Area,Number of mitochondria branch ends per cell area
+MitoEnds_NumberNonTrunkBranches_PerCell_Area,Number of mitochondria non-trunk branches per cell area
+MitoEnds_NumberTrunks_PerCell_Area,Number of mitochondria trunks per cell area
+MitoEnds_TotalObjectSkeltnLngth_PerCell_Area,Mitochondria skeleton length per cell area
+Nuclei_ObjectSkeleton_NumberBranchEnds_PerCell_Area,Mean number of nuclear mitochondria branch ends per cell
+Nuclei_ObjectSkeleton_NumberNonTrunkBranches_PerCell_Area,Mean number of nuclear mitochondria non-trunk branches per cell
+Nuclei_ObjectSkeleton_NumberTrunks_PerCell_Area,Mean number of nuclear mitochondria trunks per cell
+Nuclei_ObjectSkeleton_TotalObjectSkeletonLength_PerCell_Area,Mean nuclear mitochondria skeleton length per cell
+RadialDistribution_FracAtD_LAMP1_1of4,Fraction of lysosomes in 1st quarter of cell
+RadialDistribution_FracAtD_LAMP1_2of4,Fraction of lysosomes in 2nd quarter of cell
+RadialDistribution_FracAtD_LAMP1_3of4,Fraction of lysosomes in 3rd quarter of cell
+RadialDistribution_FracAtD_LAMP1_4of4,Fraction of lysosomes in 4th quarter of cell
+RadialDistribution_MeanFrac_LAMP1_1of4,Mean fraction of lysosomes in 1st quarter of cell
+RadialDistribution_MeanFrac_LAMP1_2of4,Mean fraction of lysosomes in 2nd quarter of cell
+RadialDistribution_MeanFrac_LAMP1_3of4,Mean fraction of lysosomes in 3rd quarter of cell
+RadialDistribution_MeanFrac_LAMP1_4of4,Mean fraction of lysosomes in 4th quarter of cell
+RadialDistribution_RadialCV_LAMP1_1of4,Mean lysosome radial CV in 1st quarter of cell
+RadialDistribution_RadialCV_LAMP1_2of4,Mean lysosome radial CV in 2nd quarter of cell
+RadialDistribution_RadialCV_LAMP1_3of4,Mean lysosome radial CV in 3rd quarter of cell
+RadialDistribution_RadialCV_LAMP1_4of4,Mean lysosome radial CV in 4th quarter of cell
+RadialDistribution_FracAtD_MitoTracker_1of4,Fraction of mitochondria in 1st quarter of cell
+RadialDistribution_FracAtD_MitoTracker_2of4,Fraction of mitochondria in 2nd quarter of cell
+RadialDistribution_FracAtD_MitoTracker_3of4,Fraction of mitochondria in 3rd quarter of cell
+RadialDistribution_FracAtD_MitoTracker_4of4,Fraction of mitochondria in 4th quarter of cell
+RadialDistribution_MeanFrac_MitoTracker_1of4,Mean fraction of mitochondria in 1st quarter of cell
+RadialDistribution_MeanFrac_MitoTracker_2of4,Mean fraction of mitochondria in 2nd quarter of cell
+RadialDistribution_MeanFrac_MitoTracker_3of4,Mean fraction of mitochondria in 3rd quarter of cell
+RadialDistribution_MeanFrac_MitoTracker_4of4,Mean fraction of mitochondria in 4th quarter of cell
+RadialDistribution_RadialCV_MitoTracker_1of4,Mean mitochondrial radial CV in 1st quarter of cell
+RadialDistribution_RadialCV_MitoTracker_2of4,Mean mitochondrial radial CV in 2nd quarter of cell
+RadialDistribution_RadialCV_MitoTracker_3of4,Mean mitochondrial radial CV in 3rd quarter of cell
+RadialDistribution_RadialCV_MitoTracker_4of4,Mean mitochondrial radial CV in 4th quarter of cell
