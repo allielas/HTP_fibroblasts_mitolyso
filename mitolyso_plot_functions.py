@@ -1091,9 +1091,10 @@ def annotate_pairs_with_calculated_pvalues(
     test_name="tukey",
     pairs=None,
     order=None,
-    plot="violinplot",
+    plot_type="violinplot",
     show_test_name=False,
     p_correction="fdr_bh",
+    annotation_location="inside",
 ):
     """Add statistical annotations to a plot using a multiple comparisons test in the statsmodels, scipy, or scikit-posthocs modules.
     see https://statannotations.readthedocs.io/en/latest/custom-test.html for more examples
@@ -1258,7 +1259,7 @@ def annotate_pairs_with_calculated_pvalues(
             ax=ax,
             pairs=list(used_pairs),
             data=data,
-            plot=plot,
+            plot=plot_type,
             x=x_value,
             y=y_value,
             order=order,
@@ -1268,13 +1269,17 @@ def annotate_pairs_with_calculated_pvalues(
         annotator.configure(
             text_format="full",
             test_short_name=test_name,
-            pvalue_format_string="{:.3f}",
+            pvalue_format_string="{:.4f}",
             fontsize="small",
             # pvalue_format = [[1e-5, "1e-5"], [1e-4, "1e-4"], [1e-3, "0.001"], [1e-2, "0.01"], [5e-2, "0.05"]],
-            loc="outside",
+            loc=annotation_location,
             hide_non_significant=True,
             color="black",
             verbose=2,
+            line_height=0.01,
+            text_offset=0.8,
+            # line_offset_to_group=0.01,
+            # line_offset=0.01,
             show_test_name=show_test_name,
         )
         annotator.set_pvalues_and_annotate(p_values)
