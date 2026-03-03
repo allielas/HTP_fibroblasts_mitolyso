@@ -8,5 +8,9 @@ Nuclei_AreaShape_Area_Filter_Bottom,Nuclear Size Filter Bottom Band,3455,74684,1
 Nuclei_AreaShape_Area_Filter_Top,Nuclear Size Filter Top Band,3455,74684,81,Top threshold: 98385.75,73596.0
 Cell_Nuclei_Area_Ratio_Filter_Bottom,Cell:Nuclear Area Ratio Filter Bottom Band,3455,73596,1570,Bottom threshold: 1.9243336199484091,72026.0
 Cell_Nuclei_Area_Ratio_Filter_Top,Cell:Nuclear Area Ratio Filter Top Band,3455,72026,94,Top threshold: 20.530685742771166,71932.0
-Cell_Neighbours_Filter,Percent of Cell Touching Neighbours AND Number Of Neighbours < 97.5th Percentile,3455,71932,4797,Max Percent Touching: 65.82167832167832 and Max Number Of Neighbours: 4.0,67135.0
-Nuc_Neighbours_Filter,Number Of Nuclei Neighbours < 97.5th Percentile,3455,67135,134,Max Number Of Nuclei Neighbours: 1.0,67001.0
+AreaShape_Eccentricity_Filter_Bottom,Cell Eccentricity Filter Bottom Band,3455,71932,1348,Bottom threshold: 0.4542413516744716,69922.0
+AreaShape_Eccentricity_Filter_Top,Cell Eccentricity Filter,3455,71932,662,Top threshold: 0.9934239864299939,69922.0
+Nuclei_AreaShape_Eccentricity_Filter_Bottom,Nuclear Eccentricity Filter Bottom Band,3455,69922,1343,Bottom threshold: 0.4526738014352,68515.0
+Nuclei_AreaShape_Eccentricity_Filter_Top,Nuclear Eccentricity Filter Top Band,3455,69922,64,Top threshold: 0.9525365954701192,68515.0
+Cell_Neighbours_Filter,Percent of Cell Touching Neighbours AND Number Of Neighbours < 97.5th Percentile,3455,68515,4608,Max Percent Touching: 65.82167832167832 and Max Number Of Neighbours: 4.0,63907.0
+Nuc_Neighbours_Filter,Number Of Nuclei Neighbours < 97.5th Percentile,3455,63907,127,Max Number Of Nuclei Neighbours: 1.0,63780.0
