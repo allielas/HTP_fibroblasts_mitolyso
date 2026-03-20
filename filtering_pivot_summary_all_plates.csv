@@ -8,5 +8,7 @@ Min Number of Lysosomes Filter,1,1,0,3,2,0,0
 Min Number of Mitochondria Filter,1,0,0,7,6,4,1
 Nuclear Size Filter Bottom Band,62,53,177,280,196,138,101
 Nuclear Size Filter Top Band,3,4,10,3,17,19,25
+Nuclei Intensity MedianIntensity DAPI MAX WellNormalized Filter Bottom Band,-1,-1,-1,-1,-1,-1,-1
+Nuclei Intensity MedianIntensity DAPI MAX WellNormalized Filter Top Band,-3,-2,-9,-3,-21,-8,-22
 Number Of Nuclei Neighbours < 97.5th Percentile,11,7,24,29,28,28,7
-Percent of Cell Touching Neighbours AND Number Of Neighbours < 97.5th Percentile,472,461,1500,324,1190,493,357
+Percent of Cell Touching Neighbours AND Number Of Neighbours < 97.5th Percentile,472,461,1499,324,1189,493,356
