@@ -1,0 +1,16 @@
+,filter_type,columns,rows_initial,rows_removed,threshold,rows
+Initial_Dataset,Initial Dataset,3471,76007,0,"None,None",
+Number_of_Mitochondria_Filter,Min Number of Mitochondria Filter,3471,76007,19,min_compartments=0,75988.0
+Number_of_Lysosomes_Filter,Min Number of Lysosomes Filter,3471,76007,11,min_compartments=0,75996.0
+AreaShape_Area_Filter_Bottom,Cell Size Filter Bottom Band,3471,76007,1258,Bottom threshold: 22768.0,74702.0
+AreaShape_Area_Filter_Top,Cell Size Filter Top Band,3471,76007,47,Top threshold: 1254046.5,74702.0
+Nuclei_AreaShape_Area_Filter_Bottom,Nuclear Size Filter Bottom Band,3471,76007,1614,Bottom threshold: 9340.0,74303.0
+Nuclei_AreaShape_Area_Filter_Top,Nuclear Size Filter Top Band,3471,76007,90,Top threshold: 98385.75,74303.0
+Cell_Nuclei_Area_Ratio_Filter_Bottom,Cell:Nuclear Area Ratio Filter Bottom Band,3471,76007,2167,Bottom threshold: 1.9243336199484091,73840.0
+Cell_Nuclei_Area_Ratio_Filter_Top,Cell:Nuclear Area Ratio Filter Top Band,3471,76007,2399,Top threshold: 20.530685742771166,73608.0
+Nuclei_Intensity_MedianIntensity_DAPI_MAX_WellNormalized_Filter_Bottom,Nuclei Intensity MedianIntensity DAPI MAX WellNormalized Filter Bottom Band,3471,76007,1,Bottom threshold: 0.018285095035001957,76006.0
+Nuclei_Intensity_MedianIntensity_DAPI_MAX_WellNormalized_Filter_Top,Nuclei Intensity MedianIntensity DAPI MAX WellNormalized Filter Top Band,3471,76007,152,Top threshold: 2.5,75855.0
+Cell_Neighbours_Filter,Percent of Cell Touching Neighbours AND Number Of Neighbours < 97.5th Percentile,3471,76007,5474,Max Percent Touching: 65.82167832167832 and Max Number Of Neighbours: 4.0,70533.0
+Cell_Neighbours_PercentTouchingOnlyFilter,Percent of Cell Touching Neighbours < 97.5th Percentile,3471,76007,3085,Max Percent Touching: 65.82167832167832,72922.0
+Cell_Neighbours_NumberOfOnlyFilter,Number Of Neighbours < 97.5th Percentile,3471,76007,3757,Max Number Of Neighbours: 4.0,72250.0
+Nuc_Neighbours_Filter,Number Of Nuclei Neighbours < 97.5th Percentile,3471,76007,408,Max Number Of Nuclei Neighbours: 1.0,75599.0

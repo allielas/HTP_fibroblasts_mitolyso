@@ -1,0 +1,16 @@
+filter_type,Plate 1,Plate 2,Plate 3,Plate 4,Plate 5,Plate 6,Plate 7
+Cell Size Filter Bottom Band,62,20,155,420,317,245,39
+Cell Size Filter Top Band,1,4,4,0,2,11,25
+Cell:Nuclear Area Ratio Filter Bottom Band,147,109,230,451,642,522,66
+Cell:Nuclear Area Ratio Filter Top Band,155,135,283,470,670,566,120
+Initial Dataset,0,0,0,0,0,0,0
+Min Number of Lysosomes Filter,1,1,0,4,3,1,1
+Min Number of Mitochondria Filter,1,0,0,7,6,4,1
+Nuclear Size Filter Bottom Band,88,62,262,494,348,236,124
+Nuclear Size Filter Top Band,3,5,11,3,18,20,30
+Nuclei Intensity MedianIntensity DAPI MAX WellNormalized Filter Bottom Band,1,1,1,1,1,1,1
+Nuclei Intensity MedianIntensity DAPI MAX WellNormalized Filter Top Band,9,5,29,19,35,16,45
+Number Of Neighbours < 97.5th Percentile,342,334,1157,253,1046,369,256
+Number Of Nuclei Neighbours < 97.5th Percentile,29,16,91,52,137,72,11
+Percent of Cell Touching Neighbours < 97.5th Percentile,320,262,903,248,820,346,186
+Percent of Cell Touching Neighbours AND Number Of Neighbours < 97.5th Percentile,513,482,1632,420,1440,605,382
