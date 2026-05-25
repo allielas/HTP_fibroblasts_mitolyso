@@ -71,9 +71,13 @@ def copy_img_set(img_names, in_dir, out_dir):
                     )
                     if matching_plate_flag:
                         break
-            if location_code in img_location_codes and matching_plate_flag:
+            if (
+                location_code in img_location_codes
+                and matching_plate_flag
+                and "SUM" not in file_name
+            ):
                 src_image = os.path.join(root, file_name)
-                dest_image = os.path.join(out_dir, file_name)
+                dest_image = os.path.join(out_dir, f"rep{plate_number}_{file_name}")
                 log.write(f"Copying {src_image} to {dest_image} \n")
                 # Print the source and destination paths for debugging
                 shutil.copy2(src_image, dest_image)
