@@ -65,7 +65,7 @@ def find_plate(path):
     return plate
 
 
-def search_column_name(df, query=""):
+def search_column_name(df, query="", case_sensitive=False):
     """_summary_
 
     Args:
@@ -74,7 +74,10 @@ def search_column_name(df, query=""):
     Return:
 
     """
-    query_cols = [col for col in df.columns if query in col]
+    if case_sensitive:
+        query_cols = [col for col in df.columns if query in col]
+    else:
+        query_cols = [col for col in df.columns if query.lower() in col.lower()]
     print(f"Query: {query}")
     for col in query_cols:
         print(f"    {col}")
