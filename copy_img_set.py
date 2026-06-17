@@ -57,7 +57,8 @@ def copy_img_set(img_names, in_dir, out_dir):
                     log.write(
                         f"Could not extract plate number from parent directory {parent_dir} or full path {full_path} for file {file_name} \n"
                     )
-
+            dest_folder = os.path.join(out_dir, f"rep{plate_number}")
+            os.makedirs(dest_folder, exist_ok=True)
             matching_plate_flag = False
 
             if location_code in code_to_indices:
@@ -77,7 +78,7 @@ def copy_img_set(img_names, in_dir, out_dir):
                 and "SUM" not in file_name
             ):
                 src_image = os.path.join(root, file_name)
-                dest_image = os.path.join(out_dir, f"rep{plate_number}_{file_name}")
+                dest_image = os.path.join(dest_folder, f"rep{plate_number}_{file_name}")
                 log.write(f"Copying {src_image} to {dest_image} \n")
                 # Print the source and destination paths for debugging
                 shutil.copy2(src_image, dest_image)
@@ -85,14 +86,16 @@ def copy_img_set(img_names, in_dir, out_dir):
 
 if __name__ == "__main__":
     in_dir = "/mnt/bigdisk1/AllieSpangaro/Morphology_Replicative_Age_Project/MRC-5_MAX_SUM_PROJ"
-    out_dir = "/mnt/bigdisk1/AllieSpangaro/MitoSegSubset"
+    out_dir = "/mnt/bigdisk1/AllieSpangaro/Morphology_Replicative_Age_Project/Reworking_Organelle_Segmentation/MitoSegSubset_2"
+    csv_path = "/mnt/bigdisk1/AllieSpangaro/Morphology_Replicative_Age_Project/Reworking_Organelle_Segmentation/MitoSegmentation/MitochondriaSegmentationSubsetImages_test.csv"
 
     # Load the image sets from the CSV files
-    df = pd.read_csv("/mnt/bigdisk1/AllieSpangaro/importing_mitomarkercsv.csv")
+    df = pd.read_csv(csv_path)
     image_colname = "Image_FileName_MitoTracker_MAX"
-    plate_colname = "Plate_Number"
+    plate_colname = "Metadata_PlateNumber"
     df["plate_image_colname"] = (
-        df[image_colname] + "_" + "rep0" + df[plate_colname].astype(str)
+        # df[image_colname] + "_" + "rep0" + df[plate_colname].astype(str)
+        "rep0" + df[plate_colname].astype(str) + "_" + df[image_colname]
     )
     # Get the image file names from the dataframes
     img_names = df["plate_image_colname"].tolist()
