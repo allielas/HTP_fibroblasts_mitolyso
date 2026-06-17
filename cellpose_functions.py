@@ -704,6 +704,9 @@ def segment_nuclei_v3(
     diameter=None,
     niter=None,
     show_image_preprocessing=False,
+    save_plots=False,
+    plot_dir="",
+    save_name="nuclei_segmentation_result",
 ):
     """
     Run cellpose-SAM on the nucleus channel from a multichannel cell image and return the predicted masks
@@ -768,7 +771,13 @@ def segment_nuclei_v3(
         fig = plt.figure(figsize=(12, 5))
         plot.show_segmentation(fig, img, masks_removed_edges, flows[0])
         plt.tight_layout()
-        plt.show()
+        if save_plots:
+            save_dir = Path(f"{plot_dir}/segmentation_plots")
+            Path.mkdir(save_dir, exist_ok=True)
+            plt.savefig(f"{save_dir.as_posix()}/{save_name}.png")
+            # print(f"Saved plot to {save_dir.as_posix()}/{save_name}.png")
+        else:
+            plt.show()
     return masks_removed_edges
 
 
@@ -784,6 +793,9 @@ def segment_cell_v3(
     max_size_frac=0.70,  # keep masks up to 70% of image size
     niter=1000,
     show_image_preprocessing=False,
+    save_plots=False,
+    plot_dir="",
+    save_name="cell_segmentation_result",
 ):
     """
     Run cellpose-SAM on a grayscale multichannel cell image and return the predicted masks
@@ -838,7 +850,13 @@ def segment_cell_v3(
         fig = plt.figure(figsize=(12, 5))
         plot.show_segmentation(fig, img_selected_channels, masks, flows[0])
         plt.tight_layout()
-        plt.show()
+        if save_plots:
+            save_dir = Path(f"{plot_dir}/segmentation_plots")
+            Path.mkdir(save_dir, exist_ok=True)
+            plt.savefig(f"{save_dir.as_posix()}/{save_name}.png")
+            # print(f"Saved plot to {save_dir.as_posix()}/{save_name}.png")
+        else:
+            plt.show()
     return masks
 
 
@@ -877,6 +895,7 @@ def save_mask_folder(
     pretrained_model="cpsam_v2",
     gpu=True,
     show_model_name=False,
+    save_plots=False,
 ):
     """
     Run cellpose and save cell and nuclear masks to a folder given an ordered list of files ordered by channel and an output directory
@@ -911,8 +930,23 @@ def save_mask_folder(
         rescaled_img = img_rescaled(stacked_img, factor=resize_factor)
 
         model_name = pretrained_model if show_model_name else ""
+        plot_dir = ""
+        save_name_nuc = ""
+        save_name_cell = ""
+        if save_plots:
+            plot_dir = Path(f"{outdir}/segmentation_plots")
+            Path.mkdir(plot_dir, exist_ok=True)
+            save_name_nuc = f"{img_set_name}_nuclei_{model_name}_segmentation_result"
+            save_name_cell = f"{img_set_name}_cell_{model_name}_segmentation_result"
         if v2:
-            nuc_masks = segment_nuclei_v3(rescaled_img, model, show_plot=False)
+            nuc_masks = segment_nuclei_v3(
+                rescaled_img,
+                model,
+                show_plot=save_plots,
+                save_plots=save_plots,
+                plot_dir=plot_dir,
+                save_name=save_name_nuc,
+            )
             save_masks(
                 img_set_name,
                 nuc_masks,
@@ -921,7 +955,14 @@ def save_mask_folder(
                 mask_type="nuclei",
                 model_name=model_name,
             )
-            cell_masks = segment_cell_v3(rescaled_img, model, show_plot=False)
+            cell_masks = segment_cell_v3(
+                rescaled_img,
+                model,
+                show_plot=save_plots,
+                save_plots=save_plots,
+                plot_dir=plot_dir,
+                save_name=save_name_cell,
+            )
             save_masks(
                 img_set_name,
                 cell_masks,
