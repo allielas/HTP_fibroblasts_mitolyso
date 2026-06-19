@@ -65,22 +65,55 @@ def find_plate(path):
     return plate
 
 
-def search_column_name(df, query="", case_sensitive=False):
+def search_column_name(
+    df, query="", case_sensitive=False, inclusive_or=True, verbose=True
+):
     """_summary_
 
     Args:
         df (DataFrame): _description_
-        query (str, optional): your search query. Defaults to "".
+        query (str or list, optional): your search query. Defaults to "".
+        verbose (bool, optional): whether to print the results. Defaults to True.
     Return:
 
     """
-    if case_sensitive:
-        query_cols = [col for col in df.columns if query in col]
+    if inclusive_or:
+        if isinstance(query, list):
+            query_cols = []
+            for q in query:
+                if case_sensitive:
+                    query_cols.extend([col for col in df.columns if q in col])
+                else:
+                    query_cols.extend(
+                        [col for col in df.columns if q.lower() in col.lower()]
+                    )
+        else:
+            if case_sensitive:
+                query_cols = [col for col in df.columns if query in col]
+            else:
+                query_cols = [col for col in df.columns if query.lower() in col.lower()]
     else:
-        query_cols = [col for col in df.columns if query.lower() in col.lower()]
-    print(f"Query: {query}")
-    for col in query_cols:
-        print(f"    {col}")
+        if isinstance(query, list):
+            query_cols = []
+            for col in df.columns:
+                if all(
+                    q in col if case_sensitive else q.lower() in col.lower()
+                    for q in query
+                ):
+                    query_cols.append(col)
+                else:
+                    continue
+        else:
+            if case_sensitive:
+                query_cols = [col for col in df.columns if query not in col]
+            else:
+                query_cols = [
+                    col for col in df.columns if query.lower() not in col.lower()
+                ]
+    if verbose:
+        print(f"Query: {query}")
+        for col in query_cols:
+            print(f"    {col}")
     return query_cols
 
 
