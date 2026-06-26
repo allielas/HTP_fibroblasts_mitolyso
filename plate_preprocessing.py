@@ -632,8 +632,10 @@ def calculate_aggregated_object_features(
     object_df,
     feature,
     parent_key,
+    object_name="Object",
     child_key="Cell_Number_Object_Number",
     aggregation="Median",
+    prefix="Cell",
 ):
     """
     Calculate the aggregated function (typically median) of specified features grouped by a parent key.
@@ -645,6 +647,7 @@ def calculate_aggregated_object_features(
     child_key (str): The column name in the PARENT table that identifies the child obj.
     parent_key (str): The column name in the CHILD table that identifies the parent key.
     aggregation (str): the type of aggregation, can be "Mean","Median","Mode", or "Std"
+    child_name (str): The name of the child object type.
 
     Returns:
     modified_df (DataFrame): The DataFrame with the new median feature column added.
@@ -670,7 +673,7 @@ def calculate_aggregated_object_features(
         return pd.DataFrame()
 
     # create the new column name for the aggregated feature
-    col_name = f"Cell_{agg_title}_{feature}"
+    col_name = f"{prefix}_{object_name}_{agg_title}_{feature}"
 
     # reformat the agg_values dataframe for merging
     agg_values = agg_values.reset_index()
@@ -702,7 +705,11 @@ def calculate_aggregated_object_features(
 
 
 def add_median_object_features_to_parent(
-    parent_df, object_df, object_name, child_key="Cell_Number_Object_Number"
+    parent_df,
+    object_df,
+    object_name,
+    child_key="Cell_Number_Object_Number",
+    prefix="Cell",
 ):
     """
     Add median features from object_df to parent_df based on the specified feature and keys.
@@ -711,7 +718,8 @@ def add_median_object_features_to_parent(
     parent_df (DataFrame): The DataFrame containing the parent features (e.g cell).
     object_df (DataFrame): The DataFrame containing the object features (e.g. mitochondria).
     object_name (str): The object of interest to add to the parent table.
-    child_key (str): The column name in the PARENT table that identifies the child obj.
+    child_key (str): The column name in the PARENT table that identifies the child object.
+    prefix (str): The prefix for the new feature column names.
 
     Returns:
     modified_df (DataFrame): The DataFrame with the new median feature column added.
@@ -765,7 +773,9 @@ def add_median_object_features_to_parent(
                 feature,
                 parent_key,
                 child_key,
+                object_name=object_name,
                 aggregation="Median",
+                prefix=prefix,
             )
 
     return modified_df
