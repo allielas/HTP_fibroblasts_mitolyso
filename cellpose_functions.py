@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import cv2 as cv
 import tifffile as tf
 import re
+from skimage import exposure, filters, morphology, transform
 
 
 def file_sort_key(filename):
@@ -229,6 +230,30 @@ def load_image_set(single_grouped_files_by_channel, nchannels=None):
     return image_set
 
 
+def load_image_set_without_modifications(
+    single_grouped_files_by_channel, nchannels=None
+):
+    """
+    Load an image set given file paths for a single image set; load images from a single element of the list made by the `group_files_by_channel` function
+    Parameters (this time avoid multipling ch2 by a given factor):
+          single_grouped_files_by_channel (list of Path objects): list of file paths grouped by channel and ordered by platemap location
+          nchannels (int or None): the number of channels. Assumes based on length of first element otherwise
+    Returns:
+          image_set (list of 2D arrays): a list of 2D arrays representing the loaded single-channel grayscale images
+    """
+    if nchannels == None:
+        nchannels = len(single_grouped_files_by_channel)
+    # load the images from the channels - skip ch3 at position 2 as DAPI is always the last channel
+    lastindex = nchannels - 1  # subtract 1 to convert to the 0-index
+    ch1, ch2, ch3 = (
+        io.imread(single_grouped_files_by_channel[0]),
+        io.imread(single_grouped_files_by_channel[1]),
+        io.imread(single_grouped_files_by_channel[lastindex]),
+    )
+    image_set = [ch1, ch2, ch3]
+    return image_set
+
+
 def get_multichannel_img_normalized(img_set, selected_channels=[1, 2, 3, 4]):
     """
     Create a multichannel grayscale image given an list of single-channel grayscale images and stack the image together
@@ -258,8 +283,6 @@ def img_preprocessing(img_set):
     Returns:
           multi_channel_image (3D array): a 3D array containing the preprocessed grayscale images
     """
-    from skimage import exposure, filters, morphology
-
     # ch1,ch2,ch3 = io.imread(files[0]), io.imread(files[1]), io.imread(files[3])
     # channels = [ch1, ch2, ch3]
     img_stack = []
@@ -282,8 +305,6 @@ def img_preprocessing_v2(img_set):
     Returns:
           multi_channel_image (3D array): a 3D array containing the preprocessed grayscale images
     """
-    from skimage import exposure, filters, morphology
-
     # ch1,ch2,ch3 = io.imread(files[0]), io.imread(files[1]), io.imread(files[3])
     # channels = [ch1, ch2, ch3]
     img_stack = []
@@ -292,6 +313,31 @@ def img_preprocessing_v2(img_set):
         # channel = img_01_normalization(channel)
         channel = exposure.equalize_adapthist(channel, kernel_size=100, clip_limit=0.02)
         channel = filters.median(channel, morphology.disk(2))
+        img_stack.append(channel)
+
+    multi_channel_image = np.stack(img_stack, axis=-1)
+    return multi_channel_image
+
+
+def stack_images_with_histogram_matching(img_set, reference_channel=2):
+    """
+    Stack and preprocess multiple grayscale images given a list of single-channel grayscale images given a referene channel for matching
+    Parameters:
+           img_set (list of 2D arrays): a list of 2D arrays representing grayscale images
+           reference_channel (int, optional): the channel to use as a reference for histogram matching, 2 by default
+    Returns:
+          multi_channel_image (3D array): a 3D array containing the preprocessed grayscale images
+    """
+    # ch1,ch2,ch3 = io.imread(files[0]), io.imread(files[1]), io.imread(files[3])
+    # channels = [ch1, ch2, ch3]
+    reference_channel_index = reference_channel - 1
+    img_stack = []
+    for i in range(len(img_set)):
+        channel = img_set[i]
+        if i != reference_channel_index:
+            channel = exposure.match_histograms(
+                channel, img_set[reference_channel_index], multichannel=False
+            )
         img_stack.append(channel)
 
     multi_channel_image = np.stack(img_stack, axis=-1)
@@ -334,7 +380,6 @@ def img_rescaled(img, factor=0.5, anti_aliasing=False, channel_axis=-1):
     Returns:
           rescaled_image (3D array): a 3D array containing the rescaled grayscale image
     """
-    from skimage import transform
 
     rescaled_img = transform.rescale(
         img, factor, anti_aliasing=anti_aliasing, channel_axis=channel_axis
@@ -359,6 +404,197 @@ def load_model(pretrained_model="cpsam_v2", gpu=True):
 
     model = models.CellposeModel(pretrained_model=pretrained_model, gpu=True)
     return model
+
+
+def spline_order(interpolation_method: str) -> int:
+    """Determine interpolation order from method.
+    Args:
+        interpolation_method (str): The interpolation method to use. Must be one of 'nearest', 'bilinear', or 'bicubic'.
+    Returns:
+        int: The interpolation order.
+    """
+    interpolation_method = interpolation_method.lower()
+    if interpolation_method == "nearest":
+        return 0
+
+    elif interpolation_method == "bilinear":
+        return 1
+
+    elif interpolation_method == "bicubic":
+        return 3
+
+    else:
+        raise ValueError(
+            f"Invalid interpolation method: {interpolation_method}. Must be one of 'nearest', 'bilinear', or 'bicubic'."
+        )
+
+
+def preprocessing_for_cell_segmentation(
+    orig_img,
+    composite_channels=[1, 2],
+    nucleus_channel=3,
+    rescale_factor=0.15,
+    interpolation_method="bicubic",
+    anti_aliasing=False,
+):
+    """
+    Preprocess a grayscale image of the cell channels, run cellpose on the image, and return the predicted masks
+    Parameters:
+           img (2D or 3D array): grayscale image to be segmented by cellpose
+           nucleus_channel (int, optional): the channel to use for the nuclear channel, 3 by default
+    Returns:
+          preprocessed_img (2D or 3D array): the preprocessed grayscale image for cell segmentation
+    """
+    # combine the specified channels to help cellpose out a bit
+    gfp = orig_img[:, :, composite_channels[0] - 1]
+    rfp = orig_img[:, :, composite_channels[1] - 1]
+    # save the specified nuclear channel for later
+    dapi = orig_img[:, :, nucleus_channel - 1]
+    # add the channels and normalize intensity
+    img_combo = gfp + rfp
+    img_combo = img_01_normalization(img_combo)
+    img_combo = exposure.equalize_adapthist(
+        img_combo, kernel_size=128, clip_limit=0.01, nbins=256
+    )
+    dapi = img_01_normalization(dapi)
+    dapi = exposure.equalize_adapthist(
+        dapi, kernel_size=128, clip_limit=0.01, nbins=256
+    )
+    # denoise / smooth with gaussian kernel
+    img_combo = filters.gaussian(img_combo, sigma=2)
+    dapi = filters.gaussian(dapi, sigma=10)
+
+    # stack the images
+    preprocessed_img = np.stack([img_combo, dapi], axis=-1)
+    # rescale the images for speed
+    preprocessed_img = transform.rescale(
+        preprocessed_img,
+        scale=rescale_factor,
+        order=spline_order(interpolation_method),
+        mode="symmetric",
+        channel_axis=-1,
+        anti_aliasing=anti_aliasing,
+    )
+    return preprocessed_img
+
+
+def preprocessing_for_nuclei_segmentation(
+    orig_img,
+    nucleus_channel=3,
+    gaussian_sigma=2,
+    rescale_factor=0.15,
+    interpolation_method="bicubic",
+    anti_aliasing=False,
+    use_white_tophat=True,
+    use_unsharp_mask=False,
+):
+    """
+    Preprocess a grayscale image of the nuclear channel, run cellpose on the image, and return the predicted masks
+    Parameters:
+           img (2D or 3D array): grayscale image to be segmented by cellpose
+           nucleus_channel (int, optional): the channel to use for the nuclear channel, 3 by default
+           gaussian_sigma (float, optional): the sigma for the gaussian kernel used to smooth the image, 2 by default
+           rescale_factor (float, optional): the factor to rescale the image by, 0.15 by default
+           interpolation_method (str, optional): the interpolation method to use for rescaling, 'bicubic' by default
+              anti_aliasing (bool, optional): flag whether to use anti-aliasing when rescaling, false by default
+              use_white_tophat (bool, optional): flag whether to use white top-hat filtering to remove background, true by default
+              use_unsharp_mask (bool, optional): flag whether to use unsharp masking to sharpen the image, false by default
+
+    Returns:
+          preprocessed_img (2D or 3D array): the preprocessed grayscale image for nuclear segmentation
+    """
+    dapi = orig_img[:, :, nucleus_channel - 1]
+    dapi = exposure.equalize_adapthist(
+        dapi, kernel_size=128, clip_limit=0.01, nbins=256
+    )
+    if use_white_tophat:
+        bg2 = morphology.white_tophat(dapi, morphology.disk(3))
+        dapi = dapi - bg2
+    dapi = img_01_normalization(dapi)
+    if use_unsharp_mask:
+        # sharpen image and improve outline (radius is the gaussian kernel)
+        dapi = filters.unsharp_mask(dapi, radius=2, amount=2)
+    else:
+        dapi = filters.gaussian(dapi, sigma=gaussian_sigma)
+
+    # rescale the images for speed
+    preprocessed_img = transform.rescale(
+        dapi,
+        scale=rescale_factor,
+        order=spline_order(interpolation_method),
+        mode="symmetric",
+        anti_aliasing=anti_aliasing,
+    )
+    return preprocessed_img
+
+
+def run_cellpose_segmentation(
+    img,
+    model,
+    show_plot=True,
+    flow_threshold=0.4,
+    cellprob_threshold=0,
+    tile_norm_blocksize=100,
+    diameter=None,
+    min_size=100,
+    max_size_frac=0.70,  # keep masks up to 70% of image size
+    niter=1000,
+    dilate_radius=0,
+    fill_holes=True,
+    show_image_preprocessing=False,
+    save_plots=False,
+    plot_dir="",
+    save_name="cell_segmentation_result",
+):
+    """
+    Run cellpose-SAM on a grayscale multichannel cell image and return the predicted masks.
+    Trained on cells ranging from 7.5-120 pixels, so rescale accordingly
+    Parameters:
+            img (2D or 3D array): grayscale image to be segmented by cellpose. ideally preprocessed already
+            model (Cellpose.model): the cellpose model used for segmentation
+            show_plot (bool, optional): flag whether to show a plot of the predicted mask flow
+            show_image_preprocessing (bool, optional): flag whether to show the preprocessed image
+            flow_threshold (float, optional): the flow threshold for cellpose, (from original 0.4 default). Down for more stringent, up for more lenient
+            cellprob_threshold (float, optional): the cell probability threshold for cellpose, 0 by default (from original 0 default).
+            tile_norm_blocksize (int, optional): the tile normalization blocksize for cellpose, 100 by default. Generally between 100-200; 0 to turn off
+            diameter (int or None, optional): the diameter for cellpose, 60 as experimentally determined, but None by default
+            min_size (int, optional): the minimum size of masks to keep, 100 pixels by default
+            max_size_frac (float, optional): the maximum size of masks to keep as a fraction of the image size, 0.85 by default
+            niter (int or None, optional): the number of iterations for cellpose, None by default
+    Returns:
+            masks (list of 2D or 3D arrays): the predicted masks from the cellpose model
+    """
+    if show_image_preprocessing:
+        tf.imshow(img, cmap="plasma")
+
+    masks, flows, styles = model.eval(
+        img,
+        batch_size=64,
+        niter=niter,
+        diameter=diameter,
+        flow_threshold=flow_threshold,
+        cellprob_threshold=cellprob_threshold,
+        normalize={"tile_norm_blocksize": tile_norm_blocksize},
+        max_size_fraction=max_size_frac,
+        min_size=min_size,
+    )
+    if fill_holes:
+        masks = utils.fill_holes_and_remove_small_masks(masks, min_size=min_size)
+    if dilate_radius > 0:
+        masks = utils.dilate_masks(masks, n_iter=dilate_radius)
+    # plot if true
+    if show_plot:
+        fig = plt.figure(figsize=(12, 5))
+        plot.show_segmentation(fig, img, masks, flows[0])
+        plt.tight_layout()
+        if save_plots:
+            save_dir = Path(f"{plot_dir}/segmentation_plots")
+            Path.mkdir(save_dir, exist_ok=True)
+            plt.savefig(f"{save_dir.as_posix()}/{save_name}.png")
+            # print(f"Saved plot to {save_dir.as_posix()}/{save_name}.png")
+        else:
+            plt.show()
+    return masks
 
 
 def segment_cell(img, model, show_plot=True):
@@ -393,62 +629,6 @@ def segment_cell(img, model, show_plot=True):
     return masks
 
 
-def old_segment_cell_v2(
-    img,
-    model,
-    show_plot=True,
-    flow_threshold=0.6,
-    cellprob_threshold=-1,
-    tile_norm_blocksize=100,
-    diameter=60,
-    min_size=500,
-    max_size_frac=0.8,  # keep masks up to 70% of image size
-    niter=1000,
-):
-    """
-    Run cellpose on a grayscale cell image and return the predicted masks
-    Parameters:
-           img (2D or 3D array): grayscale image to be segmented by cellpose
-           model (Cellpose.model): the cellpose model used for segmentation
-           show (bool, optional): flag whether to show a plot of the predicted mask flow
-    Returns:
-          masks (list of 2D or 3D arrays): the predicted masks from the cellpose model
-    """
-    from skimage import filters, morphology
-
-    gfp = img[:, :, 0]  # combine the ch1 and ch2 images to help cellpose out a bit
-    rfp = img[:, :, 1]
-    dapi = img[:, :, 2]  # save ch3 for later
-
-    img_combo = gfp + rfp
-    img_combo = img_01_normalization(img_combo)
-    # sharpen image and improve outline (radius is the gaussian kernel)
-    img_combo = filters.unsharp_mask(img_combo, radius=0.5, amount=2)
-
-    # stack the images
-    img_selected_channels = np.stack([img_combo, dapi], axis=-1)
-
-    masks, flows, styles = model.eval(
-        img_selected_channels,
-        batch_size=64,
-        niter=niter,
-        diameter=diameter,
-        flow_threshold=flow_threshold,
-        cellprob_threshold=cellprob_threshold,
-        normalize={"tile_norm_blocksize": tile_norm_blocksize},
-        max_size_fraction=max_size_frac,
-    )
-    masks = utils.fill_holes_and_remove_small_masks(masks, min_size=min_size)
-    masks = utils.dilate_masks(masks, n_iter=2)
-    # plot if true
-    if show_plot:
-        fig = plt.figure(figsize=(12, 5))
-        plot.show_segmentation(fig, img_selected_channels, masks, flows[0])
-        plt.tight_layout()
-        plt.show()
-    return masks
-
-
 def segment_nuclei(orig_img, model, show_plot=True):
     """
     Preprocess a grayscale image of the nuclear channel, run cellpose on the image, and return the predicted masks
@@ -460,8 +640,6 @@ def segment_nuclei(orig_img, model, show_plot=True):
     Returns:
           masks (list of 2D or 3D arrays): the predicted nuclear masks from the cellpose model
     """
-    from skimage import morphology, exposure, filters
-
     img = orig_img[:, :, 2]  # get the DAPI channel
 
     # remove background
@@ -497,65 +675,6 @@ def segment_nuclei(orig_img, model, show_plot=True):
     return masks
 
 
-def old_segment_nuclei_v2(
-    orig_img,
-    model,
-    show_plot=True,
-    flow_threshold=0.5,
-    cellprob_threshold=1,
-    tile_norm_blocksize=150,
-    min_size=250,
-    max_size_frac=0.4,
-    diameter=None,
-    niter=None,
-):
-    """
-    Preprocess a grayscale image of the nuclear channel, run cellpose on the image, and return the predicted masks
-    Parameters:
-           img (2D or 3D array): grayscale image to be segmented by cellpose
-           model (Cellpose.model): the cellpose model used for segmentation
-           show (bool, optional): flag whether to show a plot of the predicted mask flow
-
-    Returns:
-          masks (list of 2D or 3D arrays): the predicted nuclear masks from the cellpose model
-    """
-    from skimage import morphology, filters
-
-    img = orig_img[:, :, 2]  # get the DAPI channel
-
-    # remove speckle-shaped autofluor
-    bg2 = morphology.white_tophat(img, morphology.disk(3))
-    img = img - bg2
-    img = morphology.closing(img, morphology.disk(2.5))
-    # sharpen image and improve outline (radius is the gaussian kernel)
-    img = filters.gaussian(img, sigma=2)
-    img = img_01_normalization(img)
-
-    masks, flows, styles = model.eval(
-        img,
-        batch_size=64,
-        diameter=diameter,
-        niter=niter,
-        flow_threshold=flow_threshold,
-        cellprob_threshold=cellprob_threshold,
-        normalize={"tile_norm_blocksize": tile_norm_blocksize},
-        max_size_fraction=max_size_frac,
-    )
-    # dilate before removing the ones touching edges to catch the stragglers
-    masks = utils.dilate_masks(masks, n_iter=1)
-    masks_removed_edges = utils.remove_edge_masks(masks)
-    masks_removed_edges = utils.fill_holes_and_remove_small_masks(
-        masks_removed_edges, min_size=min_size
-    )
-
-    if show_plot:
-        fig = plt.figure(figsize=(12, 5))
-        plot.show_segmentation(fig, img, masks_removed_edges, flows[0])
-        plt.tight_layout()
-        plt.show()
-    return masks_removed_edges
-
-
 def segment_cell_v2(
     img,
     model,
@@ -585,8 +704,6 @@ def segment_cell_v2(
     Returns:
           masks (list of 2D or 3D arrays): the predicted masks from the cellpose model
     """
-    from skimage import filters, morphology, exposure
-
     gfp = img[:, :, 0]  # combine the ch1 and ch2 images to help cellpose out a bit
     rfp = img[:, :, 1]
     dapi = img[:, :, 2]  # save ch3 for later
@@ -652,8 +769,6 @@ def segment_nuclei_v2(
     Returns:
           masks (list of 2D or 3D arrays): the predicted nuclei masks from the cellpose model
     """
-    from skimage import morphology, filters
-
     img = orig_img[:, :, 2]  # get the DAPI channel
 
     # remove speckle-shaped autofluor
@@ -725,8 +840,6 @@ def segment_nuclei_v3(
     Returns:
           masks (list of 2D or 3D arrays): the predicted nuclei masks from the cellpose model
     """
-    from skimage import morphology, filters
-
     img = orig_img[:, :, nucleus_channel - 1]  # get the DAPI channel (and 0-index it)
     # img = img_01_normalization(img)
 
@@ -815,8 +928,6 @@ def segment_cell_v3(
     Returns:
           masks (list of 2D or 3D arrays): the predicted masks from the cellpose model
     """
-    from skimage import filters, morphology, exposure
-
     gfp = img[:, :, 0]  # combine the ch1 and ch2 images to help cellpose out a bit
     rfp = img[:, :, 1]
     dapi = img[:, :, 2]  # save ch3 for later
@@ -883,6 +994,117 @@ def save_masks(
         )
     else:
         io.imsave(outdir / (set_name + "_" + mask_type + "_masks" + masks_ext), masks)
+
+
+def save_mask_folder_v2(
+    ordered_files,
+    outdir,
+    image_ext=".tif",
+    nchannels=None,
+    rescale_factor=0.15,
+    histogram_matching=True,
+    reference_channel=2,
+    nucleus_channel=3,
+    pretrained_model="cpsam_v2",
+    gpu=True,
+    show_model_name=False,
+    save_plots=False,
+):
+    """
+    Run cellpose and save cell and nuclear masks to a folder given an ordered list of files ordered by channel and an output directory
+    Parameters:
+          ordered_files (list): an ordered list of image file paths to be processed and saved; assumed to be ordered by location,channel by the `load_sorted_directory_list`
+          outdir (Path or str): the output directory to save masks
+          image_ext (str, optional): image extension, .tif by default
+          nchannels (int, optional): specify the number of channels, default from the number of elements in the 1st element of the 2D list given
+          rescale_factor (float): the factor to rescale the image by for cellpose, 512x512 by default
+          pretrained_model (str, optional): the name of the pretrained Cellpose model specified, by default assumes cpsam
+          gpu (bool, optional): specify whether or not to use gpu, true by default
+          show_model_name (bool, optional): flag whether to show the model name in the saved mask file name, false by default
+          save_plots (bool, optional): flag whether to save the segmentation plots, false by default
+    """
+    # first load model and initialize chanels if not specified
+    model = load_model(pretrained_model=pretrained_model, gpu=gpu)
+    if nchannels == None:  # handle default case when nchannels isn't specified
+        nchannels = get_nchannels(ordered_files)
+    grouped_files_by_channel = group_files_by_channel(ordered_files, nchannels)
+
+    # loop through the grouped files and stack /preprocess the images
+    for i in trange(len(grouped_files_by_channel)):
+        file_group = grouped_files_by_channel[i]
+        img_set_name = get_image_set_name(file_group)
+        this_nchannels = nchannels
+        if "rep04" in img_set_name:
+            this_nchannels = 3  # for this one set, we only have 3 channels, so we need to specify that
+        img_set_list = load_image_set_without_modifications(file_group, this_nchannels)
+        if histogram_matching:
+            stacked_img = stack_images_with_histogram_matching(
+                img_set_list, reference_channel=reference_channel
+            )
+        else:
+            stacked_img = img_preprocessing_v2(img_set_list)
+
+        # Now preprocess the images
+        cell_preproessed = preprocessing_for_cell_segmentation(
+            stacked_img,
+            rescale_factor=rescale_factor,
+            nucleus_channel=nucleus_channel,
+            interpolation_method="bicubic",
+            anti_aliasing=False,
+        )
+        nucleus_preproessed = preprocessing_for_nuclei_segmentation(
+            stacked_img,
+            rescale_factor=rescale_factor,
+            nucleus_channel=nucleus_channel,
+            interpolation_method="bicubic",
+            anti_aliasing=False,
+            use_white_tophat=True,
+        )
+
+        # prepare variables for saving plots and masks
+        model_name = pretrained_model if show_model_name else ""
+        plot_dir = ""
+        save_name_nuc = ""
+        save_name_cell = ""
+        if save_plots:
+            plot_dir = Path(f"{outdir}/segmentation_plots")
+            Path.mkdir(plot_dir, exist_ok=True)
+            save_name_nuc = f"{img_set_name}_nuclei_{model_name}_segmentation_result"
+            save_name_cell = f"{img_set_name}_cell_{model_name}_segmentation_result"
+        # run cellpose and save masks
+        cell_masks = run_cellpose_segmentation(
+            cell_preproessed,
+            model,
+            show_plot=save_plots,
+            save_plots=save_plots,
+            plot_dir=plot_dir,
+            save_name=save_name_cell,
+        )
+        nuc_masks = run_cellpose_segmentation(
+            nucleus_preproessed,
+            model,
+            show_plot=save_plots,
+            save_plots=save_plots,
+            plot_dir=plot_dir,
+            save_name=save_name_nuc,
+        )
+        # Now save the masks to the output directory
+        save_masks(
+            img_set_name,
+            cell_masks,
+            outdir,
+            image_ext=image_ext,
+            mask_type="cell",
+            model_name=model_name,
+        )
+        save_masks(
+            img_set_name,
+            nuc_masks,
+            outdir,
+            image_ext=image_ext,
+            mask_type="nuclei",
+            model_name=model_name,
+        )
 
 
 def save_mask_folder(
