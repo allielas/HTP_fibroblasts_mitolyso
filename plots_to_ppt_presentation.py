@@ -218,9 +218,9 @@ def images_to_pptx(input_dir: Path, output_pptx: Path, ntokens=2):
             ntokens_prefix = round(len(raw_tokens) / 2) + 1
         else:
             ntokens_prefix = ntokens
-        print(
-            f"image_path: {image_path}, len raw_tokens: {len(raw_tokens)}, ntokens_prefix: {ntokens_prefix}"
-        )
+        # print(
+        #     f"image_path: {image_path}, len raw_tokens: {len(raw_tokens)}, ntokens_prefix: {ntokens_prefix}"
+        # )
         current_section_key = get_section_key(
             image_path, max_tokens=ntokens_prefix, first=True
         )
@@ -284,3 +284,4 @@ if __name__ == "__main__":
     main()
 
 # python plots_to_ppt_presentation.py -i segmentation_test/plots -o segmentation_test/test.pptx
+# python plots_to_ppt_presentation.py -i /mnt/bigdisk1/AllieSpangaro/Morphology_Replicative_Age_Project/CP_Output/mito_seg_testing/mitoimprovv10/overlaytesting/ -o /mnt/bigdisk1/AllieSpangaro/Morphology_Replicative_Age_Project/Reworking_Organelle_Segmentation/test_overlay.pptx

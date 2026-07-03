@@ -230,27 +230,29 @@ def load_image_set(single_grouped_files_by_channel, nchannels=None):
     return image_set
 
 
-def load_image_set_without_modifications(
-    single_grouped_files_by_channel, nchannels=None
+def get_image_set_without_modifications(
+    single_grouped_files_by_channel, selected_channels=[], nchannels=None
 ):
     """
     Load an image set given file paths for a single image set; load images from a single element of the list made by the `group_files_by_channel` function
-    Parameters (this time avoid multipling ch2 by a given factor):
+    Parameters:
           single_grouped_files_by_channel (list of Path objects): list of file paths grouped by channel and ordered by platemap location
+          selected_channels (list of int): a list with the desired channels to use/process (1-indexed)
           nchannels (int or None): the number of channels. Assumes based on length of first element otherwise
     Returns:
           image_set (list of 2D arrays): a list of 2D arrays representing the loaded single-channel grayscale images
     """
-    if nchannels == None:
+    # can choose to load only a subset of channels if desired, otherwise will load all channels
+    if selected_channels == []:
         nchannels = len(single_grouped_files_by_channel)
+    else:
+        nchannels = len(selected_channels)
     # load the images from the channels - skip ch3 at position 2 as DAPI is always the last channel
-    lastindex = nchannels - 1  # subtract 1 to convert to the 0-index
-    ch1, ch2, ch3 = (
-        io.imread(single_grouped_files_by_channel[0]),
-        io.imread(single_grouped_files_by_channel[1]),
-        io.imread(single_grouped_files_by_channel[lastindex]),
-    )
-    image_set = [ch1, ch2, ch3]
+
+    image_set = []
+    for i in range(nchannels):
+        image_channel = io.imread(single_grouped_files_by_channel[i])
+        image_set.append(image_channel)
     return image_set
 
 
@@ -319,26 +321,32 @@ def img_preprocessing_v2(img_set):
     return multi_channel_image
 
 
-def stack_images_with_histogram_matching(img_set, reference_channel=2):
+def stack_images_with_histogram_matching(
+    img_set, selected_channels=[1, 2, 4], reference_channel=2
+):
     """
     Stack and preprocess multiple grayscale images given a list of single-channel grayscale images given a referene channel for matching
     Parameters:
            img_set (list of 2D arrays): a list of 2D arrays representing grayscale images
+           selected channels (list of int): a list with the desired channels to use/process (1-indexed)
            reference_channel (int, optional): the channel to use as a reference for histogram matching, 2 by default
     Returns:
           multi_channel_image (3D array): a 3D array containing the preprocessed grayscale images
     """
     # ch1,ch2,ch3 = io.imread(files[0]), io.imread(files[1]), io.imread(files[3])
     # channels = [ch1, ch2, ch3]
-    reference_channel_index = reference_channel - 1
     img_stack = []
-    for i in range(len(img_set)):
-        channel = img_set[i]
-        if i != reference_channel_index:
-            channel = exposure.match_histograms(
-                channel, img_set[reference_channel_index], multichannel=False
-            )
-        img_stack.append(channel)
+    for i, image in enumerate(img_set):
+        channel_number = i + 1  # convert to 1-indexed
+        channel_image = image
+        if channel_number in selected_channels:
+            if channel_number != reference_channel:
+                channel_image = exposure.match_histograms(
+                    image=channel_image,
+                    reference=img_set[reference_channel - 1],
+                    channel_axis=None,
+                )
+            img_stack.append(channel_image)
 
     multi_channel_image = np.stack(img_stack, axis=-1)
     return multi_channel_image
@@ -482,11 +490,14 @@ def preprocessing_for_nuclei_segmentation(
     orig_img,
     nucleus_channel=3,
     gaussian_sigma=2,
-    rescale_factor=0.15,
+    rescale_factor=0.25,
     interpolation_method="bicubic",
     anti_aliasing=False,
+    use_adaptive_histogram_equalization=True,
     use_white_tophat=True,
-    use_unsharp_mask=False,
+    use_median_filter=False,
+    use_closing=True,
+    use_unsharp_mask=True,
 ):
     """
     Preprocess a grayscale image of the nuclear channel, run cellpose on the image, and return the predicted masks
@@ -494,7 +505,7 @@ def preprocessing_for_nuclei_segmentation(
            img (2D or 3D array): grayscale image to be segmented by cellpose
            nucleus_channel (int, optional): the channel to use for the nuclear channel, 3 by default
            gaussian_sigma (float, optional): the sigma for the gaussian kernel used to smooth the image, 2 by default
-           rescale_factor (float, optional): the factor to rescale the image by, 0.15 by default
+           rescale_factor (float, optional): the factor to rescale the image by, 0.25 by default
            interpolation_method (str, optional): the interpolation method to use for rescaling, 'bicubic' by default
               anti_aliasing (bool, optional): flag whether to use anti-aliasing when rescaling, false by default
               use_white_tophat (bool, optional): flag whether to use white top-hat filtering to remove background, true by default
@@ -504,16 +515,22 @@ def preprocessing_for_nuclei_segmentation(
           preprocessed_img (2D or 3D array): the preprocessed grayscale image for nuclear segmentation
     """
     dapi = orig_img[:, :, nucleus_channel - 1]
-    dapi = exposure.equalize_adapthist(
-        dapi, kernel_size=128, clip_limit=0.01, nbins=256
-    )
+    dapi = img_01_normalization(dapi)
+    if use_adaptive_histogram_equalization:
+        dapi = exposure.equalize_adapthist(
+            dapi, kernel_size=128, clip_limit=0.01, nbins=256
+        )
+    if use_median_filter:
+        dapi = filters.median(dapi, morphology.disk(2))
     if use_white_tophat:
         bg2 = morphology.white_tophat(dapi, morphology.disk(3))
         dapi = dapi - bg2
-    dapi = img_01_normalization(dapi)
+    if use_closing:
+        dapi = morphology.closing(dapi, morphology.disk(2.5))
+        dapi = img_01_normalization(dapi)
     if use_unsharp_mask:
         # sharpen image and improve outline (radius is the gaussian kernel)
-        dapi = filters.unsharp_mask(dapi, radius=2, amount=2)
+        dapi = filters.unsharp_mask(dapi, radius=gaussian_sigma, amount=1)
     else:
         dapi = filters.gaussian(dapi, sigma=gaussian_sigma)
 
@@ -942,7 +959,7 @@ def segment_cell_v3(
     # stack the images
     img_selected_channels = np.stack([img_combo, dapi], axis=-1)
     if show_image_preprocessing:
-        tf.imshow(img_selected_channels, cmap="plasma")
+        plot = microfilm_plot(img_selected_channels)
     masks, flows, styles = model.eval(
         img_selected_channels,
         batch_size=64,
@@ -1009,6 +1026,7 @@ def save_mask_folder_v2(
     gpu=True,
     show_model_name=False,
     save_plots=False,
+    selected_channels=[1, 2, 4],
 ):
     """
     Run cellpose and save cell and nuclear masks to a folder given an ordered list of files ordered by channel and an output directory
@@ -1035,11 +1053,17 @@ def save_mask_folder_v2(
         img_set_name = get_image_set_name(file_group)
         this_nchannels = nchannels
         if "rep04" in img_set_name:
-            this_nchannels = 3  # for this one set, we only have 3 channels, so we need to specify that
-        img_set_list = load_image_set_without_modifications(file_group, this_nchannels)
+            # for this one set, we only have 3 channels, so we need to specify that
+            selected_channels = [1, 2, 3]
+            this_nchannels = len(selected_channels)
+        img_set_list = get_image_set_without_modifications(
+            file_group, nchannels=this_nchannels
+        )
         if histogram_matching:
             stacked_img = stack_images_with_histogram_matching(
-                img_set_list, reference_channel=reference_channel
+                img_set_list,
+                reference_channel=reference_channel,
+                selected_channels=selected_channels,
             )
         else:
             stacked_img = img_preprocessing_v2(img_set_list)
@@ -1049,16 +1073,11 @@ def save_mask_folder_v2(
             stacked_img,
             rescale_factor=rescale_factor,
             nucleus_channel=nucleus_channel,
-            interpolation_method="bicubic",
-            anti_aliasing=False,
         )
         nucleus_preproessed = preprocessing_for_nuclei_segmentation(
             stacked_img,
             rescale_factor=rescale_factor,
             nucleus_channel=nucleus_channel,
-            interpolation_method="bicubic",
-            anti_aliasing=False,
-            use_white_tophat=True,
         )
 
         # prepare variables for saving plots and masks
@@ -1267,3 +1286,88 @@ def preload_and_save_masks(
         f = grouped_files_by_channel[i]
         set_name = get_image_set_name(f)
         io.imsave(outdir / (set_name + mask_type + "_masks" + masks_ext), masks[i])
+
+
+def microfilm_plot(
+    image_set,
+    cmaps=[
+        "pure_red",
+        "pure_green",
+        "pure_blue",
+    ],  # use these if the cmap library isn't working
+    # cmaps = ["gray_r", "cyan", "magenta"],
+    channel_names=["MitoTracker", "LAMP1", "DAPI"],
+    channel_label_show=True,
+    scalebar_unit_per_pix=0.09,
+    scalebar_size_in_units=3,
+    fig_scaling=5.0,
+    label_text="",
+    ax=None,
+    save=False,
+    save_path=None,
+):
+    """Plots a microfigure using the microfilm library with specified parameters.
+    See https://guiwitz.github.io/microfilm/notebooks/create_plots.html
+    Args:
+        image_set (list or np.array): A list of 2D arrays or a 3D array of images to be plotted, with shape (height, width, channels).
+        cmaps (list): A list of colormaps for each channel. Default is ['pure_red', 'pure_green', 'pure_blue'].
+        channel_names (list): A list of names for each channel. Default is ["MitoTracker", "LAMP1", "DAPI"].
+        scalebar_unit_per_pix (float): The size of each pixel in micrometers. Default is 0.09.
+        scalebar_size_in_units (float): The size of the scalebar in micrometers. Default is 3.
+        fig_scaling (float): Scaling factor for the figure  size. Default is 5.0.
+        label_text (str): Text to be added as a label on the figure. Default is an empty string.
+        ax (matplotlib.axes.Axes): An optional matplotlib axes object to plot
+        save (bool): Whether to save the figure. Default is False.
+        save_path (str): The path to save the figure if save is True. Default is None.
+    Returns:
+        microfigure: The microfigure object created by the microfilm library.
+    """
+    import skimage.io
+    from microfilm import microplot
+
+    # Note that this library expects a CXY format for the images, so we need to swap axes from XYC to CXY
+    if isinstance(image_set, list):
+        image_set = np.stack(image_set, axis=-1)
+    image_set = np.swapaxes(image_set, 0, -1)
+    try:
+        correct_cmap = image_set.shape[0] == len(cmaps)
+        if correct_cmap or cmaps is None or image_set.ndim != 3:
+            pass
+        else:
+            raise ValueError(
+                f"Number of channels in image_set ({image_set.shape[0]}) does not match number of colormaps provided ({len(cmaps)})."
+            )
+    except ValueError as e:
+        print(f"ValueError: {e}")
+        print("Using default colormaps instead.")
+        cmaps = None
+        channel_names = None
+
+    # plt.figure(figsize=(10, 10))
+    # don't show channel labels if an axis is provided or it will mess with formatting
+    if ax:
+        channel_label_show = False
+
+    microfigure = microplot.microshow(
+        images=image_set,
+        cmaps=cmaps,
+        flip_map=False,
+        channel_label_show=channel_label_show,
+        channel_names=channel_names,
+        unit="um",
+        scalebar_unit_per_pix=scalebar_unit_per_pix,
+        scalebar_size_in_units=scalebar_size_in_units,
+        scalebar_color="white",
+        scalebar_font_size=12,
+        fig_scaling=fig_scaling,
+        ax=ax,
+    )
+    if label_text:
+        microfigure.add_label(
+            label_text=label_text, label_font_size=30, label_color="white"
+        )
+    if save and save_path is not None:
+        microfigure.savefig(
+            f"{save_path}/single.png", bbox_inches="tight", pad_inches=0, dpi=600
+        )
+    return microfigure
