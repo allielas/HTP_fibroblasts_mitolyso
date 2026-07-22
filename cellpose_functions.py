@@ -490,7 +490,7 @@ def preprocessing_for_nuclei_segmentation(
     orig_img,
     nucleus_channel=3,
     gaussian_sigma=2,
-    rescale_factor=0.25,
+    rescale_factor=0.33,
     interpolation_method="bicubic",
     anti_aliasing=False,
     use_adaptive_histogram_equalization=True,
@@ -518,7 +518,7 @@ def preprocessing_for_nuclei_segmentation(
     dapi = img_01_normalization(dapi)
     if use_adaptive_histogram_equalization:
         dapi = exposure.equalize_adapthist(
-            dapi, kernel_size=128, clip_limit=0.01, nbins=256
+            dapi, kernel_size=100, clip_limit=0.01, nbins=256
         )
     if use_median_filter:
         dapi = filters.median(dapi, morphology.disk(2))
@@ -554,7 +554,7 @@ def run_cellpose_segmentation(
     tile_norm_blocksize=100,
     diameter=None,
     min_size=100,
-    max_size_frac=0.70,  # keep masks up to 70% of image size
+    max_size_frac=0.80,  # keep masks up to 80% of image size
     niter=1000,
     dilate_radius=0,
     fill_holes=True,
@@ -1018,7 +1018,8 @@ def save_mask_folder_v2(
     outdir,
     image_ext=".tif",
     nchannels=None,
-    rescale_factor=0.15,
+    rescale_factor_cell=0.15,
+    rescale_factor_nuc=0.33,
     histogram_matching=True,
     reference_channel=2,
     nucleus_channel=3,
@@ -1071,12 +1072,12 @@ def save_mask_folder_v2(
         # Now preprocess the images
         cell_preproessed = preprocessing_for_cell_segmentation(
             stacked_img,
-            rescale_factor=rescale_factor,
+            rescale_factor=rescale_factor_cell,
             nucleus_channel=nucleus_channel,
         )
         nucleus_preproessed = preprocessing_for_nuclei_segmentation(
             stacked_img,
-            rescale_factor=rescale_factor,
+            rescale_factor=rescale_factor_nuc,
             nucleus_channel=nucleus_channel,
         )
 
@@ -1094,6 +1095,9 @@ def save_mask_folder_v2(
         cell_masks = run_cellpose_segmentation(
             cell_preproessed,
             model,
+            diameter=None,
+            cellprob_threshold=0,
+            flow_threshold=0.4,
             show_plot=save_plots,
             save_plots=save_plots,
             plot_dir=plot_dir,
@@ -1102,6 +1106,9 @@ def save_mask_folder_v2(
         nuc_masks = run_cellpose_segmentation(
             nucleus_preproessed,
             model,
+            diameter=None,
+            cellprob_threshold=0,
+            flow_threshold=0.4,
             show_plot=save_plots,
             save_plots=save_plots,
             plot_dir=plot_dir,
