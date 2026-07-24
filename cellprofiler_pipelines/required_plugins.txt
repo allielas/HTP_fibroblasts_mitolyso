@@ -1,0 +1,4 @@
+HistogramEqualization
+EnforceObjectsOneToOne
+CalculateMoments
+RunCellpose
