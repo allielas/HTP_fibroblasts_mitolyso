@@ -1,39 +1,45 @@
+import operator
 import os
+import re
 from pathlib import Path
+
+import kaleido
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import sqlite3
+import pingouin as pg
 import plotly.express as px
 import plotly.graph_objects as go
-import matplotlib.pyplot as plt
+import scikit_posthocs as sp
 import seaborn as sns
-import pingouin as pg
-import re
+from matplotlib import image as mpimg
+from matplotlib import patches
+from PIL import Image
 from scipy import stats
+from skimage import color
+
+from mitolyso_plot_functions import *
 from plate_information import *
 from plate_preprocessing import *
-from mitolyso_plot_functions import *
-import scikit_posthocs as sp
-import operator
-from matplotlib import patches
-from matplotlib import image as mpimg
-from PIL import Image
-import skimage.color as color
-import kaleido
 
 try:
     from IPython.display import display
 except ImportError:
+
     def display(*args, **kwargs):
         return None
 
+
 try:
     from IPython import get_ipython
+
     ip = get_ipython()
     if ip is not None:
         ip.run_line_magic("matplotlib", "inline")
 except Exception:
     pass
+
+
 def fix_column_names(df):
     # remove "Cells_" from the beginning of column names
     df.columns = df.columns.str.replace(r"^Cell_", "", regex=True)
@@ -46,6 +52,7 @@ def fix_column_names(df):
         columns={"index": "Cell_Unique_ID"}  # add a unique ID
     )
     return unique_ID_df
+
 
 def normalize_intensity_to_well_average(df, intensity_cols, drop_well_avg_cols=False):
     # Create a new DataFrame to store the normalized values
@@ -76,64 +83,27 @@ def normalize_intensity_to_well_average(df, intensity_cols, drop_well_avg_cols=F
 
     return normalized_df
 
-def get_intensity_cols(df):
+
+def get_intensity_cols(df, channels=None):
     intensity_cols = []
-    for channel in ["DAPI", "LAMP1", "MitoTracker"]:
-        channel=re.escape(channel)  # escape any special characters in the channel name
+    if channels is None:
+        channels = ["DAPI", "LAMP1", "MitoTracker"]
+    for channel in channels:
+        channel = re.escape(
+            channel
+        )  # escape any special characters in the channel name
         if channel == "DAPI":
             pattern = rf"^(?=.*Nuclei_Intensity)(?=.*(?:MaxIntensity_{channel}|MeanIntensity_{channel}|MinIntensity_{channel}|MedianIntensity_{channel}))(?=.*_MAX)"
         else:
             pattern = rf"^Intensity_(?=.*(?:MaxIntensity_{channel}|MeanIntensity_{channel}|MinIntensity_{channel}|MedianIntensity_{channel}))(?=.*_MAX)"
-        intensity_cols +=[
+        intensity_cols += [
             col
             for col in df.columns
             # regex to match columns that contain our desired intensity cols
-            if re.search(pattern,col)]
+            if re.search(pattern, col)
+        ]
     return intensity_cols
 
-def normalize_quantities_to_control_group_average(
-    df,
-    quantitiy_cols,
-    group_col,
-    control_value,
-    plate_number_col="Plate_Number",
-    overwrite=False,
-    drop_avg_cols=False,
-):
-    # Create a new DataFrame to store the normalized values
-    normalized_df = df.copy()
-
-    # find average of the control group for each plate
-    ctrl_averages = (
-        df[df[group_col] == control_value]
-        .groupby([plate_number_col])[quantitiy_cols]
-        .mean()
-        .reset_index()
-    )
-    display(ctrl_averages)
-    # Merge the control averages back to the original DataFrame
-    normalized_df = normalized_df.merge(
-        ctrl_averages, on=[plate_number_col], suffixes=("", "_CtrlAvg")
-    )
-
-    # Normalize the intensity columns by dividing by the well average
-    for col in quantitiy_cols:
-        new_name = f"{col}_CtrlNormalized"
-        if overwrite:
-            normalized_df[col] = normalized_df[col] / normalized_df[f"{col}_CtrlAvg"]
-        else:
-            if new_name not in normalized_df.columns:
-                normalized_df[new_name] = (
-                    normalized_df[col] / normalized_df[f"{col}_CtrlAvg"]
-                )
-
-    # Drop the well average columns
-    if drop_avg_cols:
-        normalized_df.drop(
-            columns=[f"{col}_CtrlAvg" for col in quantitiy_cols], inplace=True
-        )
-
-    return normalized_df
 
 def enforce_objects_one_to_one(
     df,
@@ -180,6 +150,7 @@ def enforce_objects_one_to_one(
         ]
         return size_filtered_cells
 
+
 def filter_out_empty_compartment_from_cells(
     df, organelle, prefix="", min_compartments=1
 ):
@@ -199,6 +170,7 @@ def filter_out_empty_compartment_from_cells(
         this_df[f"{prefix}Children_{organelle}_Count"] > min_compartments
     ].reset_index(drop=True)
     return atleast_one_df
+
 
 def hard_size_shape_filter_rows_in_df(
     df,
@@ -227,6 +199,7 @@ def hard_size_shape_filter_rows_in_df(
     final_df = data_df_2.reset_index(drop=True)
     return final_df, min_rows_removed, max_rows_removed
 
+
 def filter_out_images_with_n_cells(
     df, n, image_count_col="Image_Count_Cell", prefix=""
 ):
@@ -234,6 +207,7 @@ def filter_out_images_with_n_cells(
     filter_df = filter_df[filter_df[image_count_col] > n]
     final_df = filter_df.reset_index(drop=True)
     return final_df
+
 
 def get_min_max_percentile_thesholds(
     df,
@@ -267,6 +241,7 @@ def get_min_max_percentile_thesholds(
 
     return min_threshold, max_threshold
 
+
 def add_filtering_summary_to_dict(
     filtering_summary_dict,
     filter_id,
@@ -289,12 +264,12 @@ def add_filtering_summary_to_dict(
 
     Returns:
         _type_: _description_
-    """    
+    """
     if rows_removed is not None:
         print(f"Manually overriding rows removed for {filter_name} to {rows_removed}")
     else:
         rows_removed = previous_df.shape[0] - filtered_df.shape[0]
-    
+
     filtering_summary_dict[filter_id] = {
         "filter_type": filter_name,
         "columns": filtered_df.shape[1],
@@ -304,6 +279,7 @@ def add_filtering_summary_to_dict(
         "threshold": threshold_info,
     }
     return filtering_summary_dict
+
 
 def apply_all_filters(
     df,
@@ -599,7 +575,9 @@ def apply_all_filters(
             max_nuc_intensity_threshold = max_nuc_intensity_hardthreshold
         print(f"Max {norm_nuc_intensity_col} threshold: {max_nuc_intensity_threshold}")
         # filter the bottom and add to the summary dict
-        filtered_df = filtered_df[filtered_df[norm_nuc_intensity_col] > min_nuc_intensity_threshold]
+        filtered_df = filtered_df[
+            filtered_df[norm_nuc_intensity_col] > min_nuc_intensity_threshold
+        ]
         filtering_summary_dict = add_filtering_summary_to_dict(
             filtering_summary_dict,
             norm_nuc_intensity_col + "_Filter_Bottom",
@@ -607,12 +585,14 @@ def apply_all_filters(
             filtered_df,
             prev_df,
             f"Bottom threshold: {min_nuc_intensity_threshold}",
-            #rows_removed=len(filtered_df) - len(prev_df),
+            # rows_removed=len(filtered_df) - len(prev_df),
         )
         prev_df = filtered_df.copy()
 
         # now filter the top and add to the summary dict
-        filtered_df = filtered_df[filtered_df[norm_nuc_intensity_col] < max_nuc_intensity_threshold]
+        filtered_df = filtered_df[
+            filtered_df[norm_nuc_intensity_col] < max_nuc_intensity_threshold
+        ]
         filtering_summary_dict = add_filtering_summary_to_dict(
             filtering_summary_dict,
             norm_nuc_intensity_col + "_Filter_Top",
@@ -620,7 +600,7 @@ def apply_all_filters(
             filtered_df,
             prev_df,
             f"Top threshold: {max_nuc_intensity_threshold}",
-            #rows_removed=len(filtered_df) - len(prev_df),
+            # rows_removed=len(filtered_df) - len(prev_df),
         )
         prev_df = filtered_df.copy()
     else:
@@ -702,6 +682,7 @@ def apply_all_filters(
     # return both to export as CSV
     return final_filtered_df, filtering_summary_dict
 
+
 def apply_filters_individually(
     df,
     reference_df=None,  # optional df to use for calculating the thresholds to avoid biasing the thresholds by the filters
@@ -737,7 +718,7 @@ def apply_filters_individually(
     min_compartments=0,
     filtering_summary_dict=None,
 ):
-    prev_df = df.copy() 
+    prev_df = df.copy()
     if reference_df is not None:
         reference_df = reference_df.copy()
     else:
@@ -1135,7 +1116,8 @@ def apply_filters_individually(
     prev_df = filtered_df.copy()
 
     # return the df and dict
-    return filtered_df,filtering_summary_dict
+    return filtered_df, filtering_summary_dict
+
 
 def get_filtered_df_and_export_summary_to_csv(
     combined_df,
@@ -1223,7 +1205,7 @@ def get_filtered_df_and_export_summary_to_csv(
                 # nuc_eccentricity_col="Nuclei_AreaShape_Eccentricity",
             )
             prefix = "individual_filters_"
-        else:   
+        else:
             final_filtered_df, filtering_summary = apply_all_filters(
                 final_filtered_df,
                 reference_df=reference_df,
@@ -1241,6 +1223,7 @@ def get_filtered_df_and_export_summary_to_csv(
         # summary_df = pd.DataFrame.from_dict(filtering_summary_dict, orient="index")
         # summary_df.to_csv(f"{prefix}filtering_summary.csv", index=False)
     return final_filtered_df, final_filtered_summary_df
+
 
 def get_per_group_per_plate_and_export_summary_to_csv(
     combined_df,
@@ -1274,7 +1257,7 @@ def get_per_group_per_plate_and_export_summary_to_csv(
                 group_summary_df = pd.DataFrame.from_dict(
                     group_filtering_summary, orient="index"
                 )
-                
+
                 group_summary_df[plate_col] = (
                     f"Plate {int(plate)}"  # add the plate number back to the summary df
                 )
@@ -1296,18 +1279,22 @@ def get_per_group_per_plate_and_export_summary_to_csv(
 
         final_filtered_summary_pivot = final_filtered_summary_df.pivot_table(
             index=["filter_type"],
-            columns=[plate_col,group_col],
+            columns=[plate_col, group_col],
             values=["rows_removed"],
             aggfunc="sum",
             fill_value=0,
-        )#.reindex(desired_order, axis=1, level=1, fill_value="missing") #note level means the level of the multindex
-        final_filtered_summary_pivot_v2 = final_filtered_summary_df.pivot_table(
-            columns=["filter_type"],
-            index=[plate_col,group_col],
-            values=["rows_removed"],
-            aggfunc="sum",
-            fill_value=0,
-        ).sort_index(axis=1, level=[0,1], sort_remaining=False).reindex(index=desired_order, level=1, fill_value="missing")
+        )  # .reindex(desired_order, axis=1, level=1, fill_value="missing") #note level means the level of the multindex
+        final_filtered_summary_pivot_v2 = (
+            final_filtered_summary_df.pivot_table(
+                columns=["filter_type"],
+                index=[plate_col, group_col],
+                values=["rows_removed"],
+                aggfunc="sum",
+                fill_value=0,
+            )
+            .sort_index(axis=1, level=[0, 1], sort_remaining=False)
+            .reindex(index=desired_order, level=1, fill_value="missing")
+        )
         display(final_filtered_summary_df)
         display(final_filtered_summary_pivot)
         display(final_filtered_summary_pivot_v2)
@@ -1318,7 +1305,10 @@ def get_per_group_per_plate_and_export_summary_to_csv(
             Path(savepath, f"{prefix}filtering_pivot_summary_{group_col}_per_plate.csv")
         )
         final_filtered_summary_pivot_v2.to_csv(
-            Path(savepath, f"{prefix}filtering_pivot_summary_v2_{group_col}_per_plate.csv")
+            Path(
+                savepath,
+                f"{prefix}filtering_pivot_summary_v2_{group_col}_per_plate.csv",
+            )
         )
     else:
         final_filtered_df = combined_df.copy()
@@ -1333,8 +1323,14 @@ def get_per_group_per_plate_and_export_summary_to_csv(
         final_filtered_summary_df = pd.DataFrame.from_dict(
             filtering_summary, orient="index"
         )
-        final_filtered_summary_df = final_filtered_summary_df.reset_index().rename(columns={"index": "filter_type"})
-        final_filtered_summary_df["Percent_Removed"] = final_filtered_summary_df["rows_removed"]/final_filtered_summary_df["rows_initial"]*100
+        final_filtered_summary_df = final_filtered_summary_df.reset_index().rename(
+            columns={"index": "filter_type"}
+        )
+        final_filtered_summary_df["Percent_Removed"] = (
+            final_filtered_summary_df["rows_removed"]
+            / final_filtered_summary_df["rows_initial"]
+            * 100
+        )
         final_filtered_summary_df.to_csv(
             Path(savepath, f"{prefix}filtering_summary_individually.csv")
         )
@@ -1342,6 +1338,7 @@ def get_per_group_per_plate_and_export_summary_to_csv(
         # summary_df = pd.DataFrame.from_dict(filtering_summary_dict, orient="index")
         # summary_df.to_csv(f"{prefix}filtering_summary.csv", index=False)
     return final_filtered_df, final_filtered_summary_df
+
 
 def proportion_area_occupied_per_cell(df, compartment):
     # proportion of area occupied = children * mean organelle area / cell area
@@ -1354,6 +1351,7 @@ def proportion_area_occupied_per_cell(df, compartment):
     # df[colname] = df.apply(lambda x: (x[children] * x[mean_organelle_area]) / x[cell_area], axis=1)
     df[colname] = df.apply(lambda x: (x[organelle_area]) / x[cell_area], axis=1)
     return df[colname]
+
 
 def mean_intensity_per_compartment_per_cell(df, compartment, name, tag, math=None):
     # Calculate the mean intensity of each compartment per cell
@@ -1368,6 +1366,7 @@ def mean_intensity_per_compartment_per_cell(df, compartment, name, tag, math=Non
     df[colname] = df.apply(lambda x: x[integrated] / x[total_organelle_area], axis=1)
 
     return df[colname]
+
 
 def calculate_corrected_features(full_df):
     """_summary_
@@ -1623,6 +1622,7 @@ def calculate_corrected_features(full_df):
 
     return df
 
+
 def define_cell_features(df):
     # Get the columns of the dataframe
     columns_list = df.columns.tolist()
@@ -1647,6 +1647,7 @@ def define_cell_features(df):
     )
     return columns_list
 
+
 def flag_outliers_by_group_mad(df, group_col, feature_col):
     """
     Adds a boolean 'Outlier' column to df, True if the value is an outlier within its group.
@@ -1656,6 +1657,7 @@ def flag_outliers_by_group_mad(df, group_col, feature_col):
         lambda x: pg.madmedianrule(x)
     )
     return df
+
 
 def flag_outliers_by_group_gesd(df, group_col, feature_col, noutliers=20, report=True):
     """
@@ -1668,6 +1670,7 @@ def flag_outliers_by_group_gesd(df, group_col, feature_col, noutliers=20, report
     )
     return df
 
+
 def flag_outliers_by_group_tietjen(df, group_col, feature_col, noutliers=5):
     """
     Adds a boolean 'Outlier_Grubbs' column to df, True if you reject the null hypothesis that the extreme value is an outlier.
@@ -1678,6 +1681,7 @@ def flag_outliers_by_group_tietjen(df, group_col, feature_col, noutliers=5):
         lambda x: sp.outliers_tietjen(x, k=noutliers, hypo=True)
     )
     return df
+
 
 def remove_outliers_by_group_gesd(df, group_col, feature_col, noutliers=5):
     """
@@ -1694,6 +1698,7 @@ def remove_outliers_by_group_gesd(df, group_col, feature_col, noutliers=5):
     final_df = pd.concat(filtered_groups, axis=0)
     return final_df
 
+
 def remove_outliers_by_group_tietjen(df, group_col, feature_col, noutliers=5):
     """
     Filters out outliers in feature_col within each group of group_col using Tietjen's test.
@@ -1709,32 +1714,11 @@ def remove_outliers_by_group_tietjen(df, group_col, feature_col, noutliers=5):
     final_df = pd.concat(filtered_groups, axis=0)
     return final_df
 
+
 def get_mini_filtered_df(
     final_filtered_df,
     condition_col="",
-    valueslist=[
-        "Cell_Unique_ID",
-        "ImageNumber",
-        "TimepointName",
-        "Metadata_WellRow",
-        "Metadata_WellColumn",
-        "Metadata_Field",
-        "AllGroups",
-        "Plate_Number",
-        "SerialPassage_BatchNumber",
-        "AgeGroup",
-        "PassageNumber",
-        "Number_Object_Number",
-        "AreaShape_Area",
-        "Nuclei_AreaShape_Area",
-        "Cell_Nuclei_Area_Ratio",
-        "Children_Mitochondria_Count",
-        "Children_Lysosomes_Count",
-        "Image_Width_DAPI",
-        "Image_URL_MitoTracker_MAX",
-        "Image_FileName_MitoTracker_MAX",
-        "Image_FileName_LAMP1_MAX",
-    ],
+    valueslist=None,
     op=operator.le,
     condition_value=10,
     group="",
@@ -1742,6 +1726,30 @@ def get_mini_filtered_df(
     plates=[],
     plate_col="Plate_Number",
 ):
+    if valueslist is None:
+        valueslist = [
+            "Cell_Unique_ID",
+            "ImageNumber",
+            "TimepointName",
+            "Metadata_WellRow",
+            "Metadata_WellColumn",
+            "Metadata_Field",
+            "AllGroups",
+            "Plate_Number",
+            "SerialPassage_BatchNumber",
+            "AgeGroup",
+            "PassageNumber",
+            "Number_Object_Number",
+            "AreaShape_Area",
+            "Nuclei_AreaShape_Area",
+            "Cell_Nuclei_Area_Ratio",
+            "Children_Mitochondria_Count",
+            "Children_Lysosomes_Count",
+            "Image_Width_DAPI",
+            "Image_URL_MitoTracker_MAX",
+            "Image_FileName_MitoTracker_MAX",
+            "Image_FileName_LAMP1_MAX",
+        ]
     mini_df = final_filtered_df[valueslist]
 
     mini_df["Metadata_Rep_RowColField"] = (
@@ -1783,6 +1791,7 @@ def get_mini_filtered_df(
 
     return filter_mini_df_sorted
 
+
 def find_plate_cp_output_folder(path):
     import re
 
@@ -1793,6 +1802,7 @@ def find_plate_cp_output_folder(path):
     else:
         plate = None
     return plate
+
 
 def pull_up_cp_segmentation_image(
     img_filename, parent_dir="~/", plate=0, group="", object_key=None, df=None
@@ -1808,8 +1818,6 @@ def pull_up_cp_segmentation_image(
     """
     # Loop over the plates
     # make sure the filename in the format of: "Image_FileName_MitoTracker_MAX"
-    from matplotlib import image as mpimg
-    from PIL import Image
 
     img_filename_noext = img_filename.split(".")[0]
     for root, dirs, files in os.walk(parent_dir):
@@ -1848,6 +1856,7 @@ def pull_up_cp_segmentation_image(
                         f"Image file {img_path} not found. Please ensure 'your_image.png' exists."
                     )
 
+
 def pull_up_cp_segmentation_image_fromID(
     df,
     object_key,
@@ -1856,7 +1865,7 @@ def pull_up_cp_segmentation_image_fromID(
     feature="",
     image_channel="LAMP1",
     extension=".png",
-    colour = None,
+    colour=None,
     only_active=True,
     save=False,
     savepath="",
@@ -1872,8 +1881,6 @@ def pull_up_cp_segmentation_image_fromID(
         plate (int, optional): _description_. Defaults to 0.
         group (str, optional): _description_. Defaults to "".
     """
-    from matplotlib import image as mpimg
-    from PIL import Image
 
     # get the filename, plate and coords from the unique ID if the ID exists
     if object_key is not None and df is not None:
@@ -1889,7 +1896,7 @@ def pull_up_cp_segmentation_image_fromID(
         return False
     if only_active:
         active_string = "active"
-    else:        
+    else:
         active_string = ""
     # loop over to find the file in the directory
     img_filename_noext = img_filename.split(".")[0]
@@ -1931,7 +1938,7 @@ def pull_up_cp_segmentation_image_fromID(
                             color="lime",
                             fontsize=12,
                             weight="bold",
-                            bbox=dict(facecolor="black", alpha=0.5, pad=2),
+                            bbox={"facecolor": "black", "alpha": 0.5, "pad": 2},
                         )
                     if save:
                         savepath_full = f"{savepath}/{object_key}_R{plate}_P{passage}_{filename.split('.')[0]}.png"
@@ -1954,18 +1961,19 @@ def pull_up_cp_segmentation_image_fromID(
                     )
     return False
 
+
 def get_object_bbox_coordinates_as_rectangle(
     df,
     unique_ID,
-    coord_cols=[
-        "AreaShape_BoundingBoxMinimum_X",
-        "AreaShape_BoundingBoxMinimum_Y",
-        "AreaShape_BoundingBoxMaximum_X",
-        "AreaShape_BoundingBoxMaximum_Y",
-    ],
+    coord_cols=None,
 ):
-    from matplotlib import patches
-
+    if coord_cols is None:
+        coord_cols = [
+            "AreaShape_BoundingBoxMinimum_X",
+            "AreaShape_BoundingBoxMinimum_Y",
+            "AreaShape_BoundingBoxMaximum_X",
+            "AreaShape_BoundingBoxMaximum_Y",
+        ]
     row = df[df["Cell_Unique_ID"] == unique_ID]
     if not row.empty:
         x_min = row[coord_cols[0]].values[0]
@@ -1984,6 +1992,7 @@ def get_object_bbox_coordinates_as_rectangle(
         )
     return rect
 
+
 def query_group_plate_condition(
     df, group, plate_number=0, condition_col="", op=operator.eq, value=None
 ):
@@ -1997,6 +2006,7 @@ def query_group_plate_condition(
         & (op(df[condition_col], value))
     )
     return df[mask]
+
 
 def annotate_cp_segmentation_image_with_feature_values(
     df,
@@ -2020,9 +2030,6 @@ def annotate_cp_segmentation_image_with_feature_values(
         plate (int, optional): _description_. Defaults to 0.
         group (str, optional): _description_. Defaults to "".
     """
-    from matplotlib import image as mpimg
-    from PIL import Image
-
     # get the filename, plate and coords from the unique ID if the ID exists
     if "ch2" in img_filename:
         image_col_name = "Image_FileName_MitoTracker_MAX"
@@ -2099,13 +2106,14 @@ def annotate_cp_segmentation_image_with_feature_values(
                     )
     return False
 
+
 def pull_up_multichannel_image_fromID(
     df,
     object_key,
     parent_dir="",
     plate_col_name="Plate_Number",
     feature="",
-    image_channels=["MitoTracker", "LAMP1", "DAPI"],
+    image_channels=None,
     extension=".tif",
     colour_map=None,
     save=False,
@@ -2123,15 +2131,18 @@ def pull_up_multichannel_image_fromID(
         plate (int, optional): _description_. Defaults to 0.
         group (str, optional): _description_. Defaults to "".
     """
-    from matplotlib import image as mpimg
-    from PIL import Image
 
     # get the filename, plate and coords from the unique ID if the ID exists
+    if image_channels is None:
+        image_channels = ["MitoTracker", "LAMP1", "DAPI"]
     if object_key is not None and df is not None:
         rect = get_object_bbox_coordinates_as_rectangle(df, object_key)
 
         unique_row = df[df["Cell_Unique_ID"] == object_key]
-        img_filenames = [unique_row[f"Image_FileName_{channel}_MAX"].values[0] for channel in image_channels]
+        img_filenames = [
+            unique_row[f"Image_FileName_{channel}_MAX"].values[0]
+            for channel in image_channels
+        ]
         plate = unique_row[plate_col_name].values[0]
         passage = unique_row["PassageNumber"].values[0]
         group = unique_row["AllGroups"].values[0]
@@ -2163,10 +2174,12 @@ def pull_up_multichannel_image_fromID(
                         )  # make the path
                         img = plt.imread(img_path)
                         imgs.append(img)
-                    img_stack =np.stack(imgs,axis=-1)
-                    import skimage.color as color
+                    img_stack = np.stack(imgs, axis=-1)
+
                     print(img_stack.shape)
-                    img_rgb = color.xyz2rgb(img_stack,channel_axis=-1)  # Merge the first three channels into an RGB image
+                    img_rgb = color.xyz2rgb(
+                        img_stack, channel_axis=-1
+                    )  # Merge the first three channels into an RGB image
                     fig, ax = plt.subplots(figsize=(12, 12))
                     if colour_map is not None:
                         plt.imshow(img_rgb, cmap=colour_map)
@@ -2191,15 +2204,13 @@ def pull_up_multichannel_image_fromID(
                             bbox=dict(facecolor="black", alpha=0.5, pad=2),
                         )
                     if save:
-                        new_filename = re.sub(r'ch\d+', save_prefix, filename)
+                        new_filename = re.sub(r"ch\d+", save_prefix, filename)
                         save_filename = f"{savepath}/{object_key}_R{plate}_P{passage}_{new_filename.split('.')[0]}.png"
                         plt.savefig(
                             save_filename,
                             bbox_inches="tight",
                         )
-                        print(
-                            f"Saved image to: {save_filename}"
-                        )
+                        print(f"Saved image to: {save_filename}")
                     if show:
                         plt.show()
                     print(f"Segmented image url: {img_path}")
@@ -2209,8 +2220,9 @@ def pull_up_multichannel_image_fromID(
                     print(
                         f"Image file {img_path} not found. Please ensure 'your_image.png' exists."
                     )
-             
+
     return False
+
 
 def pull_up_singlechannel_image_fromID(
     df,
@@ -2236,8 +2248,6 @@ def pull_up_singlechannel_image_fromID(
         plate (int, optional): _description_. Defaults to 0.
         group (str, optional): _description_. Defaults to "".
     """
-    from matplotlib import image as mpimg
-    from PIL import Image
 
     # get the filename, plate and coords from the unique ID if the ID exists
     if object_key is not None and df is not None:
@@ -2261,7 +2271,9 @@ def pull_up_singlechannel_image_fromID(
                 and filename.endswith(extension)
                 and plate == find_plate_cp_output_folder(root)
             ):
-                img_path = os.path.join(root, img_filename)  # img_filename_noext + ".png")  # make the path
+                img_path = os.path.join(
+                    root, img_filename
+                )  # img_filename_noext + ".png")  # make the path
                 img = plt.imread(img_path)
                 print(filename)
                 # Now we see if the image exists and try to open it
@@ -2271,9 +2283,7 @@ def pull_up_singlechannel_image_fromID(
                 else:
                     plt.imshow(img)
                 plt.axis("off")  # Turn off axis labels for a cleaner image display
-                plt.title(
-                    f"ID:{object_key}, R{plate} P{passage}, {filename}, {group}"
-                )
+                plt.title(f"ID:{object_key}, R{plate} P{passage}, {filename}, {group}")
                 # Lets add a rectangle if the oject key is in the dataframe
                 ax.add_patch(rect)
                 # add a label with the feature value if it exists
@@ -2286,25 +2296,24 @@ def pull_up_singlechannel_image_fromID(
                         color="lime",
                         fontsize=12,
                         weight="bold",
-                        bbox=dict(facecolor="black", alpha=0.5, pad=2),
+                        bbox={"facecolor": "black", "alpha": 0.5, "pad": 2},
                     )
                 if save:
-                    new_filename = re.sub(r'ch\d+', save_prefix, filename)
+                    new_filename = re.sub(r"ch\d+", save_prefix, filename)
                     save_filename = f"{savepath}/{object_key}_R{plate}_P{passage}_{new_filename.split('.')[0]}.png"
                     plt.savefig(
                         save_filename,
                         bbox_inches="tight",
                     )
-                    print(
-                        f"Saved image to: {save_filename}"
-                    )
+                    print(f"Saved image to: {save_filename}")
                 if show:
                     plt.show()
                 print(f"Segmented image url: {img_path}")
                 # img.show()
                 return True
- 
+
     return False
+
 
 def get_object_keys_from_filenames(path, target_folder_name):
     """Get the unique object keys from the dataframe that match a given filename in a directory"""
@@ -2326,6 +2335,7 @@ def get_object_keys_from_filenames(path, target_folder_name):
 
     return object_keys
 
+
 def ridge_label(x, color, label):
     ax = plt.gca()
     ax.text(
@@ -2338,6 +2348,7 @@ def ridge_label(x, color, label):
         va="center",
         transform=ax.transAxes,
     )
+
 
 def seaborn_ridgeplot(
     df,
@@ -2371,8 +2382,6 @@ def seaborn_ridgeplot(
         linewidth: float, line width for outline
         figsize: tuple, figure size
     """
-    import matplotlib.pyplot as plt
-    import seaborn as sns
 
     sns.set_theme(style="white", rc={"axes.facecolor": (0, 0, 0, 0)})
 
@@ -2496,8 +2505,8 @@ def seaborn_ridgeplot(
         plt.savefig(f"{Path(out_dir, f'{value_col}_{group_col}_joyplot')}.png")
     plt.show()
 
+
 def plotly_histogram(df, y_value, group_var, save=False, out_dir=""):
-    import kaleido
 
     df_sorted = df.sort_values(
         by=[group_var], key=lambda x: x.map(passage_groups_sort_key)
@@ -2513,6 +2522,7 @@ def plotly_histogram(df, y_value, group_var, save=False, out_dir=""):
     hist2.write_image(Path(out_dir, f"{y_value}_histogram.png"), scale=1.5)
     hist2.show()
 
+
 def make_summary_stats_for_df_and_feature(
     df,
     x_value,
@@ -2523,22 +2533,24 @@ def make_summary_stats_for_df_and_feature(
     feature_name="area",
     group_name="passage_group",
     include_cols=[],
-    inculded_percentiles=[
-        0.01,
-        0.025,
-        0.05,
-        0.1,
-        0.25,
-        0.5,
-        0.75,
-        0.9,
-        0.95,
-        0.975,
-        0.99,
-    ],
+    inculded_percentiles=None,
 ):
     from pathlib import Path
 
+    if inculded_percentiles is None:
+        inculded_percentiles = [
+            0.01,
+            0.025,
+            0.05,
+            0.1,
+            0.25,
+            0.5,
+            0.75,
+            0.9,
+            0.95,
+            0.975,
+            0.99,
+        ]
     try:
         table_csvname = f"{df_tag}_total_combined_stats.csv"
         feature_csvname = f"{df_tag}_{feature_name}_by_{group_name}_stats.csv"

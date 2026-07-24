@@ -781,7 +781,9 @@ def add_median_object_features_to_parent(
     return modified_df
 
 
-def load_organelle_medians(db_path, df, organelles=["Lysosomes", "Mitochondria"]):
+def load_organelle_stats(
+    db_path, df, organelles=["Lysosomes", "Mitochondria"], stats=["Median", "Std"]
+):
     """
     Load organelle median features from the database.
 
@@ -805,14 +807,115 @@ def load_organelle_medians(db_path, df, organelles=["Lysosomes", "Mitochondria"]
     for organelle in organelles:
         query = f"SELECT * FROM Per_{organelle}"
         org_df = pd.read_sql_query(query, conn)
-        cell_df = add_median_object_features_to_parent(
-            parent_df=cell_df, object_df=org_df, object_name=organelle
-        )
+        if "Median" in stats:
+            cell_df = add_median_object_features_to_parent(
+                parent_df=cell_df, object_df=org_df, object_name=organelle
+            )
+        if "Std" in stats:
+            cell_df = add_standard_deviation_features_to_parent(
+                parent_df=cell_df, object_df=org_df, object_name=organelle
+            )
         del org_df  # Free memory
         gc.collect()
 
     # conn.close()
     return cell_df
+
+
+def add_standard_deviation_features_to_parent(
+    parent_df,
+    object_df,
+    object_name,
+    child_key="Cell_Number_Object_Number",
+    prefix="Cell",
+    feature_types=None,
+):
+    """
+    Calculate the standard deviation of specified features in a dataframe, grouped by certain metadata columns.
+
+    Parameters:
+    parent_df (pd.DataFrame): The input dataframe containing the data.
+    object_df (pd.DataFrame): A dataframe containing object-level data.
+    features (list): A list of feature column names for which to calculate standard deviations.
+    parent_key (str): The name of the parent key column in the dataframe.
+    child_key (str): The name of the child key column in the dataframe.
+
+    Returns:
+    pd.DataFrame: A dataframe containing the standard deviations of the specified features, grouped by metadata.
+    """
+    # open the csv file with extra info
+    modified_df = parent_df.copy()
+    other_channels = ["DAPI", "LAMP1", "MitoTracker", "Phalloidin"]
+    # use the other channels list as a check to discard irrelavent features
+    if "Lysosomes" in object_name:
+        parent_key = "Lysosomes_Parent_Cell"
+        other_channels.remove("LAMP1")
+    elif "Mitochondria" in object_name:
+        parent_key = "Mitochondria_Parent_Cell"
+        other_channels.remove("MitoTracker")
+    elif "Nuclei" in object_name:
+        parent_key = "Nuclei_Parent_Cell"
+        other_channels.remove("DAPI")
+    elif "MitoEnds" in object_name:
+        parent_key = "MitoEnds_Parent_Cell"
+        other_channels.remove("MitoTracker")
+    else:
+        raise ValueError(
+            f"Unknown object name: {object_name}. Expected 'Lysosomes', 'Mitochondria', 'MitoEnds', or 'Nuclei'."
+        )
+
+    if feature_types is None:
+        feature_types = [
+            "AreaShape_Area",
+            "AreaShape_Perimeter",
+            "AreaShape_EquivalentDiameter",
+            "AreaShape_Extent",
+            "AreaShape_Solidity",
+            "AreaShape_Compactness",
+            "AreaShape_Eccentricity",
+        ]
+    features_to_exclude = [
+        "Zernike",
+        "Maximum_X",
+        "Maximum_Y",
+        "Minimum_X",
+        "Mimimum_Y",
+        "Centroid_X",
+        "Centroid_Y",
+    ]
+    modified_df = parent_df.copy()
+    for feature in object_df.columns:
+        # print("checking feature:", feature)
+        # Exclude if matches any in other_channels, unless it also matches feature_types
+        if object_name not in feature or (
+            any(ch in feature for ch in other_channels)
+            or any(exclusion in feature for exclusion in features_to_exclude)
+        ):
+            # print("oops, skipping:", feature)
+            continue  # Skip the parent key column or non-feature columns
+        for feature in object_df.columns:
+            # print("checking feature:", feature)
+            # Exclude if matches any in other_channels, unless it also matches feature_types
+            if object_name not in feature or (
+                any(ch in feature for ch in other_channels)
+                or any(exclusion in feature for exclusion in features_to_exclude)
+            ):
+                # print("oops, skipping:", feature)
+                continue  # Skip the parent key column or non-feature columns
+            if any(ft in feature for ft in feature_types):
+                modified_df = calculate_aggregated_object_features(
+                    modified_df,
+                    object_df,
+                    feature,
+                    parent_key=parent_key,
+                    object_name=object_name,
+                    child_key=child_key,
+                    aggregation="Std",
+                    prefix=prefix,
+                )
+
+    # modified_df = modified_df.rename(columns=lambda x: re.sub(r"Std", f"Std_{object_df_name_noext}", x))
+    return modified_df.copy()
 
 
 def exclude_borders(
@@ -1044,6 +1147,62 @@ def apply_feature_normalization(df, feature_dict, curr_plates):
             ].astype(float)
         norm_cell_df.loc[norm_cell_df["Metadata_Plate"] == plate] = curr_plate_df
     return norm_cell_df
+
+
+def get_valid_numeric_features(df, feature_dicts):
+    all_valid_features = []
+    for feat_dict in feature_dicts:
+        all_cols = [col for cols in feat_dict.values() for col in cols]
+        for col in set(all_cols):
+            if pd.api.types.is_numeric_dtype(df[col]):
+                all_valid_features.append(col)
+    return list(
+        dict.fromkeys(all_valid_features)
+    )  # remove duplicates while preserving order
+
+
+def normalize_quantities_to_control_group_average(
+    df,
+    quantitiy_cols,
+    group_col,
+    control_value,
+    plate_number_col="Plate_Number",
+    overwrite=False,
+    drop_avg_cols=False,
+):
+    # Create a new DataFrame to store the normalized values
+    normalized_df = df.copy()
+
+    # find average of the control group for each plate
+    ctrl_averages = (
+        df[df[group_col] == control_value]
+        .groupby([plate_number_col])[quantitiy_cols]
+        .mean()
+        .reset_index()
+    )
+    # Merge the control averages back to the original DataFrame
+    normalized_df = normalized_df.merge(
+        ctrl_averages, on=[plate_number_col], suffixes=("", "_CtrlAvg")
+    )
+
+    # Normalize the intensity columns by dividing by the well average
+    for col in quantitiy_cols:
+        new_name = f"{col}_CtrlNormalized"
+        if overwrite:
+            normalized_df[col] = normalized_df[col] / normalized_df[f"{col}_CtrlAvg"]
+        else:
+            if new_name not in normalized_df.columns:
+                normalized_df[new_name] = (
+                    normalized_df[col] / normalized_df[f"{col}_CtrlAvg"]
+                )
+
+    # Drop the well average columns
+    if drop_avg_cols:
+        normalized_df.drop(
+            columns=[f"{col}_CtrlAvg" for col in quantitiy_cols], inplace=True
+        )
+
+    return normalized_df
 
 
 def mean_intesity_per_compartment_per_cell(df, compartment, tag):

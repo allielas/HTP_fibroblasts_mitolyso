@@ -536,3 +536,71 @@ def query_group_plate_condition(
         & (op(df[condition_col], value))
     )
     return df[mask]
+
+
+def get_unique_cols_to_use(df):
+    base_cols = [
+        # "FileName_MitoTracker_MAX",
+        "Metadata_PlateNumber",
+        "Metadata_RowColField",
+        "AllGroups",
+        "AreaShape_Area",
+    ]
+    areashape_features = [
+        "AreaShape_Area",
+        "AreaShape_Perimeter",
+        "AreaShape_EquivalentDiameter",
+    ]
+
+    colnames_mitoskel_nuc = search_column_name(df, "Nuclei_ObjectSkeleton")
+    colnames_mitocount = search_column_name(
+        df, ["Children_Mito", "Count"], inclusive_or=False
+    )
+    colnames_mitoarea = search_column_name(
+        df, ["Mito", "AreaShape_Area"], inclusive_or=False
+    )
+
+    colnames_lysocount = search_column_name(
+        df, ["Children_Lyso", "Count"], inclusive_or=False
+    )
+    colnames_lysoarea_initial = search_column_name(
+        df, areashape_features, inclusive_or=True
+    )
+    colnames_lysoarea = colnames_lysoarea_initial.copy()
+
+    for col in colnames_lysoarea_initial:
+        if "Lyso" in col and "AreaShape" in col:
+            continue
+        else:
+            colnames_lysoarea.remove(col)
+
+    colnames_ij = search_column_name(df, "IJ_Mitochondria")
+
+    use_cols = (
+        base_cols
+        + colnames_mitoskel_nuc
+        + colnames_ij
+        + colnames_mitocount
+        + colnames_mitoarea
+        + colnames_lysocount
+        + colnames_lysoarea
+    )
+    use_cols_unique = list(dict.fromkeys(use_cols))
+    # scrub out any non-numeric columns that we aren't going to use for analysis
+    use_cols_unique_copy = use_cols_unique.copy()
+    for col in use_cols_unique_copy:
+        if col in base_cols:
+            continue
+        elif "Metadata" in col or "Title" in col or "FileName" in col:
+            use_cols_unique.remove(col)
+    return use_cols_unique
+
+
+def get_object_skeleton_length_cols(df):
+    colnames_object_skeleton_length = search_column_name(df, "SkeletonLength")
+    for col in colnames_object_skeleton_length.copy():
+        if "Mean" in col or "Median" in col or "Stdev" in col or "FromBranches" in col:
+            colnames_object_skeleton_length.remove(col)
+
+    print(colnames_object_skeleton_length)
+    return colnames_object_skeleton_length

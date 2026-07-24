@@ -204,6 +204,58 @@ def merge_ij_skeleton_features_into_combined_dataframe(
     return combined_cell_df_mitolyso
 
 
+def merge_ij_skeleton_features_into_combined_dataframe_from_folder(
+    df,
+    ij_csvpath,
+    ij_csvs=None,
+    keys=["Metadata_PlateNumber", "Metadata_RowColField", "ObjectNumber"],
+    check_duplicates=True,
+    show=False,
+):
+    """
+    Merge the combined cell dataframe with the ImageJ skeleton features dataframes from a folder based on plate number
+    Args:
+        df (pd.DataFrame): The combined cell dataframe.
+        ij_csvpath (str): The path to the directory containing the ImageJ skeleton features csv files.
+        ij_csvs (list): The list of ImageJ skeleton features csv files.
+        keys (list): The list of columns to merge on.
+    """
+    combined_cell_df_mitolyso = df.copy()
+    if ij_csvs is None:
+        ij_csvs = os.listdir(ij_csvpath)
+    for item in ij_csvs:
+        print(f"Processing {item}...")
+        if os.path.isdir(os.path.join(ij_csvpath, item)):
+            ij_csv_folder = os.path.join(ij_csvpath, item)
+            ij_csv_folder_list = os.listdir(ij_csv_folder)
+            for file in ij_csv_folder_list:
+                if file.endswith(".csv"):
+                    ij_csv = str(file)
+                    print(f"Processing {ij_csv} in folder {item}...")
+                    combined_cell_df_mitolyso = (
+                        merge_ij_skeleton_features_into_combined_dataframe(
+                            combined_cell_df_mitolyso,
+                            ij_csv_folder,
+                            ij_csv,
+                            show=show,
+                            keys=keys,
+                            check_duplicates=check_duplicates,
+                        )
+                    )
+        else:
+            combined_cell_df_mitolyso = (
+                merge_ij_skeleton_features_into_combined_dataframe(
+                    combined_cell_df_mitolyso,
+                    ij_csvpath,
+                    ij_csv,
+                    show=show,
+                    keys=keys,
+                    check_duplicates=check_duplicates,
+                )
+            )
+    return combined_cell_df_mitolyso
+
+
 def get_standard_deviations_from_large_df(
     df,
     object_df_name,
