@@ -636,21 +636,51 @@ def apply_all_filters(
         subset_col="AllGroups",
         max_subset_group="P6-12",
     )[1]
-    filtered_df = filtered_df[
-        (
-            filtered_df[neighbours_col_percenttouching]
-            < max_threshold_neighbours_percenttouching
+    if (
+        max_threshold_neighbours_percenttouching == 0
+        or max_threshold_neighbours_numberof == 0
+    ):
+        print("One or more max neighbor thresholds are 0. Trying with closest distance")
+        # this filter would be the inverse to remove cells with too many neigbours
+        min_neighbour_distance_theshold = get_min_max_percentile_thesholds(
+            reference_df[
+                reference_df["Neighbors_FirstClosestDistance_5"] > 0
+            ],  # use only non-zero distances to avoid biasing the threshold by the zero distances
+            "Neighbors_FirstClosestDistance_5",
+            min_percentile=0.025,
+            max_percentile=1,
+        )[0]
+        filtered_df = filtered_df[
+            (
+                filtered_df["Neighbors_FirstClosestDistance_5"]
+                > min_neighbour_distance_theshold
+            )
+            | (filtered_df["Neighbors_FirstClosestDistance_5"] == 0)
+        ]  # optional filter for touching neighbors AND number of neighbors
+        filtering_summary_dict = add_filtering_summary_to_dict(
+            filtering_summary_dict,
+            "Cell_Neighbours_Filter",
+            "First Closest Neighbour distance < 0.025th percentile (97.5th closest distance) or == 0 (no neighbours)",
+            filtered_df,
+            prev_df,
+            f"Min closest neighbour distance: {min_neighbour_distance_theshold}",
         )
-        & (filtered_df[neighbours_col_numberof] < max_threshold_neighbours_numberof)
-    ]  # optional filter for touching neighbors AND number of neighbors
-    filtering_summary_dict = add_filtering_summary_to_dict(
-        filtering_summary_dict,
-        "Cell_Neighbours_Filter",
-        "Percent of Cell Touching Neighbours AND Number Of Neighbours < 97.5th Percentile",
-        filtered_df,
-        prev_df,
-        f"Max Percent Touching: {max_threshold_neighbours_percenttouching} and Max Number Of Neighbours: {max_threshold_neighbours_numberof}",
-    )
+    else:
+        filtered_df = filtered_df[
+            (
+                filtered_df[neighbours_col_percenttouching]
+                < max_threshold_neighbours_percenttouching
+            )
+            & (filtered_df[neighbours_col_numberof] < max_threshold_neighbours_numberof)
+        ]  # optional filter for touching neighbors AND number of neighbors
+        filtering_summary_dict = add_filtering_summary_to_dict(
+            filtering_summary_dict,
+            "Cell_Neighbours_Filter",
+            "Percent of Cell Touching Neighbours AND Number Of Neighbours < 97.5th Percentile",
+            filtered_df,
+            prev_df,
+            f"Max Percent Touching: {max_threshold_neighbours_percenttouching} and Max Number Of Neighbours: {max_threshold_neighbours_numberof}",
+        )
     prev_df = filtered_df.copy()
 
     max_threshold_nuc_neighbours_numberof = get_min_max_percentile_thesholds(
@@ -1042,21 +1072,51 @@ def apply_filters_individually(
         subset_col="AllGroups",
         max_subset_group="P6-12",
     )[1]
-    filtered_df = filtered_df[
-        (
-            filtered_df[neighbours_col_percenttouching]
-            < max_threshold_neighbours_percenttouching
+    if (
+        max_threshold_neighbours_percenttouching == 0
+        or max_threshold_neighbours_numberof == 0
+    ):
+        print("One or more max neighbor thresholds are 0. Trying with closest distance")
+        # this filter would be the inverse to remove cells with too many neigbours
+        min_neighbour_distance_theshold = get_min_max_percentile_thesholds(
+            reference_df[
+                reference_df["Neighbors_FirstClosestDistance_5"] > 0
+            ],  # use only non-zero distances to avoid biasing the threshold by the zero distances
+            "Neighbors_FirstClosestDistance_5",
+            min_percentile=0.025,
+            max_percentile=1,
+        )[0]
+        filtered_df = filtered_df[
+            (
+                filtered_df["Neighbors_FirstClosestDistance_5"]
+                > min_neighbour_distance_theshold
+            )
+            | (filtered_df["Neighbors_FirstClosestDistance_5"] == 0)
+        ]  # optional filter for touching neighbors AND number of neighbors
+        filtering_summary_dict = add_filtering_summary_to_dict(
+            filtering_summary_dict,
+            "Cell_Neighbours_Filter",
+            "First Closest Neighbour distance < 0.025th percentile (97.5th closest distance) or == 0 (no neighbours)",
+            filtered_df,
+            prev_df,
+            f"Min closest neighbour distance: {min_neighbour_distance_theshold}",
         )
-        & (filtered_df[neighbours_col_numberof] < max_threshold_neighbours_numberof)
-    ]  # optional filter for touching neighbors AND number of neighbors
-    filtering_summary_dict = add_filtering_summary_to_dict(
-        filtering_summary_dict,
-        "Cell_Neighbours_Filter",
-        "Percent of Cell Touching Neighbours AND Number Of Neighbours < 97.5th Percentile",
-        filtered_df,
-        prev_df,
-        f"Max Percent Touching: {max_threshold_neighbours_percenttouching} and Max Number Of Neighbours: {max_threshold_neighbours_numberof}",
-    )
+    else:
+        filtered_df = filtered_df[
+            (
+                filtered_df[neighbours_col_percenttouching]
+                < max_threshold_neighbours_percenttouching
+            )
+            & (filtered_df[neighbours_col_numberof] < max_threshold_neighbours_numberof)
+        ]  # optional filter for touching neighbors AND number of neighbors
+        filtering_summary_dict = add_filtering_summary_to_dict(
+            filtering_summary_dict,
+            "Cell_Neighbours_Filter",
+            "Percent of Cell Touching Neighbours AND Number Of Neighbours < 97.5th Percentile",
+            filtered_df,
+            prev_df,
+            f"Max Percent Touching: {max_threshold_neighbours_percenttouching} and Max Number Of Neighbours: {max_threshold_neighbours_numberof}",
+        )
     filtered_df = prev_df.copy()
     prev_df = filtered_df.copy()
 

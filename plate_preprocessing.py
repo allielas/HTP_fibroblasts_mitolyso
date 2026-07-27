@@ -696,6 +696,7 @@ def calculate_aggregated_object_features(
         how="left",
         left_on="CellNumber_ImageNumber_Index",
         right_on="CellNumber_ImageNumber_Index",
+        suffixes=("", ""),
     )
 
     return modified_merged_df
@@ -772,8 +773,8 @@ def add_median_object_features_to_parent(
                 object_df,
                 feature,
                 parent_key,
+                object_name,
                 child_key,
-                object_name=object_name,
                 aggregation="Median",
                 prefix=prefix,
             )
@@ -891,28 +892,18 @@ def add_standard_deviation_features_to_parent(
             any(ch in feature for ch in other_channels)
             or any(exclusion in feature for exclusion in features_to_exclude)
         ):
-            # print("oops, skipping:", feature)
             continue  # Skip the parent key column or non-feature columns
-        for feature in object_df.columns:
-            # print("checking feature:", feature)
-            # Exclude if matches any in other_channels, unless it also matches feature_types
-            if object_name not in feature or (
-                any(ch in feature for ch in other_channels)
-                or any(exclusion in feature for exclusion in features_to_exclude)
-            ):
-                # print("oops, skipping:", feature)
-                continue  # Skip the parent key column or non-feature columns
-            if any(ft in feature for ft in feature_types):
-                modified_df = calculate_aggregated_object_features(
-                    modified_df,
-                    object_df,
-                    feature,
-                    parent_key=parent_key,
-                    object_name=object_name,
-                    child_key=child_key,
-                    aggregation="Std",
-                    prefix=prefix,
-                )
+        if any(ft in feature for ft in feature_types):
+            modified_df = calculate_aggregated_object_features(
+                modified_df,
+                object_df,
+                feature,
+                parent_key=parent_key,
+                object_name=object_name,
+                child_key=child_key,
+                aggregation="Std",
+                prefix=prefix,
+            )
 
     # modified_df = modified_df.rename(columns=lambda x: re.sub(r"Std", f"Std_{object_df_name_noext}", x))
     return modified_df.copy()
@@ -1565,3 +1556,90 @@ def combine_one_to_one_dfs(
 
     merged_df_final = main_df.reset_index(drop=True)
     return merged_df_final
+
+
+def merge_totalobject_df_into_parent_df(
+    parent_df,
+    object_df,
+    key_col="ImageNumber_Object_Number",
+    rename_key=True,
+    verbose=False,
+):
+    """
+    Merges two DataFrames with unequal rows based on a common key created from the ImageNumber and Object_Number columns. The function performs a left join, keeping all rows from the parent DataFrame and adding matching rows from the object DataFrame. If there are no matches, NaN values will be filled in for the object DataFrame's columns.
+    """
+    parent_name = parent_df.columns[1].split("_")[
+        0
+    ]  # Extract the table name from the second column
+    object_name = object_df.columns[1].split("_")[
+        0
+    ]  # Extract the table name from the second column
+
+    if "Total" in object_name:
+        short_object_name = object_name.replace("Total", "")
+    else:
+        short_object_name = object_name
+    parent_df[f"{parent_name}_Children_{short_object_name}_Count"] = parent_df[
+        f"{parent_name}_Children_{short_object_name}_Count"
+    ].astype(int)
+
+    # first drop rows from the parent_df where the count of the child object is less than 1
+    mask_df = parent_df[
+        parent_df[f"{parent_name}_Children_{short_object_name}_Count"] < 1
+    ]
+    images_with_dropped_objects = mask_df["ImageNumber"].unique()
+    dropped_parent_df = parent_df.drop(mask_df.index)
+
+    # Add a new column for the new object numbers after dropping rows to match the other dataframe
+    # copy the original object number column to a new column
+    if f"{parent_name}_Number_Object_Number" in dropped_parent_df.columns:
+        dropped_parent_df["New_Object_Number"] = dropped_parent_df[
+            f"{parent_name}_Number_Object_Number"
+        ]
+    else:
+        print(
+            f"Column {parent_name}_Number_Object_Number not found in dropped_parent_df. Please check the column names."
+        )
+        dropped_parent_df["New_Object_Number"] = None
+    for img in images_with_dropped_objects:
+        # for the dropped images, we need to reassign the object numbers to be sequential starting from 1
+        if img in dropped_parent_df["ImageNumber"].values:
+            df_at_img = dropped_parent_df[dropped_parent_df["ImageNumber"] == img]
+            if verbose:
+                print(
+                    f"Number of objects in dropped DataFrame for Image {img}: {len(df_at_img)}"
+                )
+            if not df_at_img.empty:
+                # reassign the object numbers to be sequential starting from 1 ONLY for that image
+                df_at_img["New_Object_Number"] = range(1, len(df_at_img) + 1)
+            dropped_parent_df.update(df_at_img)
+    # make the key columns for the object_df to merge on
+    dropped_parent_df[key_col] = (
+        "Img"
+        + dropped_parent_df["ImageNumber"].astype(str)
+        + "_"
+        + dropped_parent_df["New_Object_Number"].astype(str)
+    )
+    object_df[key_col] = (
+        "Img"
+        + object_df["ImageNumber"].astype(str)
+        + "_"
+        + object_df[f"{object_name}_Number_Object_Number"].astype(str)
+    )
+
+    if verbose:
+        print(
+            f"dropped_parent_df shape: {dropped_parent_df.shape}, object_df shape: {object_df.shape}, original parent_df shape: {parent_df.shape}"
+        )
+    merged_parent_df = dropped_parent_df.merge(
+        object_df, on=key_col, how="left", suffixes=("", f"_{short_object_name}")
+    )
+    if rename_key:
+        merged_parent_df.rename(
+            columns={key_col: f"ImageNumber_Object_Number_{short_object_name}"},
+            inplace=True,
+        )
+    if verbose:
+        print(f"merged_parent_df shape: {merged_parent_df.shape}")
+
+    return merged_parent_df

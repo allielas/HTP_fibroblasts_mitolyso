@@ -1,16 +1,16 @@
 filter_type,P6-12,P13-15,P16-18,P19-21,P22-24,P25-27,P28-31,P32-35,Doxo
-Cell Size Filter Bottom Band,224,371,147,176,161,102,63,8,6
-Cell Size Filter Top Band,0,1,2,3,8,3,1,9,20
-Cell:Nuclear Area Ratio Filter Bottom Band,223,640,265,253,221,154,348,27,36
-Cell:Nuclear Area Ratio Filter Top Band,227,664,291,293,279,183,362,44,56
+Cell Size Filter Bottom Band,253,421,161,194,170,116,128,13,4
+Cell Size Filter Top Band,0,1,2,3,6,3,1,12,23
+Cell:Nuclear Area Ratio Filter Bottom Band,253,637,245,255,223,163,586,35,34
+Cell:Nuclear Area Ratio Filter Top Band,256,648,258,277,260,183,608,53,57
+First Closest Neighbour distance < 0.025th percentile (97.5th closest distance) or == 0 (no neighbours),330,648,280,296,165,172,274,0,2
 Initial Dataset,0,0,0,0,0,0,0,0,0
-Min Number of Lysosomes Filter,1,0,2,2,4,2,0,0,0
-Min Number of Mitochondria Filter,0,2,1,4,6,3,2,1,0
-Nuclear Size Filter Bottom Band,223,385,217,246,248,183,76,22,14
-Nuclear Size Filter Top Band,1,3,4,11,17,10,4,20,20
+Min Number of Lysosomes Filter,0,0,0,0,0,0,0,0,0
+Min Number of Mitochondria Filter,0,0,0,0,0,0,0,0,0
+Nuclear Size Filter Bottom Band,253,413,217,253,252,209,145,24,12
+Nuclear Size Filter Top Band,1,5,4,14,21,13,8,32,23
 Nuclei Intensity MedianIntensity DAPI MAX WellNormalized Filter Bottom Band,1,1,1,1,1,1,1,1,1
-Nuclei Intensity MedianIntensity DAPI MAX WellNormalized Filter Top Band,19,37,21,24,19,12,15,7,6
-Number Of Neighbours < 97.5th Percentile,243,782,695,649,335,300,736,13,4
-Number Of Nuclei Neighbours < 97.5th Percentile,49,103,73,60,23,17,83,0,0
-Percent of Cell Touching Neighbours < 97.5th Percentile,223,713,549,520,276,227,562,11,4
-Percent of Cell Touching Neighbours AND Number Of Neighbours < 97.5th Percentile,391,1198,989,942,512,448,965,22,7
+Nuclei Intensity MedianIntensity DAPI MAX WellNormalized Filter Top Band,33,46,21,37,25,14,24,12,7
+Number Of Neighbours < 97.5th Percentile,10085,18766,11974,13683,12665,8563,9391,1645,910
+Number Of Nuclei Neighbours < 97.5th Percentile,0,0,0,0,0,0,0,0,0
+Percent of Cell Touching Neighbours < 97.5th Percentile,10085,18766,11974,13683,12665,8563,9391,1645,910
