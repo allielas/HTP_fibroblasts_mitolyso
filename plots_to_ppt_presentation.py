@@ -283,5 +283,6 @@ def main():
 if __name__ == "__main__":
     main()
 
-# python plots_to_ppt_presentation.py -i segmentation_test/plots -o segmentation_test/test.pptx
+# python plots_to_ppt_presentation.py -i plots/notnorm -o segmentation_test/test.pptx
+# python plots_to_ppt_presentation.py -i plots/notnorm -o /Users/allielas/Desktop/test.pptx
 # python plots_to_ppt_presentation.py -i /mnt/bigdisk1/AllieSpangaro/Morphology_Replicative_Age_Project/CP_Output/mito_seg_testing/mitoimprovv10/overlaytesting/ -o /mnt/bigdisk1/AllieSpangaro/Morphology_Replicative_Age_Project/Reworking_Organelle_Segmentation/test_overlay.pptx
