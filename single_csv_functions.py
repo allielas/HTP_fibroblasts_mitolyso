@@ -136,10 +136,31 @@ def get_duplicate_rows(df, subset_cols=None, name="df", keep=False, show=True):
     return dup_rows
 
 
+def load_ij_skeleton_csv(ij_csvpath, ij_csv):
+    """
+    Load the ImageJ skeleton features csv file into a dataframe.
+    Args:
+        ij_csvpath (str): The path to the directory containing the ImageJ skeleton features csv file.
+        ij_csv (str): The name of the ImageJ skeleton features csv file.
+
+    Returns:
+        pd.DataFrame: The dataframe containing the ImageJ skeleton features.
+        csv_suffix (str): The suffix to use for the ImageJ skeleton features columns.
+    """
+    ij_skeleton_df = pd.read_csv(os.path.join(ij_csvpath, ij_csv))
+
+    csv_name = (
+        ij_csv.split(".")[0].strip().title()
+    )  # convert to title to match conventions
+    csv_suffix = "IJ_Mitochondria_" + csv_name.split("_")[-1].strip()
+    ij_skeleton_df["Suffix"] = csv_suffix
+
+    return ij_skeleton_df
+
+
 def merge_ij_skeleton_features_into_combined_dataframe(
     combined_cell_df_mitolyso,
-    ij_csvpath,
-    ij_csv,
+    ij_df,
     ij_keys=None,
     parent_keys=None,
     check_duplicates=True,
@@ -149,8 +170,7 @@ def merge_ij_skeleton_features_into_combined_dataframe(
     Merge the combined cell dataframe with the ImageJ skeleton features dataframe based on plate number
     Args:
         combined_cell_df_mitolyso (pd.DataFrame): The combined cell dataframe.
-        ij_csvpath (str): The path to the directory containing the ImageJ skeleton features csv file.
-        ij_csv (str): The name of the ImageJ skeleton features csv file.
+        ij_df (pd.DataFrame): The ImageJ skeleton features dataframe.
         ij_keys (list): The list of columns to merge on from the ImageJ dataframe.
         parent_keys (list): The list of columns to merge on from the parent dataframe.
     """
@@ -159,19 +179,19 @@ def merge_ij_skeleton_features_into_combined_dataframe(
     if parent_keys is None:
         parent_keys = ["Metadata_PlateNumber", "Metadata_RowColField", "ObjectNumber"]
 
-    ij_skeleton_df = pd.read_csv(os.path.join(ij_csvpath, ij_csv))
-
-    csv_name = (
-        ij_csv.split(".")[0].strip().title()
-    )  # convert to title to match conventions
-    csv_suffix = "IJ_Mitochondria_" + csv_name.split("_")[-1].strip()
+    ij_skeleton_df = ij_df.copy()
+    csv_suffix = (
+        ij_skeleton_df["Suffix"].iloc[0]
+        if "Suffix" in ij_skeleton_df.columns
+        else "IJ_Mitochondria"
+    )
 
     # check for dupe keys in the ij_skeleton_df before merging
     if check_duplicates:
         dup_keys = get_duplicate_rows(
             ij_skeleton_df,
             subset_cols=["ImageTitle"] + ij_keys,
-            name=f"{ij_csv} merge keys",
+            name=f"{csv_suffix} merge keys",
             show=show,
         )
         if not dup_keys.empty:
@@ -187,6 +207,7 @@ def merge_ij_skeleton_features_into_combined_dataframe(
             new_col = col.replace("+AF8-", "_")
         if new_col not in ij_keys + [
             "ImageTitle",
+            "Suffix",
         ]:  # rename the column to easily idefntify these features
             new_col = f"{csv_suffix}_{new_col}"
             ij_skeleton_df.rename(columns={col: new_col}, inplace=True)
@@ -235,6 +256,8 @@ def merge_ij_skeleton_features_into_combined_dataframe_from_folder(
         ij_keys = ["Metadata_PlateNumber", "Metadata_RowColField", "ObjectNumber"]
 
     combined_cell_df_mitolyso = df.copy()
+    ij_df_list = []
+
     if ij_csvs is None:
         ij_csvs = os.listdir(ij_csvpath)
     for item in ij_csvs:
@@ -242,42 +265,42 @@ def merge_ij_skeleton_features_into_combined_dataframe_from_folder(
             "AllSkeletons",
             "test",
         ]:
-            ij_csv_folder = os.path.join(ij_csvpath, item)
-            ij_csv_folder_items = os.listdir(ij_csv_folder)
+            ij_csv_folder_path = os.path.join(ij_csvpath, item)
+            ij_csv_folder_items = os.listdir(ij_csv_folder_path)
             for file in ij_csv_folder_items:
                 if file.endswith(".csv"):
                     ij_csv = str(file)
                     print(f"Processing {ij_csv} in folder {item}...")
-                    combined_cell_df_mitolyso = (
-                        merge_ij_skeleton_features_into_combined_dataframe(
-                            combined_cell_df_mitolyso,
-                            ij_csv_folder,
-                            ij_csv,
-                            show=show,
-                            ij_keys=ij_keys,
-                            parent_keys=parent_keys,
-                            check_duplicates=check_duplicates,
-                        )
-                    )
+                    ij_df = load_ij_skeleton_csv(ij_csv_folder_path, ij_csv)
+                    ij_df_list.append(ij_df)
         else:
             if item.endswith(".csv"):
                 ij_csv = str(item)
                 print(f"Processing {ij_csv} in folder {item}...")
+                ij_df = load_ij_skeleton_csv(ij_csvpath, ij_csv)
+                ij_df_list.append(ij_df)
             else:
                 print(f"Skipping {item}, not a CSV file.")
                 continue
+
+        if len(ij_df_list) > 0:
+            ij_df_total = pd.concat(ij_df_list, ignore_index=True)
             combined_cell_df_mitolyso = (
                 merge_ij_skeleton_features_into_combined_dataframe(
                     combined_cell_df_mitolyso,
-                    ij_csvpath,
-                    ij_csv,
+                    ij_df_total,
                     show=show,
                     ij_keys=ij_keys,
                     parent_keys=parent_keys,
                     check_duplicates=check_duplicates,
                 )
             )
-    return combined_cell_df_mitolyso
+            return combined_cell_df_mitolyso
+        else:
+            print(f"No CSV files found in the specified path {ij_csvpath}.")
+            return (
+                pd.DataFrame()
+            )  # Return an empty DataFrame if no CSV files were found
 
 
 def get_standard_deviations_from_large_df(
