@@ -283,24 +283,20 @@ def merge_ij_skeleton_features_into_combined_dataframe_from_folder(
                 print(f"Skipping {item}, not a CSV file.")
                 continue
 
-        if len(ij_df_list) > 0:
-            ij_df_total = pd.concat(ij_df_list, ignore_index=True)
-            combined_cell_df_mitolyso = (
-                merge_ij_skeleton_features_into_combined_dataframe(
-                    combined_cell_df_mitolyso,
-                    ij_df_total,
-                    show=show,
-                    ij_keys=ij_keys,
-                    parent_keys=parent_keys,
-                    check_duplicates=check_duplicates,
-                )
-            )
-            return combined_cell_df_mitolyso
-        else:
-            print(f"No CSV files found in the specified path {ij_csvpath}.")
-            return (
-                pd.DataFrame()
-            )  # Return an empty DataFrame if no CSV files were found
+    if len(ij_df_list) > 0:
+        ij_df_total = pd.concat(ij_df_list, ignore_index=True)
+        combined_cell_df_mitolyso = merge_ij_skeleton_features_into_combined_dataframe(
+            combined_cell_df_mitolyso,
+            ij_df_total,
+            show=show,
+            ij_keys=ij_keys,
+            parent_keys=parent_keys,
+            check_duplicates=check_duplicates,
+        )
+        return combined_cell_df_mitolyso
+    else:
+        print(f"No CSV files found in the specified path {ij_csvpath}.")
+        return pd.DataFrame()  # Return an empty DataFrame if no CSV files were found
 
 
 def get_standard_deviations_from_large_df(
