@@ -1,11 +1,11 @@
 import os
 import re
-import numpy as np
-import pandas as pd
 import sqlite3
 
+import numpy as np
+import pandas as pd
+
 # import matplotlib.pyplot as plt
-from scipy import stats
 
 
 def old_passage_group(passage_num):
@@ -34,7 +34,7 @@ def old_passage_group(passage_num):
             return "P29+"
         else:
             return "Unknown"
-    except ValueError as e:
+    except ValueError:
         # print(f"value is not a number, caught {e}; returning NaN")
         return None
 
@@ -536,17 +536,19 @@ def plate_df_setup_fromcsv(
     curr_plates,
     curr_plate_datafolders,
     parent_dir,
-    csv_names=[
-        "Cell.csv",
-        "Nuclei.csv",
-        "MergedMitoPerCell.csv",
-        "MergedLysoPerCell.csv",
-    ],
+    csv_names=None,
 ):
     """
     Combine the cellprofiler feature data from different plates into a single DataFrame
     Returns a DataFrame with the combined data
     """
+    if csv_names is None:
+        csv_names = [
+            "Cell.csv",
+            "Nuclei.csv",
+            "MergedMitoPerCell.csv",
+            "MergedLysoPerCell.csv",
+        ]
     # Initialize a list to store the combined DataFrames
     plate_dfs = {}
 
@@ -669,7 +671,7 @@ def calculate_aggregated_object_features(
     elif agg_title == "Std":
         agg_values = object_df.groupby([parent_key, "ImageNumber"])[feature].std()
     else:
-        ValueError('aggregation (str) not in "Mean","Median","Mode", or "Std"')
+        raise ValueError('aggregation (str) not in "Mean","Median","Mode", or "Std"')
         return pd.DataFrame()
 
     # create the new column name for the aggregated feature
@@ -782,9 +784,7 @@ def add_median_object_features_to_parent(
     return modified_df
 
 
-def load_organelle_stats(
-    db_path, df, organelles=["Lysosomes", "Mitochondria"], stats=["Median", "Std"]
-):
+def load_organelle_stats(db_path, df, organelles=None, stats_list=None):
     """
     Load organelle median features from the database.
 
@@ -800,7 +800,11 @@ def load_organelle_stats(
     import sqlite3
 
     if not isinstance(df, pd.DataFrame):
-        raise ValueError("Input must be a pandas DataFrame.")
+        raise TypeError("Input must be a pandas DataFrame.")
+    if organelles is None:
+        organelles = ["Lysosomes", "Mitochondria"]
+    if stats_list is None:
+        stats_list = ["Median", "Std"]
     cell_df = df.copy()
 
     conn = sqlite3.connect(db_path)
@@ -808,11 +812,11 @@ def load_organelle_stats(
     for organelle in organelles:
         query = f"SELECT * FROM Per_{organelle}"
         org_df = pd.read_sql_query(query, conn)
-        if "Median" in stats:
+        if "Median" in stats_list:
             cell_df = add_median_object_features_to_parent(
                 parent_df=cell_df, object_df=org_df, object_name=organelle
             )
-        if "Std" in stats:
+        if "Std" in stats_list:
             cell_df = add_standard_deviation_features_to_parent(
                 parent_df=cell_df, object_df=org_df, object_name=organelle
             )
@@ -987,7 +991,6 @@ def update_database_with_well_metadata(db_path):
         db_path (str): Path to the database file
     """
     conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
 
     # Read Per_Image table
     image_df = pd.read_sql_query("SELECT * FROM Per_Image", conn)
@@ -999,10 +1002,8 @@ def update_database_with_well_metadata(db_path):
     try:
         updated_image_df.to_sql("Per_Image", conn, if_exists="replace", index=False)
         print("Database updated successfully with well metadata.")
-    except Exception as e:
+    except sqlite3.DatabaseError as e:
         print(f"Error updating database: {e}")
-    # cursor.execute("SELECT Metadata_Well FROM Per_Image LIMIT 5;")
-    # cursor.fetchall()
     conn.close()
 
 
@@ -1338,30 +1339,11 @@ def relate_objects(
     obj_df_2,
     obj1_name="",
     obj2_name="",
-    feature_cols=[],
+    feature_cols=None,
     ratio_colname="Cell_Nuclei_Area_Ratio",
-    metadata_cols=[
-        "ImageNumber",
-        "Plate_Number",
-        "Metadata_WellRow",
-        "Metadata_WellColumn",
-        "Metadata_Field",
-        "SerialPassage_BatchNumber",
-        "AgeGroup",
-        "Drug",
-        "slice",
-        "Filename",
-        "Parent_Folder",
-        "Path",
-        "Metadata_Well_ID",
-        "Metadata_Well_x",
-        "Block",
-        "Metadata_Well_y",
-        "TimepointName",
-        "Staining",
-        "Passage Group",
-        "AllGroups",
-    ],
+    metadata_cols=None,
+    max_x=2160.0,
+    max_y=2160.0,
 ):
     """Relates two tables of segmented images
     Based off of ImageNumber and where objects in obj_df_2 are contained within larger objects in obj_df_1.
@@ -1383,6 +1365,31 @@ def relate_objects(
                       column in the obj_df_2 data, and a combined DataFrame with aggregated means
                       and a calculated ratio.
     """
+    if feature_cols is None:
+        feature_cols = []
+    if metadata_cols is None:
+        metadata_cols = [
+            "ImageNumber",
+            "Plate_Number",
+            "Metadata_WellRow",
+            "Metadata_WellColumn",
+            "Metadata_Field",
+            "SerialPassage_BatchNumber",
+            "AgeGroup",
+            "Drug",
+            "slice",
+            "Filename",
+            "Parent_Folder",
+            "Path",
+            "Metadata_Well_ID",
+            "Metadata_Well_x",
+            "Block",
+            "Metadata_Well_y",
+            "TimepointName",
+            "Staining",
+            "Passage Group",
+            "AllGroups",
+        ]
     obj_df_1 = obj_df_1.sort_values(by="ImageNumber").copy()
     obj_df_2 = obj_df_2.sort_values(by="ImageNumber").copy()
 
@@ -1514,9 +1521,7 @@ def relate_objects(
     return relate_objects_df
 
 
-def combine_one_to_one_dfs(
-    df, db_conn, tables_to_add=["Nuclei", "Cytoplasm"], main_df_prefix="Cell"
-):
+def combine_one_to_one_dfs(df, db_conn, tables_to_add=None, main_df_prefix="Cell"):
     """Merge table outputs from cellprofiler where the tables are objects in a one-to-one relationship e.g. cells and nuclei
     Args:
         df (DataFrame): _description_
@@ -1526,6 +1531,8 @@ def combine_one_to_one_dfs(
     Returns:
         DataFrame: _description_
     """
+    if tables_to_add is None:
+        tables_to_add = ["Nuclei", "Cytoplasm"]
     # add all these to a list
     main_df = df.copy()
     dfs_to_add = []
@@ -1604,14 +1611,19 @@ def merge_totalobject_df_into_parent_df(
     for img in images_with_dropped_objects:
         # for the dropped images, we need to reassign the object numbers to be sequential starting from 1
         if img in dropped_parent_df["ImageNumber"].values:
-            df_at_img = dropped_parent_df[dropped_parent_df["ImageNumber"] == img]
+            df_at_img = dropped_parent_df.loc[
+                dropped_parent_df["ImageNumber"] == img
+            ].copy()
             if verbose:
                 print(
-                    f"Number of objects in dropped DataFrame for Image {img}: {len(df_at_img)}"
+                    f"Number of objects in Image {img}: {len(df_at_img)} with objects dropped from the DataFrame subset"
                 )
             if not df_at_img.empty:
                 # reassign the object numbers to be sequential starting from 1 ONLY for that image
-                df_at_img["New_Object_Number"] = range(1, len(df_at_img) + 1)
+                print(
+                    f"Reassigning object numbers for Image {img} in dropped_parent_df."
+                )
+                df_at_img.loc[:, "New_Object_Number"] = range(1, len(df_at_img) + 1)
             dropped_parent_df.update(df_at_img)
     # make the key columns for the object_df to merge on
     dropped_parent_df[key_col] = (

@@ -3,14 +3,12 @@ Helper functions for data analysis and visualization
 Allie Spangaro, Toronto Metropolitan University
 """
 
+import operator
 import os
 import re
-import numpy as np
-import pandas as pd
+
 import matplotlib.pyplot as plt
-import seaborn as sns
-from scipy import stats
-import operator
+import pandas as pd
 
 
 def old_get_all_group_order():
@@ -52,8 +50,15 @@ def well_namer(row, col):
 
 
 def find_plate(path):
-    import re
+    """
+    Find the plate number from a given path string.
+    
+    Args:
+        path (str): The path string to search for the plate number.
 
+    Returns:
+        int: The plate number, or None if not found.
+    """
     plate_pattern = (
         r"R(\d{1})"  # Matches "RX" where X is the plate number (placeholder for now)
     )
@@ -118,6 +123,14 @@ def search_column_name(
 
 
 def find_row_col(well_code):
+    """Find the row and column of a well based on its code.
+
+    Args:
+        well_code (str): The well code (e.g., "A01", "B02", etc.)
+
+    Returns:
+        tuple: A tuple containing the row and column of the well.
+    """
     import re
 
     rowcol_pattern = r"r(\d{1,2})c(\d{1,2})"  # Matches "RX" where X is the plate number (placeholder for now)
@@ -245,7 +258,6 @@ def average_groups_pivot(group_avg_df, x_value, y_value, plate_col_name):
 
 
 def passage_groups_sort_key(group_name):
-    import re
 
     """
     Key function for natural sorting of strings containing numbers.
@@ -331,32 +343,12 @@ def make_summary_stats_for_df_and_feature(
 def get_mini_filtered_df(
     final_filtered_df,
     condition_col="",
-    valueslist=[
-        "Cell_Unique_ID",
-        "ImageNumber",
-        "TimepointName",
-        "Metadata_WellRow",
-        "Metadata_WellColumn",
-        "Metadata_Field",
-        "AllGroups",
-        "Plate_Number",
-        "SerialPassage_BatchNumber",
-        "AgeGroup",
-        "PassageNumber",
-        "Number_Object_Number",
-        "AreaShape_Area",
-        "Nuclei_AreaShape_Area",
-        "Cell_Nuclei_Area_Ratio",
-        "Children_Mitochondria_Count",
-        "Children_Lysosomes_Count",
-        "Image_Width_DAPI",
-        "Image_URL_MitoTracker_MAX",
-        "Image_FileName_MitoTracker_MAX",
-        "Image_FileName_LAMP1_MAX",
-    ],
+    valueslist=None,
     op=operator.le,
     condition_value=10,
 ):
+    if valueslist is None:
+        valueslist = ["Cell_Unique_ID", "ImageNumber", "TimepointName", "Metadata_WellRow", "Metadata_WellColumn", "Metadata_Field", "AllGroups", "Plate_Number", "SerialPassage_BatchNumber", "AgeGroup", "PassageNumber", "Number_Object_Number", "AreaShape_Area", "Nuclei_AreaShape_Area", "Cell_Nuclei_Area_Ratio", "Children_Mitochondria_Count", "Children_Lysosomes_Count", "Image_Width_DAPI", "Image_URL_MitoTracker_MAX", "Image_FileName_MitoTracker_MAX", "Image_FileName_LAMP1_MAX"]
     mini_df = final_filtered_df[valueslist]
 
     mini_df["Metadata_Rep_RowColField"] = (
@@ -474,7 +466,7 @@ def pull_up_cp_segmentation_image_fromID(
                             color="lime",
                             fontsize=12,
                             weight="bold",
-                            bbox=dict(facecolor="black", alpha=0.5, pad=2),
+                            bbox={"facecolor": "black", "alpha": 0.5, "pad": 2},
                         )
                     if save:
                         plt.savefig(
@@ -495,15 +487,12 @@ def pull_up_cp_segmentation_image_fromID(
 def get_object_bbox_coordinates_as_rectangle(
     df,
     unique_ID,
-    coord_cols=[
-        "AreaShape_BoundingBoxMaximum_X",
-        "AreaShape_BoundingBoxMaximum_Y",
-        "AreaShape_BoundingBoxMinimum_X",
-        "AreaShape_BoundingBoxMinimum_Y",
-    ],
+    coord_cols=None,
 ):
     from matplotlib import patches
 
+    if coord_cols is None:
+        coord_cols = ["AreaShape_BoundingBoxMaximum_X", "AreaShape_BoundingBoxMaximum_Y", "AreaShape_BoundingBoxMinimum_X", "AreaShape_BoundingBoxMinimum_Y"]
     row = df[df["Cell_Unique_ID"] == unique_ID]
     if not row.empty:
         x_min = row["AreaShape_BoundingBoxMinimum_X"].values[0]
@@ -564,7 +553,7 @@ def get_unique_cols_to_use(df):
         df, ["Children_Lyso", "Count"], inclusive_or=False
     )
     colnames_lysoarea_initial = search_column_name(
-        df, areashape_features, inclusive_or=True
+        df, areashape_features, inclusive_or=True # type: ignore
     )
     colnames_lysoarea = colnames_lysoarea_initial.copy()
 

@@ -1,9 +1,11 @@
 import os
-import pandas as pd
+
 import numpy as np
+import pandas as pd
+
 from mitolyso_plot_functions import *
-from plate_preprocessing import *
 from plate_information import *
+from plate_preprocessing import *
 
 
 def merge_csvs_mitolyso(
@@ -59,17 +61,20 @@ def merge_csvs_mitolyso(
 def make_per_lysosome_area_column_names(
     df,
     area_col="AreaShape_Area",
-    use_cols=[],
-    base_cols=[
-        "Metadata_PlateNumber",
-        "Metadata_RowColField",
-        "AllGroups",
-        "AreaShape_Area",
-    ],
-    area_cols=[],
-    count_cols=[],
+    use_cols=None,
+    base_cols=None,
+    area_cols=None,
+    count_cols=None,
     calculate_totals=False,
 ):
+    if count_cols is None:
+        count_cols = []
+    if area_cols is None:
+        area_cols = []
+    if use_cols is None:
+        use_cols = []
+    if base_cols is None:
+        base_cols = ["Metadata_PlateNumber", "Metadata_RowColField", "AllGroups", "AreaShape_Area"]
     df = df.copy()
     new_use_cols = use_cols.copy()
     for col in base_cols:
@@ -199,7 +204,7 @@ def merge_ij_skeleton_features_into_combined_dataframe(
                 subset=["ImageTitle"] + ij_keys, keep="first"
             )
             if show:
-                display(dup_keys.sort_values(ij_keys))
+                print(dup_keys.sort_values(ij_keys))
 
     for col in ij_skeleton_df.columns:
         new_col = col
@@ -216,8 +221,8 @@ def merge_ij_skeleton_features_into_combined_dataframe(
             "Metadata_PlateNumber"
         ].astype(int)
     if show:
-        # display(ij_skeleton_df)
-        display(f"shape before merge: {combined_cell_df_mitolyso.shape}")
+        # print(ij_skeleton_df)
+        print(f"shape before merge: {combined_cell_df_mitolyso.shape}")
 
     combined_cell_df_mitolyso = pd.merge(
         combined_cell_df_mitolyso,
@@ -228,7 +233,7 @@ def merge_ij_skeleton_features_into_combined_dataframe(
         suffixes=("", f"_{csv_suffix}"),
     )
     if show:
-        display(f"shape after merge: {combined_cell_df_mitolyso.shape}")
+        print(f"shape after merge: {combined_cell_df_mitolyso.shape}")
     return combined_cell_df_mitolyso
 
 
@@ -304,15 +309,7 @@ def get_standard_deviations_from_large_df(
     object_df_name,
     parent_key,
     child_key,
-    features=[
-        "AreaShape_Area",
-        "AreaShape_Perimeter",
-        "AreaShape_EquivalentDiameter",
-        "AreaShape_Extent",
-        "AreaShape_Solidity",
-        "AreaShape_Compactness",
-        "AreaShape_Eccentricity",
-    ],
+    features=None,
     prefix="Cell",
 ):
     """
@@ -329,6 +326,8 @@ def get_standard_deviations_from_large_df(
     pd.DataFrame: A dataframe containing the standard deviations of the specified features, grouped by metadata.
     """
     # open the csv file with extra info
+    if features is None:
+        features = ["AreaShape_Area", "AreaShape_Perimeter", "AreaShape_EquivalentDiameter", "AreaShape_Extent", "AreaShape_Solidity", "AreaShape_Compactness", "AreaShape_Eccentricity"]
     object_df = pd.read_csv(object_df_name)
     modified_df = df.copy()
     object_df_name_noext = os.path.splitext(os.path.basename(object_df_name))[0]
@@ -359,11 +358,13 @@ def plot_boxplots_with_swarm(
     display_df,
     display_df_pivot_plates,
     feature_cols,
-    colour_dict={},
+    colour_dict=None,
     size=(6, 10),
     outpath="lyso_segmentation_test/plots",
 ):
 
+    if colour_dict is None:
+        colour_dict = {}
     os.makedirs(outpath, exist_ok=True)
     for col in feature_cols:
         plt.figure(figsize=size)
