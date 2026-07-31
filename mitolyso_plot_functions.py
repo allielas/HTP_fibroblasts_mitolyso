@@ -1117,7 +1117,7 @@ def annotate_pairs_with_calculated_pvalues(
         _type_: _description_
     """
     from statannotations.Annotator import Annotator
-
+    
     if pairs is None:
         pairs = getpairs(data, x_value, order=order)
 
@@ -1477,6 +1477,7 @@ def super_splitviolinplot_helper(
     test=None,
     shapiro=True,
     show_test_on_plot=False,
+    ylim=None,
 ):
     if pairs is None:
         pairs = getpairs(data_df, x_value, order=order)
@@ -1524,6 +1525,12 @@ def super_splitviolinplot_helper(
         ax=ax,
     )
     ax.set_title(title)
+
+    if ylim is not None:
+        if isinstance(ylim, (int, float)):
+            ylim = (None, float(ylim))
+        if len(ylim) == 2:
+            ax.set_ylim(ylim)
 
     # axes[0].text(
     #     x=row[x_value],
@@ -1711,6 +1718,8 @@ def super_splitviolinplot_helper_singleplot(
     show_test_on_plot=False,
     pallete=None,
     p_correction="bonferroni",
+    ylim=None,
+    annotation_location="inside"
 ):
     group_avg_df = group_avg_df.copy()
     if pairs is None:
@@ -1772,6 +1781,12 @@ def super_splitviolinplot_helper_singleplot(
     )
     ax.set_title(title)
 
+    if ylim is not None:
+        if isinstance(ylim, (int, float)):
+            ylim = (None, float(ylim))
+        if len(ylim) == 2:
+            ax.set_ylim(ylim)
+
     # use pivot table to get the average values for each group
     if annotate and test is not None:
         group_avg_pivot_table = average_groups_pivot(
@@ -1789,22 +1804,11 @@ def super_splitviolinplot_helper_singleplot(
                 order=order,
                 plot="violinplot",
                 show_test_name=show_test_on_plot,
+                annotation_location=annotation_location,
                 p_correction=p_correction,
             )
         except Exception as e:
             print(f"Error annotating with statistical test: {e}")
-            # ax = annotate_with_anova_tukey(ax, pairs, group_avg_df_pivot, x_value, y_value, plate_col_name=plate_col_name, order=order, plot="violinplot")
-        # elif test == "kruskal":
-        #     ax = annotate_with_kruskal(
-        #         ax,
-        #         pairs,
-        #         group_avg_pivot_table,
-        #         x_value,
-        #         y_value,
-        #         order=order,
-        #         plate_col_name=plate_col_name,
-        #         plot="violinplot",
-        #     )
         if shapiro:
             ax = annotate_legend_with_shapiro(ax, group_avg_df, plate_col_name)
 
@@ -1827,6 +1831,7 @@ def make_superswarmplot_with_annotation(
     figsize=(10, 9),
     context="talk",
     dpi=300,
+    annotation_location="inside"
 ):
     # Set values to defaults if a parameter is not loaded for order or y axis parameters
     if ytitle is None:
@@ -1931,6 +1936,7 @@ def make_superswarmplot_with_annotation(
                 plate_col_name=plate_col_name,
                 test_name=test,
                 order=order,
+                annotation_location=annotation_location,
                 plot="swarmplot",
             )
         except Exception as e:
@@ -2143,11 +2149,14 @@ def single_feature_super_splitviolinplot(
     shapiro=True,
     show=True,
     context="talk",
+    font_scale=1.2,
     figsize=(8, 6),
     truncate_outliers=False,
+    truncate_outlier_percentile=99.9,
     norm=False,
     pallete=None,
-    p_correction="bonferroni",
+    p_correction="bonf",
+    annotation_location="inside",
 ):
     """Make a superplot to do multiple comparisons for a feature between different conditions
     Args:
@@ -2177,7 +2186,7 @@ def single_feature_super_splitviolinplot(
             if norm:
                 top_fence = data_df[y_value].mean() + 10 * data_df[y_value].std()
             else:
-                top_fence = np.percentile(data_df[y_value], 99.9)
+                top_fence = np.percentile(data_df[y_value], truncate_outlier_percentile)
                 # handle errors where the data is very skewed and the percentile is inf or nan
                 if top_fence == 0 or np.isnan(top_fence) or np.isinf(top_fence):
                     top_fence = None
@@ -2212,7 +2221,7 @@ def single_feature_super_splitviolinplot(
         )
         plt.close()
     fig, ax = plt.subplots(figsize=figsize)
-    sns.set_context(context=context, font_scale=1.2)
+    sns.set_context(context=context, font_scale=font_scale)
     sns.set_theme(style="ticks")
 
     feature_df = df_sorted[[x_value, y_value, plate_col_name]].copy()
@@ -2254,6 +2263,19 @@ def single_feature_super_splitviolinplot(
         by=[x_value], key=lambda x: x.map(allgroups_sort_key)
     ).reset_index(drop=True)
 
+    if ylim is None:
+        y_values = feature_df[y_value].dropna()
+        if not y_values.empty:
+            upper_limit = np.nanpercentile(y_values, 99.5)
+            if np.isfinite(upper_limit) and upper_limit > 0:
+                ylim = (None, upper_limit * 1.05)
+            else:
+                ylim = (None, None)
+        else:
+            ylim = (None, None)
+    elif isinstance(ylim, (int, float)):
+        ylim = (None, float(ylim))
+
     ax = super_splitviolinplot_helper_singleplot(
         feature_df,
         group_avg_df_sorted,
@@ -2269,6 +2291,8 @@ def single_feature_super_splitviolinplot(
         shapiro=False,
         pallete=pallete,
         p_correction=p_correction,
+        ylim=ylim,
+        annotation_location=annotation_location,
     )
 
     if legend:
@@ -2299,14 +2323,15 @@ def single_feature_super_splitviolinplot(
     # Set the ylim and don't throw an inf
     if ylim is None:
         ylim = axlim
-    if ylim[0] is not None and ylim[1] is not None:
-        if not (
-            np.isnan(ylim[0])
-            or np.isnan(ylim[1])
-            or np.isinf(ylim[0])
-            or np.isinf(ylim[1])
-        ):
-            ax.set_ylim(ylim)
+    if ylim is not None and len(ylim) == 2:
+        if ylim[0] is not None and ylim[1] is not None:
+            if not (
+                np.isnan(ylim[0])
+                or np.isnan(ylim[1])
+                or np.isinf(ylim[0])
+                or np.isinf(ylim[1])
+            ):
+                ax.set_ylim(ylim)
     plt.tight_layout()
     sns.despine()
     plt.savefig(os.path.join(out_dir, f"{y_value}_{test}.png"))
