@@ -40,3 +40,5 @@ RadialDistribution_FracAtD_MitoTracker_MAX_1of4,Fraction of mitochondria in 1st 
 RadialDistribution_FracAtD_MitoTracker_MAX_4of4,Fraction of mitochondria in cell periphery
 RadialDistribution_MeanFrac_MitoTracker_MAX_1of4,Mean fraction of mitochondria in 1st quarter of cell
 RadialDistribution_MeanFrac_MitoTracker_MAX_4of4,Mean fraction of mitochondria in cell periphery
+Mitochondria_Std_Mitochondria_AreaShape_Area, Mean Std of Mitochondrial Area
+Lysosomes_Std_Lysosomes_AreaShape_Area, Mean Std of Lysosome Area

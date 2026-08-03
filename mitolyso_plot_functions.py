@@ -520,7 +520,18 @@ def pvalues_anova_with_tukey_pingouin(
         # this is a dataframe; get the pairs and the pvalue cols
         result_pairs = tukey_result[["A", "B"]].itertuples(index=False, name=None)
         pairs = list(result_pairs)
-        p_values = tukey_result["p-tukey"].tolist()
+
+        # Find the correct p-value column name in the Tukey result DataFrame
+        p_value_col = None
+        for candidate in ["p_tukey", "p-tukey"]:
+            if candidate in tukey_result.columns:
+                p_value_col = candidate
+                break
+        if p_value_col is None:
+            raise KeyError(
+                f"Unable to find a Tukey p-value column in Pingouin output. Available columns: {list(tukey_result.columns)}"
+            )
+        p_values = tukey_result[p_value_col].tolist()
         if display:
             pg.print_table(tukey_result)
         # display(tukey_result_df)
@@ -1117,7 +1128,7 @@ def annotate_pairs_with_calculated_pvalues(
         _type_: _description_
     """
     from statannotations.Annotator import Annotator
-    
+
     if pairs is None:
         pairs = getpairs(data, x_value, order=order)
 
@@ -1719,7 +1730,7 @@ def super_splitviolinplot_helper_singleplot(
     pallete=None,
     p_correction="bonferroni",
     ylim=None,
-    annotation_location="inside"
+    annotation_location="inside",
 ):
     group_avg_df = group_avg_df.copy()
     if pairs is None:
@@ -1802,7 +1813,7 @@ def super_splitviolinplot_helper_singleplot(
                 plate_col_name=plate_col_name,
                 test_name=test,
                 order=order,
-                plot="violinplot",
+                plot_type="violinplot",
                 show_test_name=show_test_on_plot,
                 annotation_location=annotation_location,
                 p_correction=p_correction,
@@ -1831,7 +1842,9 @@ def make_superswarmplot_with_annotation(
     figsize=(10, 9),
     context="talk",
     dpi=300,
-    annotation_location="inside"
+    p_correction="bonferroni",
+    annotation_location="inside",
+    show_plot=True,
 ):
     # Set values to defaults if a parameter is not loaded for order or y axis parameters
     if ytitle is None:
@@ -1937,7 +1950,8 @@ def make_superswarmplot_with_annotation(
                 test_name=test,
                 order=order,
                 annotation_location=annotation_location,
-                plot="swarmplot",
+                p_correction=p_correction,
+                plot_type="swarmplot",
             )
         except Exception as e:
             print(f"Error annotating with statistical test: {e}")
@@ -1954,7 +1968,8 @@ def make_superswarmplot_with_annotation(
     # annotator.apply_and_annotate()
 
     plt.savefig(xtitle + "_" + y_value + "_superswarmplot.png", dpi=dpi)
-    plt.show()
+    if show_plot:
+        plt.show()
 
 
 def ridge_label(x, color, label):
