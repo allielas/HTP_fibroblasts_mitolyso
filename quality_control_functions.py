@@ -104,6 +104,52 @@ def get_intensity_cols(df, channels=None):
     return intensity_cols
 
 
+def remove_problematic_rows_cols(
+    df,
+    plate_number,
+    problematic_rows,
+    problematic_cols,
+    problematic_rows_cols_combo_only=None,
+):
+    """
+    Remove rows and columns from the dataframe based on the specified plate number.
+    """
+    this_df = df.copy().reset_index(names="Old_Index")
+    filtered_df = this_df[this_df["Plate_Number"] == plate_number]
+    problematic_indicies_df = pd.DataFrame()
+    if problematic_rows or problematic_cols or problematic_rows_cols_combo_only:
+        row_mask = (
+            filtered_df["Metadata_WellRow"].astype(int).isin(problematic_rows)
+            if problematic_rows
+            else False
+        )
+        col_mask = (
+            filtered_df["Metadata_WellColumn"].astype(int).isin(problematic_cols)
+            if problematic_cols
+            else False
+        )
+        combo_mask = (
+            pd.MultiIndex.from_frame(
+                filtered_df[["Metadata_WellRow", "Metadata_WellColumn"]]
+            ).isin(problematic_rows_cols_combo_only)
+            if problematic_rows_cols_combo_only
+            else False
+        )
+        problematic_indicies_df = filtered_df.loc[row_mask | col_mask | combo_mask]
+    if not problematic_indicies_df.empty:
+        print(
+            f"   rows from plate {plate_number} before: {filtered_df.shape}, after: {filtered_df[~filtered_df['Old_Index'].isin(problematic_indicies_df['Old_Index'])].shape}"
+        )
+        this_df = this_df.loc[
+            ~this_df["Old_Index"].isin(problematic_indicies_df["Old_Index"])
+        ]
+    else:
+        print(
+            f"No problematic rows or columns found for plate {plate_number}. No rows removed."
+        )
+    return this_df.drop(columns=["Old_Index"]).reset_index(drop=True)
+
+
 def enforce_objects_one_to_one(
     df,
     parent_obj="Cell",
@@ -1427,284 +1473,40 @@ def mean_intensity_per_compartment_per_cell(df, compartment, name, tag, math=Non
     return df[colname]
 
 
-def calculate_corrected_features(full_df):
-    """_summary_
+def filter_nuclei_outisde_bbox(overlapped_df, nuc_prefix="Nuclei", cell_prefix=""):
+    """Exclude all rows with cells that have nuclei extruding the cell boundaries
 
     Args:
-        full_df (DataFrame): _description_
+        overlapped_df (Dataframe that contains objects to enforce overlap): _description_
+        nuc_prefix (str, optional): _description_. Defaults to "Nuclei".
+        cell_prefix (str, optional): _description_. Defaults to "".
 
     Returns:
-        df (DataFrame): the df with all the feature calcs
+        _type_: _description_
     """
-    df = full_df.copy()
-    df["Math_Total_Mitochondria_AreaShape_Area_PerCell"] = (
-        df["Children_Mitochondria_Count"] * df["Mean_Mitochondria_AreaShape_Area"]
+    df = overlapped_df.copy()
+    # Get the coordinate of the cell and nuclei objects
+    # Note- make sure the cells and nuclei are 1:1 or this will fail
+    nuc_min_x, nuc_min_y, nuc_max_x, nuc_max_y = (
+        df[f"{nuc_prefix}_AreaShape_BoundingBoxMinimum_X"],
+        df[f"{nuc_prefix}_AreaShape_BoundingBoxMinimum_Y"],
+        df[f"{nuc_prefix}_AreaShape_BoundingBoxMaximum_X"],
+        df[f"{nuc_prefix}_AreaShape_BoundingBoxMaximum_Y"],
     )
-    df["Math_Total_Lysosomes_AreaShape_Area_PerCell"] = (
-        df["Children_Lysosomes_Count"] * df["Mean_Lysosomes_AreaShape_Area"]
+    cell_min_x, cell_min_y, cell_max_x, cell_max_y = (
+        df[f"{cell_prefix}AreaShape_BoundingBoxMinimum_X"],
+        df[f"{cell_prefix}AreaShape_BoundingBoxMinimum_Y"],
+        df[f"{cell_prefix}AreaShape_BoundingBoxMaximum_X"],
+        df[f"{cell_prefix}AreaShape_BoundingBoxMaximum_Y"],
     )
-    df["Math_Total_Mitochondria_Puncta_AreaShape_Area_PerCell"] = (
-        df["Children_Mitochondria_Puncta_Count"]
-        * df["Mean_Mitochondria_Puncta_AreaShape_Area"]
-    )
+    # now get two boolean series that match the conditions
+    df_is_contained_x = (nuc_min_x >= cell_min_x) & (nuc_max_x <= cell_max_x)
+    df_is_contained_y = (nuc_min_y >= cell_min_y) & (nuc_max_y <= cell_max_y)
+    # and then we get the subset of the dataframe where both are true
+    df_is_contained_xy = df[df_is_contained_x & df_is_contained_y]
 
-    # Total intensity per cell based on integrated instensity if I don't already have the merged area
-    df["Mean_Intensity_Per_Lysosomes_PerCell_Area"] = (
-        mean_intensity_per_compartment_per_cell(
-            df,
-            "Lysosomes",
-            "MergedLysoPerCell",
-            "LAMP1",
-            math="Math_Total_Lysosomes_AreaShape_Area_PerCell",
-        )
-    )
-    df["Mean_Intensity_Per_Mitochondria_PerCell_Area"] = (
-        mean_intensity_per_compartment_per_cell(
-            df,
-            "Mitochondria",
-            "MergedMitoPerCell",
-            "MitoTracker",
-            math="Math_Total_Mitochondria_AreaShape_Area_PerCell",
-        )
-    )
-    df["Mean_Intensity_Per_Mitochondria_Puncta_PerCell_Area"] = (
-        mean_intensity_per_compartment_per_cell(
-            df,
-            "Mitochondria_Puncta",
-            "MergedMitoPunctaPerCell",
-            "MitoTracker",
-            math="Math_Total_Mitochondria_Puncta_AreaShape_Area_PerCell",
-        )
-    )
-    # #same thing but for medians
-    # df["Median_Intensity_Per_Lysosomes_PerCell_Area"] = (
-    #     df["Children_Lysosomes_Count"]
-    #     * df["Mean_Lysosomes_Intensity_MeanIntensity_LAMP1"]
-    # )
-    # df["Median_Intensity_Per_Mitochondria_PerCell_Area"] = (
-    #     df["Children_Mitochondria_Count"]
-    #     * df["Mean_Mitochondria_Intensity_MeanIntensity_MitoTracker"]
-    # )
-
-    # Corrected mitochondria and lysosomes counts per cell area (density)
-    df["Density_Children_Mitochondria_Count_PerCell_Area"] = (
-        df["Children_Mitochondria_Count"] / df["AreaShape_Area"]
-    )
-    df["Density_Children_Lysosomes_Count_PerCell_Area"] = (
-        df["Children_Lysosomes_Count"] / df["AreaShape_Area"]
-    )
-    df["Density_Children_Mitochondria_Puncta_Count_PerCell_Area"] = (
-        df["Children_Mitochondria_Puncta_Count"] / df["AreaShape_Area"]
-    )
-
-    # organelle area fractions per cell ratio
-    df["OccupiedAreaFraction_Mitochondria_PerCell_Area"] = (
-        df["Math_Total_Mitochondria_AreaShape_Area_PerCell"] / df["AreaShape_Area"]
-    )
-    df["OccupiedAreaFraction_Mitochondria_Puncta_PerCell_Area"] = (
-        df["Math_Total_Mitochondria_Puncta_AreaShape_Area_PerCell"]
-        / df["AreaShape_Area"]
-    )
-    df["OccupiedAreaFraction_Lysosomes_PerCell_Area"] = (
-        df["Math_Total_Lysosomes_AreaShape_Area_PerCell"] / df["AreaShape_Area"]
-    )
-
-    # Compartment diameter ratios
-    df["Mean_Lysosomes_MaxMinFeret_DiameterRatio_PerCell"] = (
-        df["Mean_Lysosomes_AreaShape_MaxFeretDiameter"]
-        / df["Mean_Lysosomes_AreaShape_MinFeretDiameter"]
-    )
-    df["Mean_Mitochondria_MaxMinFeret_DiameterRatio_PerCell"] = (
-        df["Mean_Mitochondria_AreaShape_MaxFeretDiameter"]
-        / df["Mean_Mitochondria_AreaShape_MinFeretDiameter"]
-    )
-    df["Median_Mitochondria_DiameterRatio_PerCell"] = (
-        df["Median_Mitochondria_AreaShape_MaxFeretDiameter"]
-        / df["Median_Mitochondria_AreaShape_MinFeretDiameter"]
-    )
-    df["Median_Lysosomes_DiameterRatio_PerCell"] = (
-        df["Median_Lysosomes_AreaShape_MaxFeretDiameter"]
-        / df["Median_Lysosomes_AreaShape_MinFeretDiameter"]
-    )
-    df["Mean_Mitochondria_Puncta_MaxMinFeret_DiameterRatio_PerCell"] = (
-        df["Mean_Mitochondria_Puncta_AreaShape_MaxFeretDiameter"]
-        / df["Mean_Mitochondria_Puncta_AreaShape_MinFeretDiameter"]
-    )
-    # df["Median_Mitochondria_Puncta_DiameterRatio_PerCell"] = (
-    #     df["Median_Mitochondria_Puncta_AreaShape_MaxFeretDiameter"]
-    #     / df["Median_Mitochondria_Puncta_AreaShape_MinFeretDiameter"]
-    # )
-
-    # mean and median area per organelle per cell area
-    df["Mean_Mitochondria_Area_PerCell_Area"] = (
-        df["Mean_Mitochondria_AreaShape_Area"] / df["AreaShape_Area"]
-    )
-    df["Mean_Lysosomes_Area_PerCell_Area"] = (
-        df["Mean_Lysosomes_AreaShape_Area"] / df["AreaShape_Area"]
-    )
-    df["Mean_Mitochondria_Puncta)Area_PerCell_Area"] = (
-        df["Mean_Mitochondria_Puncta_AreaShape_Area"] / df["AreaShape_Area"]
-    )
-    df["Median_Mitochondria_Area_PerCell_Area"] = (
-        df["Median_Mitochondria_AreaShape_Area"] / df["AreaShape_Area"]
-    )
-    df["Median_Lysosomes_Area_PerCell_Area"] = (
-        df["Median_Lysosomes_AreaShape_Area"] / df["AreaShape_Area"]
-    )
-
-    # mitolyso related
-    df["Children_Lysosomes_Mitochondria_Ratio"] = (
-        df["Children_Lysosomes_Count"] / df["Children_Mitochondria_Count"]
-    )
-    df["Density_Lysosomes_Mitochondria_Ratio"] = (
-        df["OccupiedAreaFraction_Lysosomes_PerCell_Area"]
-        / df["OccupiedAreaFraction_Mitochondria_PerCell_Area"]
-    )
-    df["Area_Lysosomes_Mitochondria_Ratio"] = (
-        df["Math_Total_Lysosomes_AreaShape_Area_PerCell"]
-        / df["Math_Total_Mitochondria_AreaShape_Area_PerCell"]
-    )
-
-    # Quin's Ratio: Ratio of centroid distance to minimum distance for mitochondria and lysosomes
-    # increase = more peripheral, decrease = more nuclear
-    df["Mean_Mitochondria_Distance_Centroid_Nuclei_Minimum_Nuclei_QuinRatio"] = (
-        df["Mean_Mitochondria_Distance_Centroid_Nuclei"]
-        / df["Mean_Mitochondria_Distance_Minimum_Nuclei"]
-    )
-    df["Mean_Lysosomes_Distance_Centroid_Nuclei_Minimum_Nuclei_QuinRatio"] = (
-        df["Mean_Lysosomes_Distance_Centroid_Nuclei"]
-        / df["Mean_Lysosomes_Distance_Minimum_Nuclei"]
-    )
-    df["Mean_Mitochondria_Distance_Centroid_Nuclei_Minimum_Cell_QuinRatio"] = (
-        df["Mean_Mitochondria_Distance_Centroid_Nuclei"]
-        / df["Mean_Mitochondria_Distance_Minimum_Cell"]
-    )
-    df["Mean_Lysosomes_Distance_Centroid_Nuclei_Minimum_Cell_QuinRatio"] = (
-        df["Mean_Lysosomes_Distance_Centroid_Nuclei"]
-        / df["Mean_Lysosomes_Distance_Minimum_Cell"]
-    )
-
-    df["Mean_Mitochondria_Puncta_Distance_Centroid_Nuclei_Minimum_Nuclei_QuinRatio"] = (
-        df["Mean_Mitochondria_Puncta_Distance_Centroid_Nuclei"]
-        / df["Mean_Mitochondria_Puncta_Distance_Minimum_Nuclei"]
-    )
-    df["Mean_Mitochondria_Puncta_Distance_Centroid_Nuclei_Minimum_Cell_QuinRatio"] = (
-        df["Mean_Mitochondria_Puncta_Distance_Centroid_Nuclei"]
-        / df["Mean_Mitochondria_Puncta_Distance_Minimum_Cell"]
-    )
-    # Distance to parents percellarea
-    df["Mean_Lysosomes_Distance_Centroid_Nuclei_PerCell_Area"] = (
-        df["Mean_Lysosomes_Distance_Centroid_Nuclei"] / df["AreaShape_Area"]
-    )
-    df["Mean_Mitochondria_Distance_Centroid_Nuclei_PerCell_Area"] = (
-        df["Mean_Mitochondria_Distance_Centroid_Nuclei"] / df["AreaShape_Area"]
-    )
-    df["Mean_Lysosomes_Distance_Centroid_Cell_PerCell_Area"] = (
-        df["Mean_Lysosomes_Distance_Centroid_Cell"] / df["AreaShape_Area"]
-    )
-    df["Mean_Mitochondria_Distance_Centroid_Cell_PerCell_Area"] = (
-        df["Mean_Mitochondria_Distance_Centroid_Cell"] / df["AreaShape_Area"]
-    )
-    df["Mean_Lysosomes_Distance_Minimum_Nuclei_PerCell_Area"] = (
-        df["Mean_Lysosomes_Distance_Minimum_Nuclei"] / df["AreaShape_Area"]
-    )
-    df["Mean_Mitochondria_Distance_Minimum_Nuclei_PerCell_Area"] = (
-        df["Mean_Mitochondria_Distance_Minimum_Nuclei"] / df["AreaShape_Area"]
-    )
-    df["Mean_Lysosomes_Distance_Minimum_Cell_PerCell_Area"] = (
-        df["Mean_Lysosomes_Distance_Minimum_Cell"] / df["AreaShape_Area"]
-    )
-    df["Mean_Mitochondria_Distance_Minimum_Cell_PerCell_Area"] = (
-        df["Mean_Mitochondria_Distance_Minimum_Cell"] / df["AreaShape_Area"]
-    )
-
-    df["Mean_Mitochondria_Puncta_Distance_Centroid_Nuclei_PerCell_Area"] = (
-        df["Mean_Mitochondria_Distance_Centroid_Nuclei"] / df["AreaShape_Area"]
-    )
-    df["Mean_Mitochondria_Puncta_Distance_Centroid_Cell_PerCell_Area"] = (
-        df["Mean_Mitochondria_Puncta_Distance_Centroid_Cell"] / df["AreaShape_Area"]
-    )
-    df["Mean_Mitochondria_Puncta_Distance_Minimum_Nuclei_PerCell_Area"] = (
-        df["Mean_Mitochondria_Puncta_Distance_Minimum_Nuclei"] / df["AreaShape_Area"]
-    )
-    df["Mean_Mitochondria_Puncta_Distance_Minimum_Cell_PerCell_Area"] = (
-        df["Mean_Mitochondria_Puncta_Distance_Minimum_Cell"] / df["AreaShape_Area"]
-    )
-
-    # transform the mitoends - number of ends times the mean to get total per cell
-    df["MitoEnds_Math_Total_NumberBranchEnds_MitoSkeleton"] = (
-        df["Children_MitoEnds_Count"]
-        * df["Mean_MitoEnds_ObjectSkeleton_NumberBranchEnds_MitoSkeleton"]
-    )
-    df["MitoEnds_Math_Total_NumberNonTrunkBranches_MitoSkeleton"] = (
-        df["Children_MitoEnds_Count"]
-        * df["Mean_MitoEnds_ObjectSkeleton_NumberNonTrunkBranches_MtSkltn"]
-    )
-    df["MitoEnds_Math_Total_NumberTrunks_MitoSkeleton"] = (
-        df["Children_MitoEnds_Count"]
-        * df["Mean_MitoEnds_ObjectSkeleton_NumberTrunks_MitoSkeleton"]
-    )
-    df["MitoEnds_Math_TotalObjectSkeltnLngth_MitoSkeleton"] = (
-        df["Children_MitoEnds_Count"]
-        * df["Mean_MitoEnds_ObjectSkeleton_TotalObjectSkeltnLngth_MtSkltn"]
-    )
-    # now divide these by cell area
-    df["MitoEnds_NumberBranchEnds_PerCell_Area"] = (
-        df["MitoEnds_Math_Total_NumberBranchEnds_MitoSkeleton"] / df["AreaShape_Area"]
-    )
-    df["MitoEnds_NumberNonTrunkBranches_PerCell_Area"] = (
-        df["MitoEnds_Math_Total_NumberNonTrunkBranches_MitoSkeleton"]
-        / df["AreaShape_Area"]
-    )
-    df["MitoEnds_NumberTrunks_PerCell_Area"] = (
-        df["MitoEnds_Math_Total_NumberTrunks_MitoSkeleton"] / df["AreaShape_Area"]
-    )
-    df["MitoEnds_TotalObjectSkeltnLngth_PerCell_Area"] = (
-        df["MitoEnds_Math_TotalObjectSkeltnLngth_MitoSkeleton"] / df["AreaShape_Area"]
-    )
-
-    # also the nuclear mito skeleton features per cell area
-    df["Nuclei_ObjectSkeleton_NumberBranchEnds_PerCell_Area"] = (
-        df["Nuclei_ObjectSkeleton_NumberBranchEnds_MitoSkeleton"] / df["AreaShape_Area"]
-    )
-    df["Nuclei_ObjectSkeleton_NumberNonTrunkBranches_PerCell_Area"] = (
-        df["Nuclei_ObjectSkeleton_NumberNonTrunkBranches_MitoSkeleton"]
-        / df["AreaShape_Area"]
-    )
-    df["Nuclei_ObjectSkeleton_NumberTrunks_PerCell_Area"] = (
-        df["Nuclei_ObjectSkeleton_NumberTrunks_MitoSkeleton"] / df["AreaShape_Area"]
-    )
-    df["Nuclei_ObjectSkeleton_TotalObjectSkeletonLength_PerCell_Area"] = (
-        df["Nuclei_ObjectSkeleton_TotalObjectSkeletonLength_MitoSkeleton"]
-        / df["AreaShape_Area"]
-    )
-
-    return df
-
-
-def define_cell_features(df):
-    # Get the columns of the dataframe
-    columns_list = df.columns.tolist()
-    columns_list = [
-        col
-        for col in columns_list
-        if "Metadata" not in col
-        and "FileName" not in col
-        and "PathName" not in col
-        and pd.api.types.is_numeric_dtype(df[col])
-    ]
-    old_columns_list = columns_list = [
-        col
-        for col in columns_list
-        if "Metadata" not in col and "FileName" not in col and "PathName" not in col
-    ]
-    print(
-        "Original columns:",
-        len(old_columns_list),
-        "Filtered columns:",
-        len(columns_list),
-    )
-    return columns_list
+    final_df = df_is_contained_xy.reset_index(drop=True)
+    return final_df
 
 
 def flag_outliers_by_group_mad(df, group_col, feature_col):

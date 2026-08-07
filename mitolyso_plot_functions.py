@@ -4,18 +4,17 @@ Allie Spangaro, Toronto Metropolitan University
 """
 
 import os
+from pathlib import Path
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-from scipy import stats
-from plate_preprocessing import *
-from pathlib import Path
+import scikit_posthocs as sp
 import scipy
 import seaborn as sns
-import scikit_posthocs as sp
-from plate_information import *
+from scipy import stats
 
+from plate_preprocessing import *
 
 """
 See this awesome course note here: https://biapol.github.io/PoL-BioImage-Analysis-TS-Early-Career-Track/day3a_plotting/03_Statistic_Annotations_in_Seaborn_Bonus.html
@@ -482,12 +481,8 @@ def pvalues_anova_with_games_howell_pingouin(
 
 def pvalues_anova_with_tukey_pingouin(
     data_df,
-    pivot_df,
     x_value,
     y_value,
-    plate_number_col="Plate_Number",
-    desired_pairs=None,
-    order=None,
     display=False,
 ):
     """Perform Tukey's post-hoc test on the data. Uses Tukey-Kramer method with sample size with the Pingouin package.
@@ -510,7 +505,15 @@ def pvalues_anova_with_tukey_pingouin(
     # do the anova
     anova_res = pg.anova(data=df, dv=y_value, between=x_value)
     pg.print_table(anova_res)
-    p_value_anova = anova_res["p-unc"][0]
+    for candidate in ["p_unc", "p-unc"]:
+        if candidate in anova_res.columns:
+            anova_res_pval = candidate
+            break
+        if anova_res is None:
+            raise KeyError(
+                f"Unable to find a Tukey p-value column in Pingouin output. Available columns: {list(tukey_result.columns)}"
+            )
+    p_value_anova = anova_res[anova_res_pval][0]
     # do the tukey
     if p_value_anova < 0.05:
         # print(df)
@@ -1076,20 +1079,6 @@ def annotate_with_anova_tukey(
     )
     annotator.apply_and_annotate()
     return ax
-
-
-def allgroups_sort_key(value):
-    """Custom sort key function for 'AllGroups' column."""
-    import re
-
-    match = re.match(r"P(\d+)", value)
-    if match:
-        first_number = match.group(1)
-        if first_number.isdigit():
-            return int(first_number)
-        else:
-            return 99999
-    return 99999
 
 
 def annotate_pairs_with_calculated_pvalues(
@@ -2339,14 +2328,17 @@ def single_feature_super_splitviolinplot(
     if ylim is None:
         ylim = axlim
     if ylim is not None and len(ylim) == 2:
-        if ylim[0] is not None and ylim[1] is not None:
-            if not (
+        if (
+            ylim[0] is not None
+            and ylim[1] is not None
+            and not (
                 np.isnan(ylim[0])
                 or np.isnan(ylim[1])
                 or np.isinf(ylim[0])
                 or np.isinf(ylim[1])
-            ):
-                ax.set_ylim(ylim)
+            )
+        ):
+            ax.set_ylim(ylim)
     plt.tight_layout()
     sns.despine()
     plt.savefig(os.path.join(out_dir, f"{y_value}_{test}.png"))
@@ -2420,3 +2412,603 @@ def remove_outliers_by_group_tietjen(df, group_col, feature_col, noutliers=5):
         filtered_groups.append(filtered_group)
     final_df = pd.concat(filtered_groups, axis=0)
     return final_df
+
+
+def compare_features_barplots(
+    df,
+    feature1,
+    feature2,
+    group_col="Plate_Number",
+    hue_col="Metadata_WellColumn",
+    figsize=(12, 8),
+):
+    fig, ax = plt.subplots(2, 1, figsize=figsize, sharex=True)
+    sns.barplot(
+        data=df,
+        ax=ax[0],
+        x=group_col,
+        y=feature1,
+        hue=hue_col,
+        palette="tab10",
+        legend=True,
+    )
+    sns.barplot(
+        data=df,
+        ax=ax[1],
+        x=group_col,
+        y=feature2,
+        hue=hue_col,
+        palette="tab10",
+        legend=False,
+    )
+    ax[0].legend(
+        loc="upper right", bbox_to_anchor=(1.18, 1), borderaxespad=0, title=hue_col
+    )
+    plt.show()
+
+
+def make_display_df_and_pivot_tables(
+    df, use_cols=None, make_new_features=False, display_table=True
+):
+    if use_cols is None:
+        use_cols = get_unique_cols_to_use(df)
+    if make_new_features:
+        df = calculate_extra_features(df)
+        df = make_per_cell_area_column_names(df, use_cols=use_cols)
+        skeleton_length_cols = get_object_skeleton_length_cols(df)
+        df = make_per_skeleton_length_column_names(
+            df,
+            use_cols=use_cols,
+            skeleton_length_cols=skeleton_length_cols,
+            feature_types=[
+                "Nuclei_ObjectSkeleton",
+                "MitoSkel_Seeds_ObjectSkeleton",
+                "IJ_Mitochondria",
+            ],
+        )
+    colnames_per_area = search_column_name(df, "Per_Area")
+    colnames_per_skeletonlength = search_column_name(df, "Per_SkeletonLength")
+    use_cols_new = use_cols + colnames_per_area + colnames_per_skeletonlength
+    use_cols_new_unique = list(dict.fromkeys(use_cols_new))
+
+    display_df = df[use_cols_new_unique]
+    display_df_pivot_plates = display_df.pivot_table(
+        index=["Metadata_PlateNumber", "AllGroups"],
+        values=use_cols_new_unique[3:],
+        aggfunc="mean",
+    )
+    if display_table:
+        print(display_df.head())
+        print(display_df_pivot_plates.head())
+    return display_df, display_df_pivot_plates
+
+
+def plotly_histogram(df, y_value, group_var, save=False, out_dir=""):
+    import kaleido
+    import plotly.express as px
+
+    df_sorted = df.sort_values(
+        by=[group_var], key=lambda x: x.map(passage_groups_sort_key)
+    ).reset_index(drop=True)
+    hist2 = px.histogram(
+        df_sorted,
+        x=y_value,
+        color=group_var,
+        marginal="box",
+    )
+    hist2.write_image(Path(out_dir, f"{y_value}_histogram.png"), scale=1.5)
+    hist2.show()
+
+
+#### Super box plots ####
+
+
+def super_boxplot_helper_singleplot(
+    data_df,
+    group_avg_df,
+    ax,
+    x_value,
+    y_value,
+    title,
+    plate_col_name,
+    pairs=None,
+    order=None,
+    annotate=False,
+    pallete="Set2",
+    test=None,
+    shapiro=True,
+    show_test_on_plot=False,
+    ylim=None,
+    context="talk",
+    font_scale=1.2,
+    p_correction="bonferroni",
+    annotation_location="inside",
+    limit_whiskers=True,
+    min_percentile=5,
+    max_percentile=95,
+    annotation_line_offset=0.0,
+    annotation_line_offset_to_group=0.005,
+    annotation_text_offset=0.15,
+    annotation_line_height=0.015,
+):
+    group_avg_df = group_avg_df.copy()
+    if pairs is None:
+        pairs = getpairs(data_df, x_value, order=order)
+    if pallete is None:
+        pallete = get_hard_code_plate_colours(group_avg_df)
+
+    plot_data_df = data_df.copy()
+    plot_group_avg_df = group_avg_df.copy()
+
+    if limit_whiskers:
+        whiskers = (min_percentile, max_percentile)
+    else:
+        whiskers = (0, 100)
+
+    sns.set_theme(style="ticks")
+    sns.set_context(context=context, font_scale=font_scale)
+
+    sns.boxplot(
+        data=plot_data_df,
+        x=x_value,
+        y=y_value,
+        order=order,
+        color="gainsboro",
+        width=0.6,
+        fliersize=0,
+        linewidth=1.5,
+        whis=whiskers,
+        showmeans=True,
+        meanline=True,
+        meanprops={"color": "#111111B2", "ls": "-", "lw": 3.0},
+        medianprops={"color": "#555555", "ls": "-", "lw": 2.0},
+        ax=ax,
+    )
+    sns.swarmplot(
+        data=group_avg_df,
+        x=x_value,
+        y=y_value,
+        hue=plate_col_name,
+        order=order,
+        palette=pallete,
+        size=10,
+        edgecolor="k",
+        linewidth=1,
+        dodge=False,
+        ax=ax,
+    )
+
+    ax.set_title(title)
+
+    if ylim is not None:
+        if isinstance(ylim, (int, float)):
+            ylim = (None, float(ylim))
+        if len(ylim) == 2:
+            ax.set_ylim(ylim)
+
+    if annotate and test is not None:
+        group_avg_pivot_table = average_groups_pivot(
+            plot_group_avg_df, x_value, y_value, plate_col_name
+        )
+        try:
+            print(f"Annotating with statistical test: {test}")
+            ax = annotate_pairs_with_calculated_pvalues(
+                ax,
+                plot_group_avg_df,
+                group_avg_pivot_table,
+                x_value,
+                y_value,
+                plate_col_name=plate_col_name,
+                test_name=test,
+                pairs=pairs,
+                order=order,
+                plot_type="boxplot",
+                show_test_name=show_test_on_plot,
+                annotation_location=annotation_location,
+                p_correction=p_correction,
+                line_offset=annotation_line_offset,
+                line_offset_to_group=annotation_line_offset_to_group,
+                text_offset=annotation_text_offset,
+                line_height=annotation_line_height,
+            )
+        except ValueError as e:
+            print(f"Error annotating with statistical test: {e}")
+        if shapiro:
+            ax = annotate_legend_with_shapiro(ax, plot_group_avg_df, plate_col_name)
+
+    return ax
+
+
+def OLD_make_superboxplot_with_annotation(
+    data_df,
+    x_value,
+    y_value,
+    plate_col_name="Plate_Number",
+    pairs=None,
+    order=None,
+    annotate=False,
+    test="tukey",
+    ytitle=None,
+    xtitle=None,
+    ylim=None,
+    pallete=None,
+    figsize=(10, 9),
+    context="talk",
+    dpi=300,
+    p_correction="bonferroni",
+    annotation_location="inside",
+    show_plot=True,
+    truncate_outliers=True,
+    min_percentile=5,
+    max_percentile=95,
+    annotation_line_offset=0.0,
+    annotation_line_offset_to_group=0.005,
+    annotation_text_offset=0.15,
+    annotation_line_height=0.015,
+):
+    plot_df = data_df.copy()
+    if ytitle is None:
+        ytitle = y_value.replace("_", " ")
+    if ylim is None:
+        ylim = (0, 100)
+    if order is None:
+        order = data_df[x_value].dropna().unique().tolist()
+    if xtitle is None:
+        xtitle = x_value
+    if pairs is None:
+        pairs = getpairs(plot_df, x_value, order)
+    print(pairs)
+
+    if truncate_outliers:
+        ymin = np.nanpercentile(plot_df[y_value], min_percentile)
+        ymax = np.nanpercentile(plot_df[y_value], max_percentile)
+        print(
+            f"Truncating {y_value} to percentiles "
+            f"{min_percentile}-{max_percentile}: ({ymin}, {ymax})"
+        )
+        plot_df = plot_df[(plot_df[y_value] >= ymin) & (plot_df[y_value] <= ymax)]
+
+    if x_value == "AllGroups":
+        order = get_all_group_order()
+
+    group_avg_df = average_groups_by_plate(
+        plot_df, x_value=x_value, y_value=y_value, plates=plate_col_name
+    )
+
+    group_avg_df_shapiro = apply_shapiro_wilk_test_to_df(
+        group_avg_df, feature_meas=y_value
+    )
+
+    group_avg_df_pivot = average_groups_pivot(
+        group_avg_df=group_avg_df_shapiro,
+        x_value=x_value,
+        y_value=y_value,
+        plate_col_name=plate_col_name,
+    )
+
+    sns.set_theme(style="ticks")
+    plt.figure(figsize=figsize)
+    sns.set_context(context, font_scale=0.8)
+    if pallete is None:
+        pallete = get_hard_code_plate_colours(plot_df)
+
+    ax = sns.boxplot(
+        data=plot_df,
+        x=x_value,
+        y=y_value,
+        order=order,
+        color="gainsboro",
+        showmeans=True,
+        meanline=True,
+        showfliers=False,
+        width=0.6,
+        fliersize=0,
+        linewidth=1.5,
+        meanprops={"color": "#111111", "ls": "-", "lw": 3.0},
+        medianprops={"color": "#555555", "ls": "-", "lw": 2.0},
+    )
+
+    sns.swarmplot(
+        data=group_avg_df,
+        x=x_value,
+        y=y_value,
+        hue=plate_col_name,
+        order=order,
+        palette=pallete,
+        size=12,
+        edgecolor="k",
+        linewidth=1,
+        dodge=False,
+        ax=ax,
+    )
+
+    if ax.legend_ is not None:
+        ax = annotate_legend_with_shapiro(ax, group_avg_df_shapiro, plate_col_name)
+
+    sns.despine()
+    plt.tight_layout()
+    plt.xlabel(xtitle)
+    plt.ylabel(ytitle)
+    plt.ylim(ylim)
+    if annotate and test is not None:
+        try:
+            print(test)
+            ax = annotate_pairs_with_calculated_pvalues(
+                ax,
+                group_avg_df_shapiro,
+                group_avg_df_pivot,
+                x_value,
+                y_value,
+                plate_col_name=plate_col_name,
+                test_name=test,
+                order=order,
+                annotation_location=annotation_location,
+                pairs=pairs,
+                plot_type="boxplot",
+                p_correction=p_correction,
+                line_offset=annotation_line_offset,
+                line_offset_to_group=annotation_line_offset_to_group,
+                text_offset=annotation_text_offset,
+                line_height=annotation_line_height,
+            )
+        except ValueError as e:
+            print(f"Error annotating with statistical test: {e}")
+
+    plt.savefig(xtitle + "_" + y_value + "_superboxplot.png", dpi=dpi)
+    if show_plot:
+        plt.show()
+
+
+def single_feature_super_boxplot(
+    data_df,
+    x_value="AllGroups",
+    y_value="AreaShape_Area",
+    plate_col_name="Plate_Number",
+    out_dir=Path("plots/"),
+    xtitle=None,
+    ytitle=None,
+    order=None,
+    legend=True,
+    annotate=False,
+    test="tukey_v3",
+    ylim=None,
+    shapiro=False,
+    show=True,
+    context="poster",
+    font_scale=1.2,
+    figsize=(8, 6),
+    limit_whiskers=True,
+    truncate_outliers=False,
+    min_percentile=5,
+    max_percentile=95,
+    pallete="tab10",
+    p_correction="bonf",
+    annotation_location="inside",
+    annotation_line_offset=0.0,
+    annotation_line_offset_to_group=0.005,
+    annotation_text_offset=0.005,
+    annotation_line_height=0.005,
+):
+    if order is None:
+        order = get_all_group_order()
+
+    min_percentile = float(min_percentile)
+    max_percentile = float(max_percentile)
+    if not (0 <= min_percentile < max_percentile <= 100):
+        raise ValueError(
+            "truncate_min_percentile and truncate_max_percentile must satisfy "
+            "0 <= min < max <= 100"
+        )
+
+    df_sorted = data_df.sort_values(
+        by=[x_value], key=lambda x: x.map(allgroups_sort_key)
+    ).reset_index(drop=True)
+    feature_df = df_sorted[[x_value, y_value, plate_col_name]].copy()
+
+    if truncate_outliers:
+        ymin = np.nanpercentile(feature_df[y_value], min_percentile)
+        ymax = np.nanpercentile(feature_df[y_value], max_percentile)
+        print(
+            f"Truncating {y_value} to percentiles "
+            f"{min_percentile}-{max_percentile}: ({ymin}, {ymax})"
+        )
+        feature_df = feature_df[
+            (feature_df[y_value] >= ymin) & (feature_df[y_value] <= ymax)
+        ]
+
+    group_avg_df = feature_df.groupby([x_value, plate_col_name], as_index=False).mean()
+
+    group_avg_df_sorted = group_avg_df.sort_values(
+        by=[x_value], key=lambda x: x.map(allgroups_sort_key)
+    ).reset_index(drop=True)
+
+    fig, ax = plt.subplots(figsize=figsize)
+
+    if ylim is None:
+        y_values = feature_df[y_value].dropna()
+        if not y_values.empty:
+            y_low = np.nanpercentile(y_values, min_percentile)
+            y_high = np.nanpercentile(y_values, max_percentile)
+            if np.isfinite(y_low) and np.isfinite(y_high) and y_high > y_low:
+                if truncate_outliers:
+                    padding = (y_high - y_low) * 0.05
+                    ylim = (y_low - padding, y_high + padding)
+                elif np.isfinite(y_high) and y_high > 0:
+                    padding_low = (y_high - y_low) * 0.05
+                    y_high = np.nanpercentile(y_values, 99.75)
+                    padding_high = (y_high - y_low) * 0.05
+                    ylim = (y_low - padding_low, y_high * 1.05 + padding_high)
+                else:
+                    ylim = (None, None)
+        else:
+            ylim = (None, None)
+    elif isinstance(ylim, (int, float)):
+        ylim = (None, float(ylim))
+
+    pairs = getpairs(feature_df, x_value, order=order)
+    print(pairs)
+
+    ax = super_boxplot_helper_singleplot(
+        feature_df,
+        group_avg_df_sorted,
+        ax,
+        x_value,
+        y_value,
+        title=" ",
+        plate_col_name=plate_col_name,
+        pairs=pairs,
+        order=order,
+        annotate=annotate,
+        test=test,
+        shapiro=False,
+        pallete=pallete,
+        p_correction=p_correction,
+        annotation_location=annotation_location,
+        show_test_on_plot=False,
+        ylim=ylim,
+        context=context,
+        font_scale=font_scale,
+        limit_whiskers=limit_whiskers,
+        min_percentile=min_percentile,
+        max_percentile=max_percentile,
+        annotation_line_offset=annotation_line_offset,
+        annotation_line_offset_to_group=annotation_line_offset_to_group,
+        annotation_text_offset=annotation_text_offset,
+        annotation_line_height=annotation_line_height,
+    )
+
+    if legend:
+        ax.legend(
+            bbox_to_anchor=(1.02, 1),
+            loc="upper left",
+            frameon=True,
+            title=plate_col_name,
+        )
+        if shapiro:
+            group_avg_df_shapiro = apply_shapiro_wilk_test_to_df(
+                group_avg_df_sorted,
+                feature_meas=y_value,
+                plate_col_name="Plate_Number",
+                alpha=0.05,
+            )
+            ax = annotate_legend_with_shapiro(ax, group_avg_df_shapiro, plate_col_name)
+    else:
+        if ax.legend_ is not None:
+            ax.legend_.remove()
+
+    if ytitle is not None:
+        ax.set_ylabel(ytitle)
+    else:
+        ax.set_ylabel(y_value.replace("_", " "))
+
+    if xtitle is not None:
+        ax.set_xlabel(xtitle)
+
+    if ylim is not None and len(ylim) == 2:
+        print(f"Using y-limits: {ylim}")
+        ax.set_ylim(ylim)
+
+    plt.tight_layout()
+    sns.despine()
+    plt.savefig(os.path.join(out_dir, f"{y_value}_{test}.png"))
+    if show:
+        plt.show()
+
+
+def get_hard_code_lineage_colours(
+    df, lineage_col_name="Lineage", plate_col_name="Plate_Number"
+):
+    colour_codes = pd.read_csv("proliferation_growth_curves/Lineage_only_hexcolour.csv")
+    hard_pallete_dict = dict(
+        zip(colour_codes[lineage_col_name], colour_codes["Colour"])
+    )
+
+    unique_lineages = sorted(df[lineage_col_name].drop_duplicates())
+
+    for lineage in unique_lineages:
+        if lineage not in hard_pallete_dict:
+            extra_colours = sns.color_palette("tab20", len(unique_lineages)).as_hex()
+            hard_pallete_dict = {
+                lineage: extra_colours[i] for i, lineage in enumerate(unique_lineages)
+            }
+    return hard_pallete_dict
+
+
+def make_feature_plots_from_csv(
+    data_df,
+    features_df,
+    xlabel="Age Groups",
+    group="AllGroups",
+    analysis_mode="Plates",
+    norm=False,
+    order=None,
+    figsize=(10, 10),
+    truncate_outliers=False,
+    annotate_pval=True,
+    test="tukey_v3",
+    font_scale=1.0,
+    annotation_location="inside",
+    context="poster",
+    show_legend=False,
+):
+    features_for_plots = features_df.to_dict("records")
+
+    feature_df_cols = [item["feature"] for item in features_for_plots]
+    feature_labels = [item["label"] for item in features_for_plots]
+
+    if order is None:
+        order = get_all_group_order()
+
+    if analysis_mode == "Lineages":
+        stat_grouping = "Lineage"
+        plot_dir = Path("plots/lineages")
+        show_legend = True
+        colour_dict = get_hard_code_lineage_colours(data_df)
+    elif analysis_mode == "Plates":
+        stat_grouping = "Plate_Number"
+        colour_dict = get_hard_code_plate_colours(data_df)
+        if norm:
+            data_df = norm_combined_cell_df_mitolyso.copy()
+            feature_labels = [
+                f"{name} (normalized to youngest group)" for name in feature_labels
+            ]
+            plot_dir = Path("plots/norm")
+        else:
+            data_df.copy()
+            plot_dir = Path("plots/notnorm")
+
+    else:
+        raise ValueError(
+            f"Invalid analysis mode: {analysis_mode}. Use 'Lineages' or 'Plates'."
+        )
+    pallete = colour_dict
+
+    if annotate_pval is False:
+        test = None
+        plot_dir = Path(plot_dir, "simplified")
+    os.makedirs(plot_dir, exist_ok=True)
+    for i, feature in enumerate(feature_df_cols):
+        ylabel = feature_labels[i]
+
+        single_feature_super_boxplot(
+            data_df,
+            x_value=group,
+            y_value=feature,
+            plate_col_name=stat_grouping,
+            xtitle=xlabel,
+            ytitle=ylabel,
+            out_dir=plot_dir,
+            annotate=annotate_pval,
+            order=order,
+            test=test,
+            truncate_outliers=truncate_outliers,
+            legend=show_legend,
+            context=context,
+            figsize=figsize,
+            pallete=pallete,
+            p_correction="fdr_bh",
+            shapiro=False,
+            font_scale=font_scale,
+            show=False,
+            annotation_location=annotation_location,
+        )
