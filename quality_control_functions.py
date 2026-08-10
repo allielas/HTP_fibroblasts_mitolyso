@@ -18,7 +18,6 @@ from scipy import stats
 from skimage import color
 
 from mitolyso_plot_functions import *
-from plate_information import *
 from plate_preprocessing import *
 
 try:

@@ -4,7 +4,6 @@ import numpy as np
 import pandas as pd
 
 from mitolyso_plot_functions import *
-from plate_information import *
 from plate_preprocessing import *
 
 
@@ -74,7 +73,12 @@ def make_per_lysosome_area_column_names(
     if use_cols is None:
         use_cols = []
     if base_cols is None:
-        base_cols = ["Metadata_PlateNumber", "Metadata_RowColField", "AllGroups", "AreaShape_Area"]
+        base_cols = [
+            "Metadata_PlateNumber",
+            "Metadata_RowColField",
+            "AllGroups",
+            "AreaShape_Area",
+        ]
     df = df.copy()
     new_use_cols = use_cols.copy()
     for col in base_cols:
@@ -327,7 +331,15 @@ def get_standard_deviations_from_large_df(
     """
     # open the csv file with extra info
     if features is None:
-        features = ["AreaShape_Area", "AreaShape_Perimeter", "AreaShape_EquivalentDiameter", "AreaShape_Extent", "AreaShape_Solidity", "AreaShape_Compactness", "AreaShape_Eccentricity"]
+        features = [
+            "AreaShape_Area",
+            "AreaShape_Perimeter",
+            "AreaShape_EquivalentDiameter",
+            "AreaShape_Extent",
+            "AreaShape_Solidity",
+            "AreaShape_Compactness",
+            "AreaShape_Eccentricity",
+        ]
     object_df = pd.read_csv(object_df_name)
     modified_df = df.copy()
     object_df_name_noext = os.path.splitext(os.path.basename(object_df_name))[0]
