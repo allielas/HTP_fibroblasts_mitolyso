@@ -245,7 +245,7 @@ def query_group_plate_condition(
     """
     mask = (
         (df["AllGroups"] == group)
-        & (df["Plate_Number"] == plate_number)
+        & (df["PlateNumber"] == plate_number)
         & (op(df[condition_col], value))
     )
     return df[mask]
@@ -1187,7 +1187,7 @@ def plate_df_setup_fromcsv(
             # Add a column to the cell_df to group passages and identify the plate plate
             cell_df["Passage Group"] = cell_df["PassageNumber"].apply(passage_group)
             cell_df["Metadata_Plate"] = plate
-            cell_df["Plate_Number"] = i + 1
+            cell_df["PlateNumber"] = i + 1
             # Append the merged DataFrame to the list
             plate_dfs[plate] = cell_df
 
@@ -1340,7 +1340,7 @@ def relate_objects(
     if metadata_cols is None:
         metadata_cols = [
             "ImageNumber",
-            "Plate_Number",
+            "PlateNumber",
             "Metadata_WellRow",
             "Metadata_WellColumn",
             "Metadata_Field",
@@ -1499,7 +1499,7 @@ def normalize_quantities_to_control_group_average(
     quantitiy_cols,
     group_col,
     control_value,
-    plate_number_col="Plate_Number",
+    plate_number_col="PlateNumber",
     overwrite=False,
     drop_avg_cols=False,
 ):
@@ -1831,7 +1831,7 @@ def make_summary_stats_for_df_and_feature(
     feature,
     summary_outpath,
     df_tag="original",
-    plate_col_name="Plate_Number",
+    plate_col_name="PlateNumber",
     feature_name="area",
     group_name="passage_group",
     include_cols=[],

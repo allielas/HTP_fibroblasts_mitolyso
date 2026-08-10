@@ -215,7 +215,7 @@ def shapiro_pvalue(
     group_avg_df,
     plate,
     feature_meas,
-    plate_col_name="Plate_Number",
+    plate_col_name="PlateNumber",
     debug=False,
 ):
     """Function to apply the shapiro wilk test to a dataframe aggregated by plate for a single feature
@@ -224,7 +224,7 @@ def shapiro_pvalue(
         group_avg_df (DataFrame): the aggregated dataframe
         plate (string, int): string or int representation of plate number
         feature_meas (string): _description_
-        plate_col_name (str, optional): the name of the plate column. Defaults to "Plate_Number".
+        plate_col_name (str, optional): the name of the plate column. Defaults to "PlateNumber".
         debug (bool, optional): print out p values. Defaults to False.
 
     Returns:
@@ -246,14 +246,14 @@ def shapiro_pvalue(
 
 
 def apply_shapiro_wilk_test_to_df(
-    group_avg_df, feature_meas, plate_col_name="Plate_Number", alpha=0.05
+    group_avg_df, feature_meas, plate_col_name="PlateNumber", alpha=0.05
 ):
     """Function to applies the shapiro wilk test row-by-row onto an aggregated dataframe by plate
 
     Args:
         group_avg_df (DataFrame): the aggregated dataframe
         feature_meas (string): _description_
-        plate_col_name (str, optional): the name of the plate column. Defaults to "Plate_Number".
+        plate_col_name (str, optional): the name of the plate column. Defaults to "PlateNumber".
         alpha (float): the p value threshold. Defaults to p=0.05
 
     Returns:
@@ -297,7 +297,7 @@ def pvalues_anova_and_tukeyhsd_posthoc(
     pivot_df,
     x_value,
     y_value,
-    plate_number_col="Plate_Number",
+    plate_number_col="PlateNumber",
     desired_pairs=None,
     order=None,
 ):
@@ -361,7 +361,7 @@ def pvalues_anova_with_games_howell(
     pivot_df,
     x_value,
     y_value,
-    plate_number_col="Plate_Number",
+    plate_number_col="PlateNumber",
     desired_pairs=None,
     order=None,
 ):
@@ -426,7 +426,7 @@ def pvalues_anova_with_games_howell_pingouin(
     pivot_df,
     x_value,
     y_value,
-    plate_number_col="Plate_Number",
+    plate_number_col="PlateNumber",
     desired_pairs=None,
     order=None,
     display=False,
@@ -548,7 +548,7 @@ def pvalues_anova_with_pairwise_tests_pingouin(
     data_df,
     x_value,
     y_value,
-    plate_number_col="Plate_Number",
+    plate_number_col="PlateNumber",
     pval_correction="bonf",
     parametric=True,
     desired_pairs=None,
@@ -616,7 +616,7 @@ def anova_with_tukey_posthoc(
     data_df,
     x_value,
     y_value,
-    plate_number_col="Plate_Number",
+    plate_number_col="PlateNumber",
     desired_pairs=None,
     order=None,
     display_results=False,
@@ -627,7 +627,7 @@ def anova_with_tukey_posthoc(
         data_df (_type_): _description_
         x_value (_type_): _description_
         y_value (_type_): _description_
-        plate_number_col (str, optional): _description_. Defaults to "Plate_Number".
+        plate_number_col (str, optional): _description_. Defaults to "PlateNumber".
         desired_pairs (_type_, optional): _description_. Defaults to None.
         order (_type_, optional): _description_. Defaults to None.
         display_results (bool, optional): _description_. Defaults to False.
@@ -675,7 +675,7 @@ def anova_with_corr_ttest_posthoc(
     data_df,
     x_value,
     y_value,
-    plate_number_col="Plate_Number",
+    plate_number_col="PlateNumber",
     desired_pairs=None,
     order=None,
     display_results=False,
@@ -687,7 +687,7 @@ def anova_with_corr_ttest_posthoc(
         data_df (_type_): _description_
         x_value (_type_): _description_
         y_value (_type_): _description_
-        plate_number_col (str, optional): _description_. Defaults to "Plate_Number".
+        plate_number_col (str, optional): _description_. Defaults to "PlateNumber".
         desired_pairs (_type_, optional): _description_. Defaults to None.
         order (_type_, optional): _description_. Defaults to None.
         display_results (bool, optional): _description_. Defaults to False.
@@ -739,7 +739,7 @@ def anova_with_tahmane_posthoc(
     data_df,
     x_value,
     y_value,
-    plate_number_col="Plate_Number",
+    plate_number_col="PlateNumber",
     desired_pairs=None,
     order=None,
     display_results=False,
@@ -793,7 +793,7 @@ def kruskal_with_dunn_posthoc(
     data_df,
     x_value,
     y_value,
-    plate_number_col="Plate_Number",
+    plate_number_col="PlateNumber",
     desired_pairs=None,
     order=None,
     p_correction="fdr_by",
@@ -839,7 +839,7 @@ def kruskal_with_drubin_posthoc(
     data_df,
     x_value,
     y_value,
-    plate_number_col="Plate_Number",
+    plate_number_col="PlateNumber",
     desired_pairs=None,
     order=None,
     display_results=False,
@@ -851,7 +851,7 @@ def kruskal_with_drubin_posthoc(
         data_df (_type_): _description_
         x_value (_type_): _description_
         y_value (_type_): _description_
-        plate_number_col (str, optional): _description_. Defaults to "Plate_Number".
+        plate_number_col (str, optional): _description_. Defaults to "PlateNumber".
         desired_pairs (_type_, optional): _description_. Defaults to None.
         order (_type_, optional): _description_. Defaults to None.
         display_results (bool, optional): _description_. Defaults to False.
@@ -908,7 +908,7 @@ def kruskal_with_conover_posthoc(
     data_df,
     x_value,
     y_value,
-    plate_number_col="Plate_Number",
+    plate_number_col="PlateNumber",
     desired_pairs=None,
     order=None,
     display_results=False,
@@ -920,7 +920,7 @@ def kruskal_with_conover_posthoc(
         data_df (_type_): _description_
         x_value (_type_): _description_
         y_value (_type_): _description_
-        plate_number_col (str, optional): _description_. Defaults to "Plate_Number".
+        plate_number_col (str, optional): _description_. Defaults to "PlateNumber".
         desired_pairs (_type_, optional): _description_. Defaults to None.
         order (_type_, optional): _description_. Defaults to None.
         display_results (bool, optional): _description_. Defaults to False.
@@ -974,7 +974,7 @@ def kruskal_with_nemenyi_posthoc(
     data_df,
     x_value,
     y_value,
-    plate_number_col="Plate_Number",
+    plate_number_col="PlateNumber",
     desired_pairs=None,
     order=None,
     display_results=False,
@@ -986,7 +986,7 @@ def kruskal_with_nemenyi_posthoc(
         data_df (_type_): _description_
         x_value (_type_): _description_
         y_value (_type_): _description_
-        plate_number_col (str, optional): _description_. Defaults to "Plate_Number".
+        plate_number_col (str, optional): _description_. Defaults to "PlateNumber".
         desired_pairs (_type_, optional): _description_. Defaults to None.
         order (_type_, optional): _description_. Defaults to None.
         display_results (bool, optional): _description_. Defaults to False.
@@ -1335,7 +1335,7 @@ def annotate_with_kruskal(
 
 
 def get_hard_code_plate_colours(
-    df, plates=[1, 2, 3, 4, 5, 6, 7], plate_col_name="Plate_Number"
+    df, plates=[1, 2, 3, 4, 5, 6, 7], plate_col_name="PlateNumber"
 ):
     """
     Returns a dictionary mapping each unique plate number to a hard-coded color.
@@ -1397,8 +1397,8 @@ def annotate_legend_with_shapiro(
     palette = get_hard_code_plate_colours(
         group_avg_df
     )  # sns.color_palette(palette, n_colors=len(unique_plates))
-    group_avg_df["Plate_Number"] = pd.Categorical(
-        group_avg_df["Plate_Number"], categories=unique_plates
+    group_avg_df["PlateNumber"] = pd.Categorical(
+        group_avg_df["PlateNumber"], categories=unique_plates
     )
     print(palette[1])
     handles = [
@@ -1585,7 +1585,7 @@ def superplot_for_area_threshold_comparisons(
     group_avg_df_2,
     x_value="AllGroups",
     y_value="Cell_AreaShape_Area",
-    plate_col_name="Plate_Number",
+    plate_col_name="PlateNumber",
     out_dir="",
     xtitle=None,
     ytitle=None,
@@ -1606,7 +1606,7 @@ def superplot_for_area_threshold_comparisons(
         group_avg_df_2 (_type_): _description_
         x_value (str, optional): _description_. Defaults to "AllGroups".
         y_value (str, optional): _description_. Defaults to "Cell_AreaShape_Area".
-        plate_col_name (str, optional): _description_. Defaults to "Plate_Number".
+        plate_col_name (str, optional): _description_. Defaults to "PlateNumber".
         csv_dir (str, optional): _description_. Defaults to "".
         xtitle (_type_, optional): _description_. Defaults to None.
         ytitle (_type_, optional): _description_. Defaults to None.
@@ -1819,7 +1819,7 @@ def make_superswarmplot_with_annotation(
     data_df,
     x_value,
     y_value,
-    plate_col_name="Plate_Number",
+    plate_col_name="PlateNumber",
     pairs=None,
     order=None,
     annotate=False,
@@ -2137,7 +2137,7 @@ def single_feature_super_splitviolinplot(
     data_df,
     x_value="AllGroups",
     y_value="Cell_AreaShape_Area",
-    plate_col_name="Plate_Number",
+    plate_col_name="PlateNumber",
     out_dir=Path(""),
     xtitle=None,
     ytitle=None,
@@ -2170,7 +2170,7 @@ def single_feature_super_splitviolinplot(
         group_avg_df_2 (_type_): _description_
         x_value (str, optional): _description_. Defaults to "AllGroups".
         y_value (str, optional): _description_. Defaults to "Cell_AreaShape_Area".
-        plate_col_name (str, optional): _description_. Defaults to "Plate_Number".
+        plate_col_name (str, optional): _description_. Defaults to "PlateNumber".
         csv_dir (str, optional): _description_. Defaults to "".
         xtitle (_type_, optional): _description_. Defaults to None.
         ytitle (_type_, optional): _description_. Defaults to None.
@@ -2310,7 +2310,7 @@ def single_feature_super_splitviolinplot(
             group_avg_df_shapiro = apply_shapiro_wilk_test_to_df(
                 group_avg_df_sorted,
                 feature_meas=y_value,
-                plate_col_name="Plate_Number",
+                plate_col_name="PlateNumber",
                 alpha=0.05,
             )
             # display(group_avg_df_shapiro)
@@ -2350,7 +2350,7 @@ def compare_features_barplots(
     df,
     feature1,
     feature2,
-    group_col="Plate_Number",
+    group_col="PlateNumber",
     hue_col="Metadata_WellColumn",
     figsize=(12, 8),
 ):
@@ -2555,7 +2555,7 @@ def OLD_make_superboxplot_with_annotation(
     data_df,
     x_value,
     y_value,
-    plate_col_name="Plate_Number",
+    plate_col_name="PlateNumber",
     pairs=None,
     order=None,
     annotate=False,
@@ -2695,7 +2695,7 @@ def single_feature_super_boxplot(
     data_df,
     x_value="AllGroups",
     y_value="AreaShape_Area",
-    plate_col_name="Plate_Number",
+    plate_col_name="PlateNumber",
     out_dir=Path("plots/"),
     xtitle=None,
     ytitle=None,
@@ -2820,7 +2820,7 @@ def single_feature_super_boxplot(
             group_avg_df_shapiro = apply_shapiro_wilk_test_to_df(
                 group_avg_df_sorted,
                 feature_meas=y_value,
-                plate_col_name="Plate_Number",
+                plate_col_name="PlateNumber",
                 alpha=0.05,
             )
             ax = annotate_legend_with_shapiro(ax, group_avg_df_shapiro, plate_col_name)
@@ -2848,7 +2848,7 @@ def single_feature_super_boxplot(
 
 
 def get_hard_code_lineage_colours(
-    df, lineage_col_name="Lineage", plate_col_name="Plate_Number"
+    df, lineage_col_name="Lineage", plate_col_name="PlateNumber"
 ):
     colour_codes = pd.read_csv("proliferation_growth_curves/Lineage_only_hexcolour.csv")
     hard_pallete_dict = dict(
@@ -2897,7 +2897,7 @@ def make_feature_plots_from_csv(
         show_legend = True
         colour_dict = get_hard_code_lineage_colours(data_df)
     elif analysis_mode == "Plates":
-        stat_grouping = "Plate_Number"
+        stat_grouping = "PlateNumber"
         colour_dict = get_hard_code_plate_colours(data_df)
         if norm:
             data_df = norm_combined_cell_df_mitolyso.copy()
