@@ -19,7 +19,7 @@ import pandas as pd
 ###
 
 
-def well_namer(row, col):
+def well_namer(row, col, pad_zeros=False):
     """
     Convert row and column numbers to a well name in the format A01, B02, etc.
 
@@ -30,9 +30,11 @@ def well_namer(row, col):
     Returns:
         str: Well name in the format A01, B02, etc.
     """
-    well_name = str(chr(ord("@") + row)) + str(col).rjust(
-        2, "0"
-    )  # make the number have a left align, adding a zero
+    if pad_zeros:  # make the number have a left align, adding a zero
+        well_name = str(chr(ord("@") + row)) + str(col).rjust(2, "0")
+    else:
+        well_name = str(chr(ord("@") + row)) + str(col)
+
     return well_name
 
 
@@ -571,6 +573,27 @@ def mean_intensity_per_compartment_per_cell(df, compartment, name, tag, math=Non
     df[colname] = df.apply(lambda x: x[integrated] / x[total_organelle_area], axis=1)
 
     return df[colname]
+
+
+def cell_nuc_area_ratio(
+    df,
+    cell_area_col="Cell_AreaShape_Area",
+    nuc_area_col="Nuclei_AreaShape_Area",
+    ratio_col_name="Cell_Nuclei_Area_Ratio",
+):
+    """
+    Calculate the ratio of cell area to nuclear area.
+
+    Args:
+        df (Series): A DataFrame containing 'Cell_AreaShape_Area' and 'Nuclei_AreaShape_Area' cols.
+
+    Returns:
+        Series: The column with the cell/nuc area ratio column to be added
+    """
+    df_overzero = df[df[nuc_area_col] > 0]
+    final_df = df_overzero.dropna(subset=[nuc_area_col]).reset_index(drop=True)
+    final_df[ratio_col_name] = final_df[cell_area_col] / final_df[nuc_area_col]
+    return final_df[ratio_col_name]
 
 
 def multinucleate_cells(df):

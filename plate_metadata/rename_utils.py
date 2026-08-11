@@ -257,8 +257,8 @@ prefixes = ["TreatmentGroup", "ShortStaining"]
 # )
 # rm_baks(folder=folder)
 
-old_plate = "plate_metadata/20250501_rep07_metadata/may01plate.csv"
-new_plate = "plate_metadata/20250501_rep07_metadata/new_may01plate.csv"
+old_plate = "plate_metadata/20240313_rep01_metadata/20240313_rep01.csv"
+#new_plate = "plate_metadata/20250501_rep07_metadata/20250501_rep07.csv"
 replace_strings_and_save_new_csv(
-    old_plate, "plate_metadata/replacements.csv", new_plate
+    old_plate, "plate_metadata/replacements.csv", old_plate
 )
