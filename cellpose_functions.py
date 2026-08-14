@@ -462,11 +462,11 @@ def preprocessing_for_cell_segmentation(
     img_combo = gfp + rfp
     img_combo = img_01_normalization(img_combo)
     img_combo = exposure.equalize_adapthist(
-        img_combo, kernel_size=128, clip_limit=0.01, nbins=256
+        img_combo, kernel_size=128, clip_limit=0.02, nbins=256
     )
     dapi = img_01_normalization(dapi)
     dapi = exposure.equalize_adapthist(
-        dapi, kernel_size=128, clip_limit=0.01, nbins=256
+        dapi, kernel_size=128, clip_limit=0.02, nbins=256
     )
     # denoise / smooth with gaussian kernel
     img_combo = filters.gaussian(img_combo, sigma=2)
