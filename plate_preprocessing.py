@@ -86,6 +86,35 @@ def passage_group(passage_num):
         return "Unknown"
 
 
+def normalize_well_string(s):
+    # A01, A1, a-01, " A 01 " -> A01
+    s = s.astype(str).str.upper().str.strip()
+    s = s.str.replace(r"[^A-Z0-9]", "", regex=True)  # remove separators/spaces
+    s = s.str.replace(r"^([A-H])([0-9])$", r"\10\2", regex=True)  # A1 -> A01
+    return s
+
+
+def rename_mismatched_well_names(
+    df, well_col="Metadata_Well", suffix_l="_x", suffix_r="_y"
+):
+    """
+    Rename mismatched well names in a dataframe to match the expected format (A01, B02, etc.)
+
+    Args:
+        df (DataFrame): The dataframe containing the well names.
+        well_col (str): The name of the column containing the well names.
+
+    Returns:
+        DataFrame: The dataframe with renamed well names.
+    """
+    # df[well_col] = normalize_well_string(df[f"{well_col}{suffix_l}"])
+    df[well_col] = df[f"{well_col}{suffix_l}"].combine_first(
+        df[f"{well_col}{suffix_r}"]
+    )
+    df.drop(columns=[f"{well_col}{suffix_l}", f"{well_col}{suffix_r}"], inplace=True)
+    return df
+
+
 def add_drug_to_group(init_df, group, drug):
     """
     Add the name of a drug treatment from the "Drug" column to the main "group" column

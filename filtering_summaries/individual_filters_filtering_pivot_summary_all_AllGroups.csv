@@ -1,16 +1,16 @@
 filter_type,P6-12,P13-15,P16-18,P19-21,P22-24,P25-27,P28-31,P32-35,Doxo
-Cell Size Filter Bottom Band,253,421,161,194,170,116,128,13,4
-Cell Size Filter Top Band,0,1,2,3,6,3,1,12,23
-Cell:Nuclear Area Ratio Filter Bottom Band,253,637,245,255,223,163,586,35,34
-Cell:Nuclear Area Ratio Filter Top Band,256,648,258,277,260,183,608,53,57
-First Closest Neighbour distance < 0.025th percentile (97.5th closest distance) or == 0 (no neighbours),330,648,280,296,165,172,274,0,2
+Cell Size Filter Bottom Band,253,421,161,190,170,115,120,12,6
+Cell Size Filter Top Band,0,2,2,3,12,4,2,15,28
+Cell:Nuclear Area Ratio Filter Bottom Band,253,637,245,250,223,161,543,33,47
+Cell:Nuclear Area Ratio Filter Top Band,256,648,259,275,268,183,565,58,75
+First Closest Neighbour distance < 0.025th percentile (97.5th closest distance) or == 0 (no neighbours),330,648,280,292,167,172,255,0,2
 Initial Dataset,0,0,0,0,0,0,0,0,0
 Min Number of Lysosomes Filter,0,0,0,0,0,0,0,0,0
 Min Number of Mitochondria Filter,0,0,0,0,0,0,0,0,0
-Nuclear Size Filter Bottom Band,253,413,217,253,252,209,145,24,12
-Nuclear Size Filter Top Band,1,5,4,14,21,13,8,32,23
+Nuclear Size Filter Bottom Band,253,413,217,249,252,206,142,23,14
+Nuclear Size Filter Top Band,1,6,4,14,22,12,8,35,28
 Nuclei Intensity MedianIntensity DAPI MAX WellNormalized Filter Bottom Band,1,1,1,1,1,1,1,1,1
-Nuclei Intensity MedianIntensity DAPI MAX WellNormalized Filter Top Band,33,46,21,37,25,14,24,12,7
-Number Of Neighbours < 97.5th Percentile,10085,18766,11974,13683,12665,8563,9391,1645,910
+Nuclei Intensity MedianIntensity DAPI MAX WellNormalized Filter Top Band,33,46,21,36,25,13,24,10,11
+Number Of Neighbours < 97.5th Percentile,10085,18766,11974,13532,12562,8345,8941,1548,1115
 Number Of Nuclei Neighbours < 97.5th Percentile,0,0,0,0,0,0,0,0,0
-Percent of Cell Touching Neighbours < 97.5th Percentile,10085,18766,11974,13683,12665,8563,9391,1645,910
+Percent of Cell Touching Neighbours < 97.5th Percentile,10085,18766,11974,13532,12562,8345,8941,1548,1115

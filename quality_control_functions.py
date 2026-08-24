@@ -2458,3 +2458,128 @@ def make_summary_stats_for_df_and_feature(
     except ValueError as e:
         print(f"Could not make summary stats: {e}")
         return False
+
+def display_cytodataframe(
+    df,
+    original_img_path,
+    original_outlines_path=None,
+    ch1="MitoTracker_MAX",
+    ch2="LAMP1_MAX",
+    ch3="DAPI_MAX",
+    range=None,
+    plate_folder=None,
+    mask_folder=None,
+    image_code=None,
+    image_code_col_name="Plate_RowColFieldCode",
+    render_whole_image=False,
+    output_path=None,
+    transpose=False,
+):
+    """_summary_
+
+    Args:
+        df (Pandas DataFrame): The DataFrame containing the data to display.
+        original_img_path (Path or str): the path to the original raw images
+        original_outlines_path (Path or str, optional): the path to the CellProfiler image-level outlines. Defaults to None.
+        ch1 (str, optional): Channel 1 name. Defaults to "MitoTracker_MAX".
+        ch2 (str, optional): Channel 2 name. Defaults to "LAMP1_MAX".
+        ch3 (str, optional): Channel 3 name. Defaults to "DAPI_MAX".
+        range (list, optional): The range of rows to display. Defaults to [0, 3].
+        plate_folder (str, optional): folder for a specific plate. Defaults to None.
+        mask_folder (str, optional): folder containing masks for a specific plate. Defaults to None.
+        image_code (str, optional): The image code to use. Defaults to None.
+        image_code_col_name (str, optional): The column name for the image code. Defaults to "Metadata_PlateNumber_RowColFieldCode".
+        render_whole_image (bool, optional): Whether to render the whole image. Defaults to False.
+        output_path (str, optional): The path to save the output. Defaults to None.
+    """
+    from cytodataframe.frame import CytoDataFrame
+
+    df = df.copy()
+    # make paths; original_outlines_path is optional
+    if isinstance(original_img_path, str):
+        original_img_path = Path(original_img_path)
+    if isinstance(original_outlines_path, str):
+        original_outlines_path = Path(original_outlines_path)
+
+    # if narrowing down to a specific image code, filter the dataframe accordingly
+    if image_code is not None:
+        df = df[df[image_code_col_name] == image_code]
+    if range is None:
+        if len(df) > 25:
+            print(
+                "Warning: Displaying more than 25 rows may be slow, using range=[0,25] by default."
+            )
+            range = [0, 25]
+        else:
+            range = [0, len(df)]
+
+    # handle the case where the range is out of bounds for the dataframe
+    try:
+        df = df.iloc[range[0] : range[1], :]
+    except IndexError as e:
+        print(f"range {range} not in range of dataframe with {len(df)} rows: {e}")
+        print("Displaying up to the last row.")
+        df = df.iloc[range[0] : len(df), :]
+
+    # narrow down the dataframe to the specific plate and passage number if provided
+    if plate_folder is not None and mask_folder is not None:
+        img_path = f"{original_img_path}/{plate_folder}"
+        mask_path = f"{original_img_path}/{plate_folder}/{mask_folder}"
+        df.loc[
+            :,
+            [f"Image_PathName_{ch1}", f"Image_PathName_{ch2}", f"Image_PathName_{ch3}"],
+        ] = mask_path
+    else:
+        img_path = f"{original_img_path}"
+        mask_path = None
+
+    # set paths
+    if original_outlines_path is not None:
+        outlines_path = f"{original_outlines_path}"
+    else:
+        outlines_path = None
+
+    # simplify colnames for display
+    df.rename(
+        columns={
+            "Cell_Unique_ID": "UniqueID",
+            "Number_Object_Number": "ObjectNum",
+            image_code_col_name: "PlateRowColField",
+        },
+        inplace=True,
+    )
+    frame = CytoDataFrame(
+        data=df,
+        data_context_dir=img_path,
+        data_outline_context_dir=outlines_path,
+        data_mask_context_dir=mask_path,
+        display_options={
+            "composite_channels": {
+                ch1: "magenta",
+                ch2: "yellow",
+                ch3: "cyan",
+            },
+            "equalize_clip_limit": 0.01,
+            "brightness": 20,
+            # "width": "200px",
+            "height": "auto",
+            "render_whole_image": render_whole_image,
+        },
+    )[
+        [
+            # "ImageNumber",
+            "UniqueID",
+            "PlateRowColField",
+            "ObjectNum",
+            f"Image_FileName_{ch1}",
+            f"Image_FileName_{ch2}",
+            f"Image_FileName_{ch3}",
+        ]
+    ]
+    if transpose:
+        display(frame.T)
+    else:
+        display(frame)
+    if output_path is not None:
+        frame.to_ome_parquet(output_path)
+    return frame
