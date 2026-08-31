@@ -1,14 +1,14 @@
 ,filter_type,columns,rows_initial,rows_removed,threshold,rows
-Initial_Dataset,Initial Dataset,3045,86868,0,"None,None",
-Number_of_Mitochondria_Filter,Min Number of Mitochondria Filter,3045,86868,0,min_compartments=0,86868.0
-Number_of_Lysosomes_Filter,Min Number of Lysosomes Filter,3045,86868,0,min_compartments=0,86868.0
-AreaShape_Area_Filter_Bottom,Cell Size Filter Bottom Band,3045,86868,1448,Bottom threshold: 14673.4,85352.0
-AreaShape_Area_Filter_Top,Cell Size Filter Top Band,3045,86868,68,Top threshold: 1154459.7999999977,85352.0
-Nuclei_AreaShape_Area_Filter_Bottom,Nuclear Size Filter Bottom Band,3045,85352,1022,Bottom threshold: 7067.3,84213.0
-Nuclei_AreaShape_Area_Filter_Top,Nuclear Size Filter Top Band,3045,85352,117,Top threshold: 89616.59999999995,84213.0
-Cell_Nuclei_Area_Ratio_Filter_Bottom,Cell:Nuclear Area Ratio Filter Bottom Band,3045,84213,1693,Bottom threshold: 1.6164851817503756,82520.0
-Cell_Nuclei_Area_Ratio_Filter_Top,Cell:Nuclear Area Ratio Filter Top Band,3045,82520,93,Top threshold: 22.160058147992746,82427.0
-Nuclei_Intensity_MedianIntensity_DAPI_MAX_WellNormalized_Filter_Bottom,Nuclei Intensity MedianIntensity DAPI MAX WellNormalized Filter Bottom Band,3045,82427,1,Bottom threshold: 0.02565103458205232,82426.0
-Nuclei_Intensity_MedianIntensity_DAPI_MAX_WellNormalized_Filter_Top,Nuclei Intensity MedianIntensity DAPI MAX WellNormalized Filter Top Band,3045,82426,109,Top threshold: 2.5,82317.0
-Cell_Neighbours_Filter,First Closest Neighbour distance < 0.025th percentile (97.5th closest distance) or == 0 (no neighbours),3045,82317,1398,Min closest neighbour distance: 134.65146537199365,80919.0
-Nuc_Neighbours_Filter,Number Of Nuclei Neighbours < 97.5th Percentile,3045,80919,0,Max Number Of Nuclei Neighbours: 0.0,80919.0
+Initial_Dataset,Initial Dataset,3046,86868,0,"None,None",
+Number_of_Mitochondria_Filter,Min Number of Mitochondria Filter,3046,86868,0,min_compartments=0,86868.0
+Number_of_Lysosomes_Filter,Min Number of Lysosomes Filter,3046,86868,0,min_compartments=0,86868.0
+AreaShape_Area_Filter_Bottom,Cell Size Filter Bottom Band,3046,86868,1448,Bottom threshold: 14673.4,85352.0
+AreaShape_Area_Filter_Top,Cell Size Filter Top Band,3046,86868,68,Top threshold: 1154459.7999999977,85352.0
+Nuclei_AreaShape_Area_Filter_Bottom,Nuclear Size Filter Bottom Band,3046,85352,1022,Bottom threshold: 7067.3,84213.0
+Nuclei_AreaShape_Area_Filter_Top,Nuclear Size Filter Top Band,3046,85352,117,Top threshold: 89616.59999999995,84213.0
+Cell_Nuclei_Area_Ratio_Filter_Bottom,Cell:Nuclear Area Ratio Filter Bottom Band,3046,84213,1693,Bottom threshold: 1.6164851817503756,82520.0
+Cell_Nuclei_Area_Ratio_Filter_Top,Cell:Nuclear Area Ratio Filter Top Band,3046,82520,93,Top threshold: 22.160058147992746,82427.0
+Nuclei_Intensity_MedianIntensity_DAPI_MAX_WellNormalized_Filter_Bottom,Nuclei Intensity MedianIntensity DAPI MAX WellNormalized Filter Bottom Band,3046,82427,1,Bottom threshold: 0.02565103458205232,82426.0
+Nuclei_Intensity_MedianIntensity_DAPI_MAX_WellNormalized_Filter_Top,Nuclei Intensity MedianIntensity DAPI MAX WellNormalized Filter Top Band,3046,82426,109,Top threshold: 2.5,82317.0
+Cell_Neighbours_Filter,First Closest Neighbour distance < 0.025th percentile (97.5th closest distance) or == 0 (no neighbours),3046,82317,1398,Min closest neighbour distance: 134.65146537199365,80919.0
+Nuc_Neighbours_Filter,Number Of Nuclei Neighbours < 97.5th Percentile,3046,80919,0,Max Number Of Nuclei Neighbours: 0.0,80919.0

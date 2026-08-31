@@ -1578,43 +1578,25 @@ def remove_outliers_by_group_tietjen(df, group_col, feature_col, noutliers=5):
 def get_mini_filtered_df(
     final_filtered_df,
     condition_col="",
+    filter_cols= True,
     valueslist=None,
     op=operator.le,
     condition_value=10,
     group="",
     group_col="AllGroups",
     plates=[],
-    plate_col="Plate_Number",
+    plate_col="PlateNumber",
 ):
-    if valueslist is None:
-        valueslist = [
-            "Cell_Unique_ID",
-            "ImageNumber",
-            "TimepointName",
-            "Metadata_WellRow",
-            "Metadata_WellColumn",
-            "Metadata_Field",
-            "AllGroups",
-            "Plate_Number",
-            "SerialPassage_BatchNumber",
-            "AgeGroup",
-            "PassageNumber",
-            "Number_Object_Number",
-            "AreaShape_Area",
-            "Nuclei_AreaShape_Area",
-            "Cell_Nuclei_Area_Ratio",
-            "Children_Mitochondria_Count",
-            "Children_Lysosomes_Count",
-            "Image_Width_DAPI",
-            "Image_URL_MitoTracker_MAX",
-            "Image_FileName_MitoTracker_MAX",
-            "Image_FileName_LAMP1_MAX",
-        ]
-    mini_df = final_filtered_df[valueslist]
+    if filter_cols:
+        if valueslist is None:
+            valueslist = ["Cell_Unique_ID", "ImageNumber", "TimepointName", "Metadata_WellRow", "Metadata_WellColumn", "Metadata_Field", "AllGroups", "PlateNumber", "SerialPassage_BatchNumber", "AgeGroup", "PassageNumber", "Number_Object_Number", "AreaShape_Area", "Nuclei_AreaShape_Area", "Cell_Nuclei_Area_Ratio", "Children_Mitochondria_Count", "Children_Lysosomes_Count", "Image_Width_DAPI", "Image_URL_MitoTracker_MAX", "Image_FileName_MitoTracker_MAX", "Image_FileName_LAMP1_MAX"]
+        mini_df = final_filtered_df[valueslist]
+    else:
+        mini_df = final_filtered_df.copy()
 
     mini_df["Metadata_Rep_RowColField"] = (
         "R"
-        + mini_df["Plate_Number"].astype(str)
+        + mini_df["PlateNumber"].astype(str)
         + "_r"
         + mini_df["Metadata_WellRow"].astype(str)
         + "c"
@@ -1639,7 +1621,7 @@ def get_mini_filtered_df(
     filter_mini_df_display = filter_mini_df_sorted[
         [
             group_col,
-            "Plate_Number",
+            "PlateNumber",
             "Cell_Unique_ID",
             "Number_Object_Number",
             "Image_FileName_MitoTracker_MAX",
@@ -1650,6 +1632,7 @@ def get_mini_filtered_df(
     display(filter_mini_df_display)
 
     return filter_mini_df_sorted
+
 
 
 def find_plate_cp_output_folder(path):
